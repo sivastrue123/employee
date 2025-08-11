@@ -6,7 +6,7 @@ import { FolderOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function ProjectProgress({ isLoading }) {
+export default function ProjectProgress({ isLoading }:any) {
   const projects = [
     { name: "Website Redesign", progress: 85, status: "active", color: "bg-blue-500" },
     { name: "Mobile App", progress: 60, status: "active", color: "bg-purple-500" },
@@ -64,7 +64,7 @@ export default function ProjectProgress({ isLoading }) {
                   {project.progress}%
                 </Badge>
               </div>
-              <Progress value={project.progress} className="h-2" />
+              <Progress className="!bg-slate-200 !rounded-[4px]" value={project.progress}  />
             </motion.div>
           ))}
         </div>
