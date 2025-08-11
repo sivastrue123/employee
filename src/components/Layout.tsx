@@ -32,51 +32,51 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const navigationItems = [
   {
     title: "Dashboard",
-    url: createPageUrl("Dashboard"),
+    url: "/Dashboard",
     icon: LayoutDashboard,
   },
   {
     title: "Employees",
-    url: createPageUrl("Employees"),
+    url: "/Employees",
     icon: Users,
   },
   {
     title: "Attendance",
-    url: createPageUrl("Attendance"),
+    url: "/Attendance",
     icon: Clock,
   },
   {
     title: "Projects",
-    url: createPageUrl("Projects"),
+    url: "/Projects",
     icon: FolderOpen,
   },
   {
     title: "Payroll",
-    url: createPageUrl("Payroll"),
+    url: "/Payroll",
     icon: DollarSign,
   },
 ];
 
-export default function Layout({ children, currentPageName }) {
+export default function Layout() {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await User.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.log("User not authenticated");
-      }
-      setIsLoading(false);
-    };
-    loadUser();
+    // const loadUser = async () => {
+    //   try {
+    //     const currentUser = await User.me();
+    //     setUser(currentUser);
+    //   } catch (error) {
+    //     console.log("User not authenticated");
+    //   }
+    //   setIsLoading(false);
+    // };
+    // loadUser();
   }, []);
 
   const handleLogout = async () => {
-    await User.logout();
+    // await User.logout();
   };
 
   if (isLoading) {
@@ -168,17 +168,17 @@ export default function Layout({ children, currentPageName }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={user.profile_image} />
+                    <AvatarImage src={""} />
                     <AvatarFallback className="bg-slate-100 text-slate-800 font-semibold">
-                      {user.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
+                      {/* {user.full_name?.split(' ').map(n => n[0]).join('') || 'U'} */}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900 text-sm truncate">
-                      {user.full_name || 'User'}
+                      { 'User'}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                    <p className="text-xs font-medium text-emerald-600 capitalize">{user.role}</p>
+                    <p className="text-xs text-slate-500 truncate">{"mail id"}</p>
+                    <p className="text-xs font-medium text-emerald-600 capitalize">{"role"}</p>
                   </div>
                 </div>
                 <Button
@@ -204,9 +204,9 @@ export default function Layout({ children, currentPageName }) {
             </div>
           </header>
 
-          <div className="flex-1 overflow-auto bg-slate-50">
+          {/* <div className="flex-1 overflow-auto bg-slate-50">
             {children}
-          </div>
+          </div> */}
         </main>
       </div>
     </SidebarProvider>
