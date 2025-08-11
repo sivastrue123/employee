@@ -5,8 +5,8 @@ import SidebarComp from "./SidebarComp";
 const Layout = () => {
   
   return (
-    <div className={`flex`}>
-      <div className="">
+    <div className={`flex  `}>
+      <div className="flex w-[15%]">
         <SidebarComp  />
       </div>
       <div className={`flex-1 `}>

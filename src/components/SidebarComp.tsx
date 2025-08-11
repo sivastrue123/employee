@@ -89,12 +89,12 @@ export default function SidebarComp({children}:any) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full border-8">
       
         <style>
           {`
             :root {
-              --sidebar-width: 280px;
+              --sidebar-width: 180px;
               --primary-navy: #1e293b;
               --primary-green: #10b981;
               --text-primary: #0f172a;
