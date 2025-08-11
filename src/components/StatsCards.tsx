@@ -31,12 +31,12 @@ export default function StatsCards({ title, value, icon: Icon, gradient, change,
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
     >
-      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 w-full h-48">
-        <CardContent className="p-6">
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 w-full h-40">
+        <CardContent className="">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-1">{title}</p>
