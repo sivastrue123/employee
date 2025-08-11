@@ -89,7 +89,7 @@ export default function SidebarComp({children}:any) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-slate-50">
+      <div className="min-h-screen flex w-full">
       
         <style>
           {`
@@ -197,7 +197,7 @@ export default function SidebarComp({children}:any) {
 
         <main className="flex-1 flex flex-col">
           <header className="bg-white border-b border-slate-200 px-6 py-4 lg:hidden">
-            <div className="flex items-center gap-4">
+            <div className="flex  gap-4">
               <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors">
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>

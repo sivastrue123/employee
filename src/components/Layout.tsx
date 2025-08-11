@@ -9,7 +9,7 @@ const Layout = () => {
       <div className="">
         <SidebarComp  />
       </div>
-      <div className={`absolute`}>
+      <div className={`flex-1 `}>
         <Outlet />
       </div>
     </div>

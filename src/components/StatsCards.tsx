@@ -14,7 +14,7 @@ interface StatsCardProps {
 export default function StatsCards({ title, value, icon: Icon, gradient, change, isLoading }:StatsCardProps) {
   if (isLoading) {
     return (
-      <Card className="border-0 shadow-lg">
+      <Card className="border-0 shadow-lg ">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
@@ -35,7 +35,7 @@ export default function StatsCards({ title, value, icon: Icon, gradient, change,
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow duration-300 w-full h-48">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>

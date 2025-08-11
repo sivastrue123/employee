@@ -97,21 +97,21 @@ export default function Dashboard() {
   };
 
   return (
- <div className="w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border">
+ <div className="flex flex-col w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-2"
+        className="space-y-2 flex flex-col items-start"
       >
-        <h1 className="text-2xl lg:text-4xl font-bold text-slate-900">
-          Welcome back{ 'User0122'}
-        </h1>
+        <p className="text-3xl lg:text-4xl font-bold text-slate-900">
+          Welcome back, Siva
+        </p>
         <p className="text-lg text-slate-600">
           Here's what's happening with your team today
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-2">
         <StatsCards
           title="Total Employees"
           value={stats.totalEmployees}
