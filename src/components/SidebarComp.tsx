@@ -89,7 +89,7 @@ export default function SidebarComp({children}:any) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full border-8">
+      <div className="min-h-screen flex w-full ">
       
         <style>
           {`

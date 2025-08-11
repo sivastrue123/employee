@@ -6,7 +6,7 @@ const Layout = () => {
   
   return (
     <div className={`flex  `}>
-      <div className="flex w-[15%]">
+      <div className="flex w-[20%]">
         <SidebarComp  />
       </div>
       <div className={`flex-1 `}>
