@@ -89,7 +89,7 @@ export default function SidebarComp({children}:any) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full border-2">
+      <div className="min-h-screen flex w-full ">
       
         <style>
           {`
@@ -126,13 +126,13 @@ export default function SidebarComp({children}:any) {
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-1">
                   {navigationItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem key={item.title} >
                       <SidebarMenuButton 
                         asChild 
                         className={`rounded-xl transition-all duration-200 ${
                           location.pathname === item.url 
-                            ? 'bg-slate-900 text-white shadow-lg' 
-                            : 'hover:bg-slate-100 text-slate-700 hover:text-slate-900'
+                            ? '!bg-slate-900 !text-white shadow-lg' 
+                            : 'hover:!bg-slate-100 !text-black hover:!text-black'
                         } `}
                       >
                         <Link to={item.url} className="flex items-center gap-3 px-4 py-3">

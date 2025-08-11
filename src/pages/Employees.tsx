@@ -193,18 +193,18 @@ export default function Employees() {
         </motion.div>
       )}
 
-      {/* <AnimatePresence>
+      <AnimatePresence>
         {showForm && (
           <EmployeeForm
             employee={editingEmployee}
             onSave={()=>{}}
             onCancel={() => {
               setShowForm(false);
-              setEditingEmployee(null);
+            
             }}
           />
         )}
-      </AnimatePresence> */}
+      </AnimatePresence>
     </div>
   );
 }
