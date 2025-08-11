@@ -1,9 +1,210 @@
-import React from 'react'
+import React, { useState, useEffect } from "react";
+import { Employee } from "@/entitites/employee";
+// import { User } from "@/entities/User";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Users, 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreHorizontal,
+  Mail,
+  Phone,
+  Calendar
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
 
-function Employees() {
+import EmployeeCard from "@/components/EmployeeCard";
+import EmployeeForm from "@/components/EmployeeForm";
+import EmployeeFilters from "@/components/EmployeeFilters";
+
+export default function Employees() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    loadEmployees();
+    // loadCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    filterEmployees();
+  }, [employees, searchTerm, selectedDepartment, selectedStatus]);
+
+  // const loadCurrentUser = async () => {
+  //   try {
+  //     const user = await User.me();
+  //     setCurrentUser(user);
+  //   } catch (error) {
+  //     console.error("Error loading current user:", error);
+  //   }
+  // };
+
+  const loadEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const data = await Employee.list();
+      setEmployees(data);
+    } catch (error) {
+      console.error("Error loading employees:", error);
+    }
+    setIsLoading(false);
+  };
+
+  const filterEmployees = () => {
+    let filtered = employees;
+
+    if (searchTerm) {
+      filtered = filtered.filter(emp => 
+        emp.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.position?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedDepartment !== "all") {
+      filtered = filtered.filter(emp => emp.department === selectedDepartment);
+    }
+
+    if (selectedStatus !== "all") {
+      filtered = filtered.filter(emp => emp.status === selectedStatus);
+    }
+
+    setFilteredEmployees(filtered);
+  };
+
+  // const handleSaveEmployee = async (employeeData:Employee) => {
+  //   try {
+  //     if (editingEmployee) {
+  //       await Employee.update(editingEmployee.id, employeeData);
+  //     } else {
+  //       await Employee.create({
+  //         ...employeeData,
+  //         employee_id: `EMP${Date.now()}`
+  //       });
+  //     }
+  //     setShowForm(false);
+  //     setEditingEmployee(null);
+  //     loadEmployees();
+  //   } catch (error) {
+  //     console.error("Error saving employee:", error);
+  //   }
+  // };
+
+  // const handleEditEmployee = (employee) => {
+  //   setEditingEmployee(employee);
+  //   setShowForm(true);
+  // };
+
+  // const isAdmin = currentUser?.role === 'admin';
+
   return (
-    <div>Employees</div>
-  )
-}
+    <div className="p-6 lg:p-8 space-y-8 w-full max-w-full h-auto">
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+        <div>
+          <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">Team Members</h1>
+          <p className="text-lg text-slate-600">Manage your workforce efficiently</p>
+        </div>
+      (
+          <Button
+            onClick={() => setShowForm(true)}
+            className="bg-slate-900 hover:bg-slate-800 text-white shadow-lg"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Employee
+          </Button>
+        )
+      </div>
 
-export default Employees
+      <div className="flex flex-col lg:flex-row gap-4 items-center">
+        <div className="relative flex-1 lg:max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Input
+            placeholder="Search employees..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+          />
+        </div>
+        
+        <EmployeeFilters
+          selectedDepartment={selectedDepartment}
+          setSelectedDepartment={setSelectedDepartment}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array(6).fill(0).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-slate-200 rounded-full" />
+                  <div className="space-y-2">
+                    <div className="h-4 bg-slate-200 rounded w-32" />
+                    <div className="h-3 bg-slate-200 rounded w-24" />
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          layout
+        >
+          <AnimatePresence>
+            {filteredEmployees.map((employee) => (
+              <EmployeeCard
+                key={employee?.id}
+                employee={employee}
+                onEdit={()=>{}}
+                canEdit={'admin'}
+              />
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+      {!isLoading && filteredEmployees.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-12"
+        >
+          <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-slate-600 mb-2">No employees found</h3>
+          <p className="text-slate-500">Try adjusting your search or filters</p>
+        </motion.div>
+      )}
+
+      {/* <AnimatePresence>
+        {showForm && (
+          <EmployeeForm
+            employee={editingEmployee}
+            onSave={()=>{}}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingEmployee(null);
+            }}
+          />
+        )}
+      </AnimatePresence> */}
+    </div>
+  );
+}

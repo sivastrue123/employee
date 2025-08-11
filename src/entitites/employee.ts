@@ -1,6 +1,6 @@
 // employee.ts
 export interface Employee {
-  employee_id?: string;
+  id?: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -18,7 +18,7 @@ export const Employee = {
   async list(): Promise<Employee[]> {
     return [
       {
-        employee_id: "emp001",
+        id: "emp001",
         first_name: "Siva",
         last_name: "M",
         email: "siva@example.com",
@@ -29,7 +29,7 @@ export const Employee = {
         status: "active",
       },
       {
-        employee_id: "emp002",
+        id: "emp002",
         first_name: "Ravi",
         last_name: "K",
         email: "ravi@example.com",
