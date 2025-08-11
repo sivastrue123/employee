@@ -165,21 +165,21 @@ export default function Dashboard() {
             <CardContent className="space-y-3">
               <Button 
                 variant="secondary" 
-                className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
+                className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
               >
                 <Clock className="w-4 h-4 mr-2" />
                 Clock In/Out
               </Button>
               <Button 
                 variant="secondary" 
-                className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
+                className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
               >
                 <Users className="w-4 h-4 mr-2" />
                 Add New Employee
               </Button>
               <Button 
                 variant="secondary" 
-                className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
+                className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
               >
                 <DollarSign className="w-4 h-4 mr-2" />
                 Run Payroll
