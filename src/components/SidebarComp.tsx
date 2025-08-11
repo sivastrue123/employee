@@ -57,7 +57,7 @@ const navigationItems = [
   },
 ];
 
-export default function SidebarC() {
+export default function SidebarComp({children}:any) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -183,7 +183,7 @@ export default function SidebarC() {
                   </div>
                 </div>
                 <Button
-                  variant="default"
+                  variant="ghost"
                   size="icon"
                   onClick={handleLogout}
                   className="text-slate-500 hover:text-slate-700 hover:bg-slate-100"
@@ -204,7 +204,9 @@ export default function SidebarC() {
               <h1 className="text-xl font-bold text-slate-900">WorkFlow</h1>
             </div>
           </header>
-
+ <div className="flex-1 overflow-auto bg-slate-50">
+            {children}
+          </div>
           {/* <div className="flex-1 overflow-auto bg-slate-50">
            <h1>Hello World</h1>
           </div> */}

@@ -5,11 +5,11 @@ import SidebarComp from "./SidebarComp";
 const Layout = () => {
   
   return (
-    <div className={`flex w-screen h-screen bg-slate-50`}>
-      <div className="" >
+    <div className={`flex`}>
+      <div className="">
         <SidebarComp  />
       </div>
-      <div className="w-[100%] h-auto">
+      <div className={`absolute`}>
         <Outlet />
       </div>
     </div>

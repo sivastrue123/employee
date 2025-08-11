@@ -1,6 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
 import Layout from "../components/Layout";
 import Dashboard from "@/pages/dashboard";
+import Employees from "@/pages/Employees";
+import Projects from "@/pages/Projects";
+import Attendance from "@/pages/Attendance";
+import Payroll from "@/pages/Payroll";
 
 const router = createBrowserRouter([
   {
@@ -10,8 +14,16 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard/>,
+        element: <Dashboard />,
       },
+      {
+        path: "/Dashboard",
+        element: <Dashboard />,
+      },
+      { path: "/Employees", element: <Employees /> },
+      { path: "/Projects", element: <Projects /> },
+      { path: "/Payroll", element: <Payroll /> },
+      { path: "/Attendance", element: <Attendance /> },
     ],
   },
 ]);

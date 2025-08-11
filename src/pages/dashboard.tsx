@@ -97,7 +97,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className=" w-auto h-auto ">
+ <div className="w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
