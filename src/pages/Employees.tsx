@@ -117,15 +117,15 @@ export default function Employees() {
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">Team Members</p>
           <p className="text-lg text-slate-600">Manage your workforce efficiently</p>
         </div>
-      (
+      
           <Button
             onClick={() => setShowForm(true)}
-            className="bg-sky-400 hover:bg-slate-800 text-black shadow-lg"
+            className="!bg-sky-400 hover:!bg-slate-800 !text-black hover:!text-white shadow-lg"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
-        )
+        
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-center">
@@ -185,11 +185,14 @@ export default function Employees() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12"
+          className="text-center  grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-center py-12 px-48"
+          layout
         >
-          <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+        <div className="w-full">
+            <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-slate-600 mb-2">No employees found</h3>
           <p className="text-slate-500">Try adjusting your search or filters</p>
+        </div>
         </motion.div>
       )}
 

@@ -193,7 +193,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="bg-slate-900 hover:bg-slate-800"
+                  className="!bg-slate-900 hover:!bg-slate-800"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Employee'}
                 </Button>
