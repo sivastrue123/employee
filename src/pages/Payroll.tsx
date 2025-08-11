@@ -2,7 +2,7 @@ import React from 'react'
 
 function Payroll() {
   return (
-    <div>Payroll</div>
+    <div className='mx-40'>Payroll</div>
   )
 }
 

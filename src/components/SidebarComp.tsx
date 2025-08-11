@@ -89,7 +89,7 @@ export default function SidebarComp({children}:any) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full ">
+      <div className="min-h-screen flex w-full border-2">
       
         <style>
           {`
@@ -133,7 +133,7 @@ export default function SidebarComp({children}:any) {
                           location.pathname === item.url 
                             ? 'bg-slate-900 text-white shadow-lg' 
                             : 'hover:bg-slate-100 text-slate-700 hover:text-slate-900'
-                        }`}
+                        } `}
                       >
                         <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
                           <item.icon className="w-5 h-5" />
