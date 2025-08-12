@@ -92,7 +92,7 @@ export default function EmployeeCard({ employee, onEdit, canEdit }:any) {
           </div>
           
           <div className="pt-2 text-xs text-slate-500">
-            ID: {employee.id}
+            ID: {employee.employee_id}
           </div>
         </CardContent>
       </Card>

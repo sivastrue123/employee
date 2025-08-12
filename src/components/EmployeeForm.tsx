@@ -1,52 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { X } from "lucide-react";
-
-const DEPARTMENTS = ["Engineering", "Marketing", "Sales", "HR", "Finance", "Operations", "Design"];
+import axios from "axios";
+const DEPARTMENTS = [
+  "Engineering",
+  "Marketing",
+  "Sales",
+  "HR",
+  "Finance",
+  "Operations",
+  "Design",
+];
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
-  { value: "terminated", label: "Terminated" }
+  { value: "terminated", label: "Terminated" },
 ];
 
-export default function EmployeeForm({ employee, onSave, onCancel }:any) {
-  const [formData, setFormData] = useState<any>(employee || {
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    position: "",
-    department: "",
-    hire_date: "",
-    hourly_rate: "",
-    status: "active",
-    profile_image: ""
-  });
+export default function EmployeeForm({ employee, onSave, onCancel }: any) {
+  const [formData, setFormData] = useState<any>(
+    employee || {
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+      position: "",
+      department: "",
+      hire_date: "",
+      hourly_rate: "",
+      status: "active",
+      profile_image: "",
+    }
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e:any) => {
-    e.preventDefault();
-    // setIsSubmitting(true);
-    // try {
-    //   await onSave(formData);
-    // } catch (error) {
-    //   console.error("Error saving employee:", error);
-    // }
-    // setIsSubmitting(false);
-    console.log(formData)
-    onCancel()
+  const handleSubmit = async (e: any) => {
+    try {
+      e.preventDefault();
+      const response = await axios.post("/api/employee/addEmployee", formData);
+      console.log("Response:", response.data);
+      console.log(formData);
+
+      onSave();
+    } catch (error) {
+      console.error("Error:", error);
+    }
   };
 
-  const handleChange = (field:any, value:any) => {
+  const handleChange = (field: any, value: any) => {
     setFormData((prev: any) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -68,13 +84,13 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
         <Card className="border-0 shadow-2xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-2xl font-bold">
-              {employee ? 'Edit Employee' : 'Add New Employee'}
+              {employee ? "Edit Employee" : "Add New Employee"}
             </CardTitle>
             <Button variant="ghost" size="icon" onClick={onCancel}>
               <X className="w-5 h-5" />
             </Button>
           </CardHeader>
-          
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -83,17 +99,17 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                   <Input
                     id="first_name"
                     value={formData.first_name}
-                    onChange={(e) => handleChange('first_name', e.target.value)}
+                    onChange={(e) => handleChange("first_name", e.target.value)}
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="last_name">Last Name *</Label>
                   <Input
                     id="last_name"
                     value={formData.last_name}
-                    onChange={(e) => handleChange('last_name', e.target.value)}
+                    onChange={(e) => handleChange("last_name", e.target.value)}
                     required
                   />
                 </div>
@@ -106,17 +122,17 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
+                    onChange={(e) => handleChange("email", e.target.value)}
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
+                    onChange={(e) => handleChange("phone", e.target.value)}
                   />
                 </div>
               </div>
@@ -127,20 +143,25 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                   <Input
                     id="position"
                     value={formData.position}
-                    onChange={(e) => handleChange('position', e.target.value)}
+                    onChange={(e) => handleChange("position", e.target.value)}
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="department">Department *</Label>
-                  <Select value={formData.department} onValueChange={(value) => handleChange('department', value)}>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) => handleChange("department", value)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEPARTMENTS.map(dept => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      {DEPARTMENTS.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -154,10 +175,10 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                     id="hire_date"
                     type="date"
                     value={formData.hire_date}
-                    onChange={(e) => handleChange('hire_date', e.target.value)}
+                    onChange={(e) => handleChange("hire_date", e.target.value)}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="hourly_rate">Hourly Rate *</Label>
                   <Input
@@ -166,7 +187,9 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                     step="0.01"
                     min="0"
                     value={formData.hourly_rate}
-                    onChange={(e) => handleChange('hourly_rate', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      handleChange("hourly_rate", parseFloat(e.target.value))
+                    }
                     required
                   />
                 </div>
@@ -174,12 +197,15 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => handleChange("status", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTIONS.map(status => (
+                    {STATUS_OPTIONS.map((status) => (
                       <SelectItem key={status.value} value={status.value}>
                         {status.label}
                       </SelectItem>
@@ -192,12 +218,12 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
                 <Button type="button" variant="outline" onClick={onCancel}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isSubmitting}
                   className="!bg-slate-900 hover:!bg-slate-800"
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Employee'}
+                  {isSubmitting ? "Saving..." : "Save Employee"}
                 </Button>
               </div>
             </form>
