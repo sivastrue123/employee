@@ -32,13 +32,15 @@ export default function EmployeeForm({ employee, onSave, onCancel }:any) {
 
   const handleSubmit = async (e:any) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await onSave(formData);
-    } catch (error) {
-      console.error("Error saving employee:", error);
-    }
-    setIsSubmitting(false);
+    // setIsSubmitting(true);
+    // try {
+    //   await onSave(formData);
+    // } catch (error) {
+    //   console.error("Error saving employee:", error);
+    // }
+    // setIsSubmitting(false);
+    console.log(formData)
+    onCancel()
   };
 
   const handleChange = (field:any, value:any) => {
