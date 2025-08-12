@@ -30,13 +30,13 @@ export default function EmployeeCard({ employee, onEdit, canEdit }:any) {
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
     >
-      <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white w-60">
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white w-60 lg:w-72">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16 border-4 border-white shadow-lg">
                 <AvatarImage src={employee.profile_image} />
-                <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-700 text-white font-bold text-lg">
+                <AvatarFallback className="bg-gradient-to-br from-slate-600  to-slate-700 text-white font-bold text-lg">
                   {employee.first_name?.[0]}{employee.last_name?.[0]}
                 </AvatarFallback>
               </Avatar>
@@ -92,7 +92,7 @@ export default function EmployeeCard({ employee, onEdit, canEdit }:any) {
           </div>
           
           <div className="pt-2 text-xs text-slate-500">
-            ID: {employee.employee_id}
+            ID: {employee.id}
           </div>
         </CardContent>
       </Card>

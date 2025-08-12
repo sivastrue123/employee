@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function ProjectProgress({ isLoading }:any) {
   const projects = [
     { name: "Website Redesign", progress: 85, status: "active", color: "bg-blue-500" },
-    { name: "Mobile App", progress: 60, status: "active", color: "bg-purple-500" },
+    { name: "Mobile App", progress: 50, status: "active", color: "bg-purple-500" },
     { name: "Marketing Campaign", progress: 35, status: "planning", color: "bg-orange-500" },
   ];
 
