@@ -2,15 +2,15 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 // import { createPageUrl } from "@/utils";
 // import { User } from "@/entities/User";
-import { 
-  Users, 
-  Clock, 
-  DollarSign, 
-  FolderOpen, 
-  LayoutDashboard, 
+import {
+  Users,
+  Clock,
+  DollarSign,
+  FolderOpen,
+  LayoutDashboard,
   Settings,
   LogOut,
-  Menu
+  Menu,
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,7 +57,7 @@ const navigationItems = [
   },
 ];
 
-export default function SidebarComp({children}:any) {
+export default function SidebarComp({ children }: any) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -90,7 +90,6 @@ export default function SidebarComp({children}:any) {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full ">
-      
         <style>
           {`
             :root {
@@ -104,7 +103,7 @@ export default function SidebarComp({children}:any) {
             }
           `}
         </style>
-        
+
         <Sidebar className="border-r border-slate-200 bg-white">
           <SidebarHeader className="border-b border-slate-200 p-6">
             <div className="flex items-center gap-3">
@@ -113,11 +112,13 @@ export default function SidebarComp({children}:any) {
               </div>
               <div>
                 <h2 className="font-bold text-slate-900 text-lg">WorkFlow</h2>
-                <p className="text-xs text-slate-500 font-medium">Employee Management</p>
+                <p className="text-xs text-slate-500 font-medium">
+                  Employee Management
+                </p>
               </div>
             </div>
           </SidebarHeader>
-          
+
           <SidebarContent className="p-3">
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
@@ -125,17 +126,21 @@ export default function SidebarComp({children}:any) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-1">
-                  {navigationItems.map((item) => (
-                    <SidebarMenuItem key={item.title} >
-                      <SidebarMenuButton 
-                        asChild 
+                  {navigationItems.map((item, index) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
                         className={`rounded-xl transition-all duration-200 ${
-                          location.pathname === item.url 
-                            ? '!bg-slate-900 !text-white shadow-lg' 
-                            : 'hover:!bg-slate-100 !text-black hover:!text-black'
+                          location.pathname === item.url ||
+                          (location.pathname === "/" && index === 0)
+                            ? "!bg-slate-900 !text-white shadow-lg"
+                            : "hover:!bg-slate-100 !text-black hover:!text-black"
                         } `}
                       >
-                        <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
+                        <Link
+                          to={item.url}
+                          className="flex items-center gap-3 px-4 py-3"
+                        >
                           <item.icon className="w-5 h-5" />
                           <span className="font-medium">{item.title}</span>
                         </Link>
@@ -157,7 +162,9 @@ export default function SidebarComp({children}:any) {
                       <Clock className="w-4 h-4 text-emerald-600" />
                       <span>Quick Clock In</span>
                     </div>
-                    <p className="text-xs text-slate-600">Track your time instantly</p>
+                    <p className="text-xs text-slate-600">
+                      Track your time instantly
+                    </p>
                   </div>
                 </div>
               </SidebarGroupContent>
@@ -176,10 +183,14 @@ export default function SidebarComp({children}:any) {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900 text-sm truncate">
-                      { 'User'}
+                      {"User"}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">{"mail id"}</p>
-                    <p className="text-xs font-medium text-emerald-600 capitalize">{"role"}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {"mail id"}
+                    </p>
+                    <p className="text-xs font-medium text-emerald-600 capitalize">
+                      {"role"}
+                    </p>
                   </div>
                 </div>
                 <Button
@@ -204,9 +215,7 @@ export default function SidebarComp({children}:any) {
               <h1 className="text-xl font-bold text-slate-900">WorkFlow</h1>
             </div>
           </header>
- <div className="flex-1 overflow-auto bg-slate-50">
-            {children}
-          </div>
+          <div className="flex-1 overflow-auto bg-slate-50">{children}</div>
           {/* <div className="flex-1 overflow-auto bg-slate-50">
            <h1>Hello World</h1>
           </div> */}
