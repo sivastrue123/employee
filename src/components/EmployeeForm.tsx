@@ -151,7 +151,6 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
-                    
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
                   />
@@ -244,7 +243,9 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                   disabled={isSubmitting}
                   className="!bg-slate-900 hover:!bg-slate-800"
                 >
-                  {isSubmitting ? "Saving..." : "Save Employee"}
+                  {isSubmitting
+                    ? "Saving..."
+                    : `${employee ? "Save" : "Create"} Employee`}
                 </Button>
               </div>
             </form>
