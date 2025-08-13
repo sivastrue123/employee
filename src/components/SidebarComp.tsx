@@ -152,7 +152,7 @@ export default function SidebarComp({ children }: any) {
             </SidebarGroup>
 
             <SidebarGroup className="mt-8">
-              <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+              <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 ">
                 Quick Actions
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -172,24 +172,24 @@ export default function SidebarComp({ children }: any) {
           </SidebarContent>
 
           <SidebarFooter className="border-t border-slate-200 p-4">
-            {user && (
+            {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={""} />
-                    <AvatarFallback className="bg-slate-100 text-slate-800 font-semibold">
-                      {/* {user.full_name?.split(' ').map(n => n[0]).join('') || 'U'} */}
+                    <AvatarFallback className="!bg-slate-100 !text-slate-800 !font-semibold">
+                      S
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900 text-sm truncate">
-                      {"User"}
+                      {"Siva"}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      {"mail id"}
+                      {"sivav2535@gmail.com"}
                     </p>
                     <p className="text-xs font-medium text-emerald-600 capitalize">
-                      {"role"}
+                      {"Developer"}
                     </p>
                   </div>
                 </div>
@@ -202,7 +202,7 @@ export default function SidebarComp({ children }: any) {
                   <LogOut className="w-4 h-4" />
                 </Button>
               </div>
-            )}
+            }
           </SidebarFooter>
         </Sidebar>
 
