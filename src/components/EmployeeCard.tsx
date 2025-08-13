@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Mail,
   Phone,
   Calendar,
@@ -21,6 +27,8 @@ const statusColors = {
 };
 
 export default function EmployeeCard({ employee, onEdit, canEdit }: any) {
+  const fullName = `${employee.first_name} ${employee.last_name}`;
+  const isLongName = fullName.length > 15;
   return (
     <motion.div
       layout
@@ -43,7 +51,20 @@ export default function EmployeeCard({ employee, onEdit, canEdit }: any) {
               </Avatar>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {employee.first_name} {employee.last_name}
+                  {isLongName ? (
+                    <TooltipProvider >
+                      <Tooltip >
+                        <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
+                          {fullName.substring(0, 6)}...
+                        </TooltipTrigger>
+                        <TooltipContent className="!border-none">
+                          <p>{fullName}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    fullName
+                  )}
                 </h3>
                 <p className="text-sm font-medium text-slate-600">
                   {employee.position}

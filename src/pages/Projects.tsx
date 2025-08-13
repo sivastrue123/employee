@@ -1,9 +1,11 @@
-import React from 'react'
-
+import React from "react";
+import ListingCard from "../components/project/ListingCard.js";
 function Projects() {
   return (
-    <div className='mx-40'>Projects</div>
-  )
+    <div className="mx-40">
+      <ListingCard />
+    </div>
+  );
 }
 
-export default Projects
+export default Projects;
