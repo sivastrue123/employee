@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Users,
   Clock,
-  DollarSign,
+  IndianRupee,
   FolderOpen,
   LayoutDashboard,
   Settings,
@@ -53,7 +53,7 @@ const navigationItems = [
   {
     title: "Payroll",
     url: "/Payroll",
-    icon: DollarSign,
+    icon: IndianRupee,
   },
 ];
 

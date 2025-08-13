@@ -7,15 +7,15 @@ import { Task } from "@/entitites/task";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  Clock, 
-  FolderOpen, 
-  TrendingUp, 
+import {
+  Users,
+  Clock,
+  FolderOpen,
+  TrendingUp,
   Calendar,
   CheckCircle2,
   AlertTriangle,
-  DollarSign
+  IndianRupee,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -24,13 +24,15 @@ import StatsCards from "../components/StatsCards";
 import RecentActivity from "../components/RecentActivity";
 import AttendanceOverview from "../components/AttendanceOverview";
 import ProjectProgress from "../components/ProjectProcess";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalEmployees: 0,
     activeProjects: 0,
     todayAttendance: 0,
-    completedTasks: 0
+    completedTasks: 0,
   });
   const [recentActivities, setRecentActivities] = useState<any>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,51 +56,58 @@ export default function Dashboard() {
       // setCurrentUser(user);
 
       setStats({
-        totalEmployees: employees.filter(emp => emp.status === 'active').length,
-        activeProjects: projects.filter(proj => proj.status === 'active').length,
-        todayAttendance: attendance.filter(att => 
-          att.date === format(new Date(), 'yyyy-MM-dd') && att.status === 'present'
+        totalEmployees: employees.filter((emp) => emp.status === "active")
+          .length,
+        activeProjects: projects.filter((proj) => proj.status === "active")
+          .length,
+        todayAttendance: attendance.filter(
+          (att) =>
+            att.date === format(new Date(), "yyyy-MM-dd") &&
+            att.status === "present"
         ).length,
-        completedTasks: tasks.filter(task => task.status === 'completed').length
+        completedTasks: tasks.filter((task) => task.status === "completed")
+          .length,
       });
 
       // Mock recent activities for demo
       setRecentActivities([
         {
           id: 1,
-          type: 'attendance',
-          message: 'John Smith clocked in',
-          time: '2 minutes ago',
+          type: "attendance",
+          message: "John Smith clocked in",
+          time: "2 minutes ago",
           icon: Clock,
-          color: 'text-green-600'
+          color: "text-green-600",
         },
         {
           id: 2,
-          type: 'task',
+          type: "task",
           message: 'Task "UI Design" completed',
-          time: '15 minutes ago',
+          time: "15 minutes ago",
           icon: CheckCircle2,
-          color: 'text-blue-600'
+          color: "text-blue-600",
         },
         {
           id: 3,
-          type: 'project',
+          type: "project",
           message: 'New project "Mobile App" created',
-          time: '1 hour ago',
+          time: "1 hour ago",
           icon: FolderOpen,
-          color: 'text-purple-600'
-        }
+          color: "text-purple-600",
+        },
       ]);
-
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     }
     setIsLoading(false);
   };
 
+  const handleAddEmployee = () => {
+    navigate("/Employees?AddEmployee");
+  };
   return (
- <div className="flex flex-col w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border ">
-      <motion.div 
+    <div className="flex flex-col w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border ">
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2 flex flex-col items-start md:mb-4"
@@ -151,10 +160,10 @@ export default function Dashboard() {
           <AttendanceOverview isLoading={isLoading} />
           <ProjectProgress isLoading={isLoading} />
         </div>
-        
+
         <div className="space-y-6">
           <RecentActivity activities={recentActivities} isLoading={isLoading} />
-          
+
           <Card className="border-0 shadow-lg bg-gradient-to-br from-slate-800 to-slate-900 text-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -163,25 +172,26 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
               >
                 <Clock className="w-4 h-4 mr-2" />
                 Clock In/Out
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
+                onClick={handleAddEmployee}
               >
                 <Users className="w-4 h-4 mr-2" />
                 Add New Employee
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
               >
-                <DollarSign className="w-4 h-4 mr-2" />
+                <IndianRupee className="w-4 h-4 mr-2" />
                 Run Payroll
               </Button>
             </CardContent>

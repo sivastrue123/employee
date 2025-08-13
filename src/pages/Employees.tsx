@@ -22,7 +22,10 @@ import EmployeeCard from "@/components/EmployeeCard";
 import EmployeeForm from "@/components/EmployeeForm";
 import EmployeeFilters from "@/components/EmployeeFilters";
 import axios from "axios";
+import { useLocation } from "react-router-dom";
 export default function Employees() {
+  const location = useLocation();
+  console.log(location.search);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployeesList, setFilteredEmployeesList] = useState<
     Employee[] | null
@@ -30,7 +33,9 @@ export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(
+    location.search == "?AddEmployee" ? true : false
+  );
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
