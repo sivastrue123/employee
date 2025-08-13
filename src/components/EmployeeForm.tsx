@@ -201,7 +201,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="hourly_rate">Hourly Rate *</Label>
+                  <Label htmlFor="hourly_rate">Hourly Rate (&#8377;) *</Label>
                   <Input
                     id="hourly_rate"
                     type="number"

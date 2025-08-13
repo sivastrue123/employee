@@ -7,7 +7,7 @@ import {
   Mail,
   Phone,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Edit,
   Building2,
 } from "lucide-react";
@@ -102,8 +102,11 @@ export default function EmployeeCard({ employee, onEdit, canEdit }: any) {
           </div>
 
           <div className="flex items-center gap-3 text-sm text-slate-600">
-            <DollarSign className="w-4 h-4" />
-            <span className="font-medium">${employee.hourly_rate}/hr</span>
+            <IndianRupee className="w-4 h-4" />
+            <span className="font-medium">
+              {/* &#8377; */}
+              {employee.hourly_rate}/hr
+            </span>
           </div>
 
           <div className="pt-2 text-xs text-slate-500">
