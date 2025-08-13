@@ -101,7 +101,7 @@ export default function Dashboard() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-2 flex flex-col items-start"
+        className="space-y-2 flex flex-col items-start md:mb-4"
       >
         <p className="text-3xl lg:text-4xl font-bold text-slate-900">
           Welcome back, Siva
