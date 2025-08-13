@@ -175,7 +175,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                     value={formData.department}
                     onValueChange={(value) => handleChange("department", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="!w-full !bg-white">
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
@@ -222,7 +222,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                   value={formData.status}
                   onValueChange={(value) => handleChange("status", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="!w-[50%] !bg-white">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>

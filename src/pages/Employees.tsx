@@ -118,7 +118,7 @@ export default function Employees() {
   // const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="flex-1 p-6 lg:p-8 space-y-8 w-full h-auto">
+    <div className="flex-1 p-6 lg:px-10 !lg:pr-8 space-y-8 w-full h-auto">
       <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
         <div>
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
@@ -142,13 +142,13 @@ export default function Employees() {
       </div>
 
       <div className="flex flex-col  lg:flex-row gap-4 items-center ">
-        <div className="relative rounded-[8px] w-[40%] bg-white">
+        <div className="relative rounded-[8px] w-[50%] bg-white">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 !text-slate-400 w-4 h-4" />
           <Input
             placeholder="Search employees By Name"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="!pl-10 !border-slate-200  !focus:border-slate-400 !focus:ring-slate-400"
+            className="!pl-10 py-5 !border-slate-200  !focus:border-slate-400 !focus:ring-slate-400"
           />
         </div>
 
