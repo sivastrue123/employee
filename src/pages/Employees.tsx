@@ -145,7 +145,7 @@ export default function Employees() {
         <div className="relative  flex-1 ">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
           <Input
-            placeholder="Search employees..."
+            placeholder="Search employees By Name"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-slate-200 focus:border-slate-400 focus:ring-slate-400"
