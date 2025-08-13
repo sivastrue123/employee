@@ -14,9 +14,9 @@ export default function EmployeeFilters({
   return (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2">
-        <Filter className="w-4 h-4 text-slate-500" />
+        <Filter className="w-4 h-4 !text-slate-500" />
         <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-          <SelectTrigger className="">
+          <SelectTrigger className="!bg-white">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -29,7 +29,7 @@ export default function EmployeeFilters({
       </div>
 
       <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-        <SelectTrigger className="">
+        <SelectTrigger className="!bg-white">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
