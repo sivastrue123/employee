@@ -111,7 +111,7 @@ export default function Dashboard() {
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-4">
+      <div className="grid grid-cols-1 md:grid-cols-2  lg:grid-cols-4 gap-6 my-4 mb-8">
         <StatsCards
           title="Total Employees"
           value={stats.totalEmployees}
