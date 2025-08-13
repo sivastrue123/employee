@@ -24,7 +24,9 @@ import EmployeeFilters from "@/components/EmployeeFilters";
 import axios from "axios";
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
+  const [filteredEmployeesList, setFilteredEmployeesList] = useState<
+    Employee[] | null
+  >(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -87,7 +89,7 @@ export default function Employees() {
       filtered = filtered.filter((emp) => emp.status === selectedStatus);
     }
 
-    setFilteredEmployees(filtered);
+    setFilteredEmployeesList(filtered);
   };
 
   // const handleSaveEmployee = async (employeeData:Employee) => {
@@ -108,10 +110,10 @@ export default function Employees() {
   //   }
   // };
 
-  // const handleEditEmployee = (employee) => {
-  //   setEditingEmployee(employee);
-  //   setShowForm(true);
-  // };
+  const handleEditEmployee = (employee: any) => {
+    setEditingEmployee(employee);
+    setShowForm(true);
+  };
 
   // const isAdmin = currentUser?.role === 'admin';
 
@@ -128,7 +130,10 @@ export default function Employees() {
         </div>
 
         <Button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingEmployee(null);
+            setShowForm(true);
+          }}
           className="!bg-sky-400 hover:!bg-slate-800 !text-black hover:!text-white shadow-lg"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -136,8 +141,8 @@ export default function Employees() {
         </Button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 items-center">
-        <div className="relative flex-1 ">
+      <div className="flex flex-col  lg:flex-row gap-4 items-center ">
+        <div className="relative  flex-1 ">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
           <Input
             placeholder="Search employees..."
@@ -182,36 +187,41 @@ export default function Employees() {
           layout
         >
           <AnimatePresence>
-            {filteredEmployees.map((employee,index) => (
-              <EmployeeCard
-                key={index}
-                employee={employee}
-                onEdit={() => {}}
-                canEdit={"admin"}
-              />
-            ))}
+            {filteredEmployeesList &&
+              filteredEmployeesList.map((employee, index) => (
+                <EmployeeCard
+                  key={index}
+                  employee={employee}
+                  onEdit={(e: any) => {
+                    handleEditEmployee(e);
+                  }}
+                  canEdit={"admin"}
+                />
+              ))}
           </AnimatePresence>
         </motion.div>
       )}
 
-      {!isLoading && filteredEmployees.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center  grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-center py-12 px-48"
-          layout
-        >
-          <div className="w-full">
-            <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-600 mb-2">
-              No employees found
-            </h3>
-            <p className="text-slate-500">
-              Try adjusting your search or filters
-            </p>
-          </div>
-        </motion.div>
-      )}
+      {!isLoading &&
+        filteredEmployeesList &&
+        filteredEmployeesList.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center  grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4  items-center py-12 "
+            layout
+          >
+            <div className="w-full">
+              <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-600 mb-2">
+                No employees found
+              </h3>
+              <p className="text-slate-500">
+                Try adjusting your search or filters
+              </p>
+            </div>
+          </motion.div>
+        )}
 
       <AnimatePresence>
         {showForm && (

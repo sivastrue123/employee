@@ -1,15 +1,15 @@
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Mail, 
-  Phone, 
-  Calendar, 
-  DollarSign, 
+import {
+  Mail,
+  Phone,
+  Calendar,
+  DollarSign,
   Edit,
-  Building2
+  Building2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -17,10 +17,10 @@ import { format } from "date-fns";
 const statusColors = {
   active: "bg-green-100 text-green-800 border-green-200",
   inactive: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  terminated: "bg-red-100 text-red-800 border-red-200"
+  terminated: "bg-red-100 text-red-800 border-red-200",
 };
 
-export default function EmployeeCard({ employee, onEdit, canEdit }:any) {
+export default function EmployeeCard({ employee, onEdit, canEdit }: any) {
   return (
     <motion.div
       layout
@@ -37,15 +37,28 @@ export default function EmployeeCard({ employee, onEdit, canEdit }:any) {
               <Avatar className="w-16 h-16 border-4 border-white shadow-lg">
                 <AvatarImage src={employee.profile_image} />
                 <AvatarFallback className="bg-gradient-to-br from-slate-600  to-slate-700 text-white font-bold text-lg">
-                  {employee.first_name?.[0]}{employee.last_name?.[0]}
+                  {employee.first_name?.[0]}
+                  {employee.last_name?.[0]}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
                   {employee.first_name} {employee.last_name}
                 </h3>
-                <p className="text-sm font-medium text-slate-600">{employee.position}</p>
-                <Badge className={`text-xs mt-1 ${statusColors["active"] }`}>
+                <p className="text-sm font-medium text-slate-600">
+                  {employee.position}
+                </p>
+                <Badge
+                  className={`text-xs mt-1 ${
+                    statusColors[
+                      `${
+                        employee.status
+                          ? (employee.status as keyof typeof statusColors)
+                          : "active"
+                      }`
+                    ]
+                  }`}
+                >
                   {employee.status}
                 </Badge>
               </div>
@@ -62,35 +75,37 @@ export default function EmployeeCard({ employee, onEdit, canEdit }:any) {
             )}
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <Building2 className="w-4 h-4" />
             <span>{employee.department}</span>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <Mail className="w-4 h-4" />
             <span className="truncate">{employee.email}</span>
           </div>
-          
+
           {employee.phone && (
             <div className="flex items-center gap-3 text-sm text-slate-600">
               <Phone className="w-4 h-4" />
               <span>{employee.phone}</span>
             </div>
           )}
-          
+
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <Calendar className="w-4 h-4" />
-            <span>Joined {format(new Date(employee.hire_date), 'MMM yyyy')}</span>
+            <span>
+              Joined {format(new Date(employee.hire_date), "MMM yyyy")}
+            </span>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <DollarSign className="w-4 h-4" />
             <span className="font-medium">${employee.hourly_rate}/hr</span>
           </div>
-          
+
           <div className="pt-2 text-xs text-slate-500">
             ID: {employee.employee_id}
           </div>

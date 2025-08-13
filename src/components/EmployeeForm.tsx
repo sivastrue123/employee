@@ -48,14 +48,34 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
 
   const handleSubmit = async (e: any) => {
     try {
+      setIsSubmitting(true);
+      if (formData.phone) {
+        const numericValue = formData.phone.replace(/\D/g, "");
+        if (numericValue.length !== 10 && numericValue.length > 0) {
+          alert("Phone number must be exactly 10 digits.");
+        }
+      }
       e.preventDefault();
-      const response = await axios.post("/api/employee/addEmployee", formData);
+      let response;
+      if (employee) {
+        response = await axios.patch(
+          `/api/employee/editEmployee/${employee._id}`,
+          formData
+        );
+      } else {
+        response = await axios.post("/api/employee/addEmployee", formData);
+      }
+
       console.log("Response:", response.data);
       console.log(formData);
 
       onSave();
+      setIsSubmitting(false);
     } catch (error) {
       console.error("Error:", error);
+      setIsSubmitting(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -131,6 +151,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
+                    
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
                   />
