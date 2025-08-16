@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 // import { createPageUrl } from "@/utils";
 // import { User } from "@/entities/User";
@@ -52,17 +52,55 @@ const navigationItems = [
     icon: FolderOpen,
   },
   // {
-  //   title: "Payroll",
-  //   url: "/Payroll",
-  //   icon: IndianRupee,
+  //  title: "Payroll",
+  //  url: "/Payroll",
+  //  icon: IndianRupee,
   // },
 ];
+
+// Helper function to format time
+const formatTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  const pad = (num: number) => num.toString().padStart(2, "0");
+
+  return `${pad(hours)}:${pad(minutes)}:${pad(remainingSeconds)}`;
+};
 
 export default function SidebarComp({ children }: any) {
   const { logout, user } = useAuth();
   const location = useLocation();
 
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    let timerId: NodeJS.Timeout | undefined;
+
+    if (isClockedIn) {
+      timerId = setInterval(() => {
+        setElapsedTime((prevTime) => prevTime + 1);
+      }, 1000);
+    }
+
+    return () => {
+      if (timerId) {
+        clearInterval(timerId);
+      }
+    };
+  }, [isClockedIn]);
+
+  const handleClockIn = () => {
+    setIsClockedIn(true);
+    setElapsedTime(0);
+  };
+
+  const handleClockOut = () => {
+    setIsClockedIn(false);
+  };
 
   if (isLoading) {
     return (
@@ -141,17 +179,37 @@ export default function SidebarComp({ children }: any) {
                 Quick Actions
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <div className="px-3 py-2 space-y-3 cursor-pointer">
-                  <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
-                      <Clock className="w-4 h-4 text-emerald-600" />
-                      <span>Quick Clock In</span>
+                {isClockedIn ? (
+                  <div
+                    onClick={handleClockOut}
+                    className="px-3 py-2 space-y-3 cursor-pointer"
+                  >
+                    <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
+                        <Clock className="w-4 h-4 text-red-600" />
+                        <span>Clocked In:</span>
+                      </div>
+                      <p className="text-sm font-bold text-red-800">
+                        {formatTime(elapsedTime)}
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-600">
-                      Track your time instantly
-                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div
+                    onClick={handleClockIn}
+                    className="px-3 py-2 space-y-3 cursor-pointer"
+                  >
+                    <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
+                        <Clock className="w-4 h-4 text-emerald-600" />
+                        <span>Quick Clock In</span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Track your time instantly
+                      </p>
+                    </div>
+                  </div>
+                )}
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
@@ -197,7 +255,7 @@ export default function SidebarComp({ children }: any) {
         <main className="flex-1 flex flex-col">
           <header className=" border-slate-200 lg:hidden">
             <div className="flex">
-              <SidebarTrigger className="hover:bg-slate-100  rounded-lg transition-colors">
+              <SidebarTrigger className="hover:bg-slate-100 rounded-lg transition-colors">
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
               {/* <p className="text-xl font-bold text-slate-900">Ezofis</p> */}
@@ -206,7 +264,7 @@ export default function SidebarComp({ children }: any) {
           <div className="flex-1 overflow-auto bg-slate-50">{children}</div>
           {/* <div className="flex-1 overflow-auto bg-slate-50">
            <h1>Hello World</h1>
-          </div> */}
+           </div> */}
         </main>
       </div>
     </SidebarProvider>
