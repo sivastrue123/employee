@@ -14,13 +14,12 @@ import {
 import { X } from "lucide-react";
 import axios from "axios";
 const DEPARTMENTS = [
-  "Engineering",
-  "Marketing",
+  "Development",
+  "Support",
+  "AI",
   "Sales",
-  "HR",
-  "Finance",
-  "Operations",
-  "Design",
+  "Management",
+  "API",
 ];
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },

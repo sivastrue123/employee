@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import Layout from "../components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Employees from "@/pages/Employees";
-import Projects from "@/pages/Projects";
+import Projects from "@/pages/project/Projects";
 import Attendance from "@/pages/Attendance";
 import Payroll from "@/pages/Payroll";
 

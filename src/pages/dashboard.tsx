@@ -25,7 +25,7 @@ import RecentActivity from "../components/RecentActivity";
 import AttendanceOverview from "../components/AttendanceOverview";
 import ProjectProgress from "../components/ProjectProcess";
 import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "../context/AuthContext";
 export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -37,7 +37,8 @@ export default function Dashboard() {
   const [recentActivities, setRecentActivities] = useState<any>([]);
   const [isLoading, setIsLoading] = useState(true);
   // const [currentUser, setCurrentUser] = useState(null);
-
+  const { user } = useAuth();
+  console.log(user);
   useEffect(() => {
     loadDashboardData();
   }, []);
