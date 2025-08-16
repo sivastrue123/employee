@@ -51,11 +51,11 @@ const navigationItems = [
     url: "/Projects",
     icon: FolderOpen,
   },
-  {
-    title: "Payroll",
-    url: "/Payroll",
-    icon: IndianRupee,
-  },
+  // {
+  //   title: "Payroll",
+  //   url: "/Payroll",
+  //   icon: IndianRupee,
+  // },
 ];
 
 export default function SidebarComp({ children }: any) {
@@ -96,7 +96,7 @@ export default function SidebarComp({ children }: any) {
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">WorkFlow</h2>
+                <h2 className="font-bold text-slate-900 text-lg">Ezofis</h2>
                 <p className="text-xs text-slate-500 font-medium">
                   Employee Management
                 </p>
@@ -195,12 +195,12 @@ export default function SidebarComp({ children }: any) {
         </Sidebar>
 
         <main className="flex-1 flex flex-col">
-          <header className="bg-white border-b border-slate-200 px-6 py-4 lg:hidden">
-            <div className="flex  gap-4">
-              <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors">
+          <header className=" border-slate-200 lg:hidden">
+            <div className="flex">
+              <SidebarTrigger className="hover:bg-slate-100  rounded-lg transition-colors">
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
-              <h1 className="text-xl font-bold text-slate-900">WorkFlow</h1>
+              {/* <p className="text-xl font-bold text-slate-900">Ezofis</p> */}
             </div>
           </header>
           <div className="flex-1 overflow-auto bg-slate-50">{children}</div>

@@ -188,13 +188,13 @@ export default function Dashboard() {
                 <Users className="w-4 h-4 mr-2" />
                 Add New Employee
               </Button>
-              <Button
+              {/* <Button
                 variant="secondary"
                 className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
               >
                 <IndianRupee className="w-4 h-4 mr-2" />
                 Run Payroll
-              </Button>
+              </Button> */}
             </CardContent>
           </Card>
         </div>
