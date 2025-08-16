@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/context/AuthContext";
 
 const navigationItems = [
   {
@@ -58,26 +59,10 @@ const navigationItems = [
 ];
 
 export default function SidebarComp({ children }: any) {
+  const { logout, user } = useAuth();
   const location = useLocation();
-  const [user, setUser] = React.useState(null);
+
   const [isLoading, setIsLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    // const loadUser = async () => {
-    //   try {
-    //     const currentUser = await User.me();
-    //     setUser(currentUser);
-    //   } catch (error) {
-    //     console.log("User not authenticated");
-    //   }
-    //   setIsLoading(false);
-    // };
-    // loadUser();
-  }, []);
-
-  const handleLogout = async () => {
-    // await User.logout();
-  };
 
   if (isLoading) {
     return (
@@ -176,27 +161,30 @@ export default function SidebarComp({ children }: any) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={""} />
+                    <AvatarImage src={user?.picture} />
                     <AvatarFallback className="!bg-slate-100 !text-slate-800 !font-semibold">
-                      S
+                      {user?.name
+                        ?.split(" ")
+                        .map((n: any) => n[0])
+                        .join("") || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900 text-sm truncate">
-                      {"Siva"}
+                      {user?.name || "User Name"}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      {"sivav2535@gmail.com"}
+                      {user?.email || "emailId"}
                     </p>
                     <p className="text-xs font-medium text-emerald-600 capitalize">
-                      {"Developer"}
+                      {user?.role || "Role not assigned"}
                     </p>
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleLogout}
+                  onClick={logout}
                   className="text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                 >
                   <LogOut className="w-4 h-4" />
