@@ -27,14 +27,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUserState] = useState<User | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
-
   const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 
   const resetTimeout = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    
+
     const newTimeoutId = setTimeout(() => {
       logout();
     }, INACTIVITY_TIMEOUT);
@@ -43,16 +42,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("isClockedIn");
+    localStorage.removeItem("clockInTime");
+    localStorage.removeItem("clockedInDate");
+    localStorage.removeItem("attendanceId");
     setUserState(null);
   };
 
   const setUser = (user: User | null) => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
-      
+
       resetTimeout();
     } else {
       localStorage.removeItem("user");
+      localStorage.removeItem("isClockedIn");
+      localStorage.removeItem("clockInTime");
+      localStorage.removeItem("clockedInDate");
+      localStorage.removeItem("attendanceId");
     }
     setUserState(user);
   };
@@ -66,13 +73,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) {
-    
       resetTimeout();
       const events = ["mousemove", "mousedown", "keypress", "scroll"];
       events.forEach((event) => {
         window.addEventListener(event, resetTimeout);
       });
-
 
       return () => {
         if (timeoutRef.current) {
@@ -83,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       };
     }
-  }, [user]); 
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, setUser, logout }}>

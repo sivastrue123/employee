@@ -108,12 +108,11 @@ export default function SidebarComp({ children }: any) {
 
   useEffect(() => {
     const checkClockInStatus = async () => {
-      const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+      const today = new Date().toISOString().split("T")[0];
       const localClockedIn = localStorage.getItem("isClockedIn");
       const localClockInTime = localStorage.getItem("clockInTime");
       const localClockedInDate = localStorage.getItem("clockedInDate");
 
-      // ✅ If data is for today, trust localStorage
       if (
         localClockedIn === "true" &&
         localClockInTime &&
@@ -127,7 +126,6 @@ export default function SidebarComp({ children }: any) {
         return;
       }
 
-      // ❌ If no local data or it's outdated → make API call
       try {
         const response = await axios.get(
           "/api/attendance/getUserAttendanceByDate",
@@ -147,7 +145,6 @@ export default function SidebarComp({ children }: any) {
           const now = Date.now();
           const elapsed = Math.floor((now - clockInDate) / 1000);
 
-          // Save to localStorage
           localStorage.setItem("isClockedIn", "true");
           localStorage.setItem("clockInTime", clockInTime);
           localStorage.setItem("clockedInDate", today);
@@ -156,7 +153,6 @@ export default function SidebarComp({ children }: any) {
           setIsClockedIn(true);
           setElapsedTime(elapsed);
         } else {
-          // Reset if not clocked in
           localStorage.removeItem("isClockedIn");
           localStorage.removeItem("clockInTime");
           localStorage.removeItem("clockedInDate");
@@ -213,7 +209,7 @@ export default function SidebarComp({ children }: any) {
       const clockInTime = new Date(response.data.data.clockIn).getTime();
       console.log(clockInTime);
       const now = Date.now();
-      const elapsed = Math.floor((now - clockInTime) / 1000); // seconds
+      const elapsed = Math.floor((now - clockInTime) / 1000); 
 
       // Save to localStorage
       localStorage.setItem("isClockedIn", "true");
