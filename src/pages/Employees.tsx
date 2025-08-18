@@ -22,10 +22,12 @@ import EmployeeCard from "@/components/EmployeeCard";
 import EmployeeForm from "@/components/EmployeeForm";
 import EmployeeFilters from "@/components/EmployeeFilters";
 import axios from "axios";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 export default function Employees() {
+  const { user } = useAuth();
   const location = useLocation();
-  console.log(location.search);
+  const nacvigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployeesList, setFilteredEmployeesList] = useState<
     Employee[] | null
@@ -41,8 +43,10 @@ export default function Employees() {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
+    if (user?.role !== "admin") {
+      nacvigate("/Dashboard");
+    }
     loadEmployees();
-    // loadCurrentUser();
   }, []);
 
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function Employees() {
   const loadEmployees = async () => {
     setIsLoading(true);
     try {
-      axios
+      await axios
         .get("/api/employee/getAllEmployee")
         .then((response) => setEmployees(response.data))
         .catch((error) => console.error("Error fetching data:", error));

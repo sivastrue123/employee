@@ -149,27 +149,33 @@ export default function SidebarComp({ children }: any) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-1">
-                  {navigationItems.map((item, index) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        className={`rounded-xl transition-all duration-200 ${
-                          location.pathname === item.url ||
-                          (location.pathname === "/" && index === 0)
-                            ? "!bg-slate-900 !text-white shadow-lg"
-                            : "hover:!bg-slate-100 !text-black hover:!text-black"
-                        } `}
-                      >
-                        <Link
-                          to={item.url}
-                          className="flex items-center gap-3 px-4 py-3"
+                  {navigationItems.map((item, index) => {
+                    if (item.title === "Employees" && user?.role !== "admin") {
+                      return null;
+                    }
+
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          className={`rounded-xl transition-all duration-200 ${
+                            location.pathname === item.url ||
+                            (location.pathname === "/" && index === 0)
+                              ? "!bg-slate-900 !text-white shadow-lg"
+                              : "hover:!bg-slate-100 !text-black hover:!text-black"
+                          } `}
                         >
-                          <item.icon className="w-5 h-5" />
-                          <span className="font-medium">{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                          <Link
+                            to={item.url}
+                            className="flex items-center gap-3 px-4 py-3"
+                          >
+                            <item.icon className="w-5 h-5" />
+                            <span className="font-medium">{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
