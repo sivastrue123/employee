@@ -143,7 +143,7 @@ export default function Dashboard() {
           value={stats.todayAttendance}
           icon={Clock}
           gradient="from-green-500 to-green-600"
-          change="+5%"
+          change=""
           isLoading={isLoading}
         />
         <StatsCards
