@@ -29,20 +29,29 @@ const STATUS_OPTIONS = [
 
 export default function EmployeeForm({ employee, onSave, onCancel }: any) {
   const [formData, setFormData] = useState<any>(
-    employee || {
-      first_name: "",
-      last_name: "",
-      email: "",
-      phone: "",
-      position: "",
-      department: "",
-      hire_date: "",
-      hourly_rate: "",
-      status: "active",
-      profile_image: "",
-    }
+    employee
+      ? {
+          ...employee,
+          hire_date: employee.hire_date
+            ? new Date(employee.hire_date).toISOString().split("T")[0]
+            : "",
+        }
+      : {
+          employee_id: "",
+          role: "",
+          first_name: "",
+          last_name: "",
+          email: "",
+          phone: "",
+          position: "",
+          department: "",
+          hire_date: "",
+          hourly_rate: "",
+          status: "active",
+          profile_image: "",
+        }
   );
-
+  console.log(employee);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: any) => {
@@ -98,9 +107,9 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl max-h-[90vh] "
+        className="w-full max-w-2xl max-h-[90vh]  "
       >
-        <Card className="border-0 shadow-2xl">
+        <Card className="border-0 shadow-2xl ">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-2xl font-bold">
               {employee ? "Edit Employee" : "Add New Employee"}
@@ -163,6 +172,40 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="employee_id">Employee Id *</Label>
+                    <Input
+                      id="employee_id"
+                      value={formData.employee_id}
+                      onChange={(e) =>
+                        handleChange("employee_id", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role *</Label>
+                    <Select
+                      value={formData.role}
+                      defaultValue={employee ? employee.role : "employee"}
+                      onValueChange={(value) => handleChange("role", value)}
+                    >
+                      <SelectTrigger className="!w-full !bg-white">
+                        <SelectValue
+                          placeholder="Select Role"
+                          className="!text-black"
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={"admin"}>{"Admin"}</SelectItem>
+                        <SelectItem value={"employee"}>{"Employee"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label htmlFor="position">Position *</Label>
                     <Input
                       id="position"
@@ -179,6 +222,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                       onValueChange={(value) =>
                         handleChange("department", value)
                       }
+                      defaultValue={employee ? employee.department : ""}
                     >
                       <SelectTrigger className="!w-full !bg-white">
                         <SelectValue placeholder="Select department" />
