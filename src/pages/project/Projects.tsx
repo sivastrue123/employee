@@ -60,6 +60,14 @@ function Projects() {
   });
   return (
     <div className="container  lg:w-[80%] mx-auto py-10">
+      <div>
+        <p className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
+          Projects
+        </p>
+        <p className="text-lg text-slate-600">
+          Manage your projects efficiently
+        </p>
+      </div>
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter Customer Name..."

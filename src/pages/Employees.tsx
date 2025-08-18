@@ -207,48 +207,50 @@ export default function Employees() {
         </div>
       ) : (
         <AnimatePresence mode="wait">
-          <div className="flex items-center w-[50px] gap-2 pb-4 ">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
-                  <Button
-                    variant={viewMode === "grid" ? "secondary" : "outline"}
-                    onClick={() => setViewMode("grid")}
-                    className={
-                      viewMode === "grid"
-                        ? "!bg-sky-400"
-                        : "!bg-white !shadow-md"
-                    }
-                    size="icon"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="">
-                  <p>Grid</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <div className="flex justify-end w-full lg:px-12">
+            <div className="flex items-center  w-[50px] gap-2 pb-4 ">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
+                    <Button
+                      variant={viewMode === "grid" ? "secondary" : "outline"}
+                      onClick={() => setViewMode("grid")}
+                      className={
+                        viewMode === "grid"
+                          ? "!bg-sky-400"
+                          : "!bg-white !shadow-md"
+                      }
+                      size="icon"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="">
+                    <p>Grid</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
-                  <Button
-                    variant={viewMode === "table" ? "secondary" : "outline"}
-                    onClick={() => setViewMode("table")}
-                    className={
-                      viewMode === "table"
-                        ? "!bg-sky-400"
-                        : "!shadow-md !bg-white"
-                    }
-                    size="icon"
-                  >
-                    <Table className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="">Table</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
+                    <Button
+                      variant={viewMode === "table" ? "secondary" : "outline"}
+                      onClick={() => setViewMode("table")}
+                      className={
+                        viewMode === "table"
+                          ? "!bg-sky-400"
+                          : "!shadow-md !bg-white"
+                      }
+                      size="icon"
+                    >
+                      <Table className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="">Table</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
           {viewMode === "grid" && (
             <motion.div
