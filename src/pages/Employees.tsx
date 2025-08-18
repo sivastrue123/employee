@@ -32,7 +32,7 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-} from "@radix-ui/react-tooltip";
+} from "@/components/ui/tooltip";
 
 export default function Employees() {
   const { user } = useAuth();
@@ -138,7 +138,11 @@ export default function Employees() {
   // const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="flex-1  lg:px-10 !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto">
+    <div
+      className={`${
+        viewMode === "table" ? "ml-8" : "ml-4"
+      } flex-1 lg:px-10 !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto`}
+    >
       <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
         <div>
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
@@ -220,7 +224,9 @@ export default function Employees() {
                     <LayoutGrid className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="!border-none">Grid</TooltipContent>
+                <TooltipContent className="">
+                  <p>Grid</p>
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -240,7 +246,7 @@ export default function Employees() {
                     <Table className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="!border-none">Table</TooltipContent>
+                <TooltipContent className="">Table</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -274,7 +280,7 @@ export default function Employees() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="w-full m-6 overflow-x-auto"
+              className="w-full  overflow-x-auto"
             >
               {/* The new table component */}
               <EmployeeTable
