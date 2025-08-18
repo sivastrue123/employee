@@ -26,9 +26,21 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
+import axios from "axios";
 
 const navigationItems = [
   {
@@ -78,6 +90,92 @@ export default function SidebarComp({ children }: any) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
+    const storedClockedIn = localStorage.getItem("isClockedIn");
+    const storedClockInTime = localStorage.getItem("clockInTime");
+
+    if (storedClockedIn === "true" && storedClockInTime) {
+      const clockInDate = new Date(storedClockInTime).getTime();
+      console.log(clockInDate);
+      const now = Date.now();
+      console.log(now);
+      console.log(now - clockInDate);
+      const elapsed = Math.floor((now - clockInDate) / 1000); // in seconds
+      console.log(elapsed);
+      setIsClockedIn(true);
+      setElapsedTime(elapsed);
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkClockInStatus = async () => {
+      const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+      const localClockedIn = localStorage.getItem("isClockedIn");
+      const localClockInTime = localStorage.getItem("clockInTime");
+      const localClockedInDate = localStorage.getItem("clockedInDate");
+
+      // ✅ If data is for today, trust localStorage
+      if (
+        localClockedIn === "true" &&
+        localClockInTime &&
+        localClockedInDate === today
+      ) {
+        const clockInDate = new Date(localClockInTime).getTime();
+        const now = Date.now();
+        const elapsed = Math.floor((now - clockInDate) / 1000);
+        setIsClockedIn(true);
+        setElapsedTime(elapsed);
+        return;
+      }
+
+      // ❌ If no local data or it's outdated → make API call
+      try {
+        const response = await axios.get(
+          "/api/attendance/getUserAttendanceByDate",
+          {
+            params: {
+              employeeId: user?.employee_id,
+              date: today,
+            },
+          }
+        );
+
+        const record = response.data?.data;
+
+        if (record && record.clockIn && !record.clockOut) {
+          const clockInTime = new Date(record.clockIn).toISOString();
+          const clockInDate = new Date(clockInTime).getTime();
+          const now = Date.now();
+          const elapsed = Math.floor((now - clockInDate) / 1000);
+
+          // Save to localStorage
+          localStorage.setItem("isClockedIn", "true");
+          localStorage.setItem("clockInTime", clockInTime);
+          localStorage.setItem("clockedInDate", today);
+          localStorage.setItem("attendanceId", record._id);
+
+          setIsClockedIn(true);
+          setElapsedTime(elapsed);
+        } else {
+          // Reset if not clocked in
+          localStorage.removeItem("isClockedIn");
+          localStorage.removeItem("clockInTime");
+          localStorage.removeItem("clockedInDate");
+          localStorage.removeItem("attendanceId");
+
+          setIsClockedIn(false);
+          setElapsedTime(0);
+        }
+      } catch (error) {
+        console.error("Failed to check clock-in status:", error);
+      }
+    };
+
+    if (user?.employee_id) {
+      checkClockInStatus();
+    }
+  }, [user?.employee_id]);
+
+  useEffect(() => {
     let timerId: NodeJS.Timeout | undefined;
 
     if (isClockedIn) {
@@ -93,13 +191,44 @@ export default function SidebarComp({ children }: any) {
     };
   }, [isClockedIn]);
 
-  const handleClockIn = () => {
-    setIsClockedIn(true);
-    setElapsedTime(0);
+  const handleClockIn = async () => {
+    try {
+      const data = {
+        employeeId: user?.employee_id,
+        date: new Date().toISOString().split("T")[0],
+        status: "Present",
+        clockIn: new Date().toISOString(),
+        clockOut: null,
+        reason: "",
+        createdBy: user?.userId,
+      };
+
+      const response = await axios.post(
+        "/api/attendance/createAttendance",
+        data
+      );
+
+      console.log("Clock-in response:", response.data);
+      console.log("clockInTime:", response.data.data.clockIn);
+      const clockInTime = new Date(response.data.data.clockIn).getTime();
+      console.log(clockInTime);
+      const now = Date.now();
+      const elapsed = Math.floor((now - clockInTime) / 1000); // seconds
+
+      // Save to localStorage
+      localStorage.setItem("isClockedIn", "true");
+      localStorage.setItem("clockInTime", response.data.data.clockIn);
+      localStorage.setItem("attendanceId", response.data.data._id);
+
+      setIsClockedIn(true);
+      setElapsedTime(elapsed);
+    } catch (error) {
+      console.error("Clock-in error:", error);
+    }
   };
 
   const handleClockOut = () => {
-    setIsClockedIn(false);
+    console.log("first");
   };
 
   if (isLoading) {
@@ -186,20 +315,46 @@ export default function SidebarComp({ children }: any) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 {isClockedIn ? (
-                  <div
-                    onClick={handleClockOut}
-                    className="px-3 py-2 space-y-3 cursor-pointer"
-                  >
-                    <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
-                        <Clock className="w-4 h-4 text-red-600" />
-                        <span>Clocked In:</span>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <div
+                        onClick={handleClockOut}
+                        className="px-3 py-2 space-y-3 cursor-pointer"
+                      >
+                        <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4">
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
+                            <Clock className="w-4 h-4 text-red-600" />
+                            <span>Clocked In:</span>
+                          </div>
+                          <p className="text-sm font-bold text-red-800">
+                            {formatTime(elapsedTime)}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm font-bold text-red-800">
-                        {formatTime(elapsedTime)}
-                      </p>
-                    </div>
-                  </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you sure to clockout ?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          By clicking confirm, you will clock out and your
+                          current session will end. your total clocked in time
+                          will be recorded. total hours worked :{" "}
+                          {formatTime(elapsedTime)}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleClockOut}
+                          className="!bg-sky-600 !text-white !hover:bg-sky-700"
+                        >
+                          Confirm
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 ) : (
                   <div
                     onClick={handleClockIn}
