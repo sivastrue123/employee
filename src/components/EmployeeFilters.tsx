@@ -9,13 +9,12 @@ import {
 import { Filter } from "lucide-react";
 
 const DEPARTMENTS = [
-  "Engineering",
-  "Marketing",
+  "Development",
+  "Support",
+  "AI",
   "Sales",
-  "HR",
-  "Finance",
-  "Operations",
-  "Design",
+  "Management",
+  "API",
 ];
 const STATUS_OPTIONS = ["active", "inactive", "terminated"];
 

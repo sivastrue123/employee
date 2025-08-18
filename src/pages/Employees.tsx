@@ -14,6 +14,8 @@ import {
   Mail,
   Phone,
   Calendar,
+  LayoutGrid,
+  Table,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -24,6 +26,14 @@ import EmployeeFilters from "@/components/EmployeeFilters";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import EmployeeTable from "@/components/EmployeeTable";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@radix-ui/react-tooltip";
+
 export default function Employees() {
   const { user } = useAuth();
   const location = useLocation();
@@ -38,6 +48,7 @@ export default function Employees() {
   const [showForm, setShowForm] = useState(
     location.search == "?AddEmployee" ? true : false
   );
+  const [viewMode, setViewMode] = useState("grid");
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
@@ -191,24 +202,88 @@ export default function Employees() {
             ))}
         </div>
       ) : (
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          layout
-        >
-          <AnimatePresence>
-            {filteredEmployeesList &&
-              filteredEmployeesList.map((employee, index) => (
-                <EmployeeCard
-                  key={index}
-                  employee={employee}
-                  onEdit={(e: any) => {
-                    handleEditEmployee(e);
-                  }}
-                  canEdit={"admin"}
-                />
-              ))}
-          </AnimatePresence>
-        </motion.div>
+        <AnimatePresence mode="wait">
+          <div className="flex items-center w-[50px] gap-2 pb-4 ">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
+                  <Button
+                    variant={viewMode === "grid" ? "secondary" : "outline"}
+                    onClick={() => setViewMode("grid")}
+                    className={
+                      viewMode === "grid"
+                        ? "!bg-sky-400"
+                        : "!bg-white !shadow-md"
+                    }
+                    size="icon"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="!border-none">Grid</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger className="!border-none !bg-white !w-full h-[9px] !p-0">
+                  <Button
+                    variant={viewMode === "table" ? "secondary" : "outline"}
+                    onClick={() => setViewMode("table")}
+                    className={
+                      viewMode === "table"
+                        ? "!bg-sky-400"
+                        : "!shadow-md !bg-white"
+                    }
+                    size="icon"
+                  >
+                    <Table className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="!border-none">Table</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          {viewMode === "grid" && (
+            <motion.div
+              key="grid-view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              layout
+            >
+              {/* Your existing employee cards mapping */}
+              {filteredEmployeesList &&
+                filteredEmployeesList.map((employee, index) => (
+                  <EmployeeCard
+                    key={employee.employee_id || index}
+                    employee={employee}
+                    onEdit={handleEditEmployee}
+                    canEdit={"admin"}
+                  />
+                ))}
+            </motion.div>
+          )}
+
+          {viewMode === "table" && (
+            <motion.div
+              key="table-view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="w-full m-6 overflow-x-auto"
+            >
+              {/* The new table component */}
+              <EmployeeTable
+                employees={filteredEmployeesList}
+                onEdit={handleEditEmployee}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
 
       {!isLoading &&
