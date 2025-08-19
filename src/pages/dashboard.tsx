@@ -1,127 +1,192 @@
-import React, { useState, useEffect } from "react";
-import { Employee } from "@/entitites/employee";
-import { Attendance } from "@/entitites/attendance";
-import { Project } from "@/entitites/project";
-import { Task } from "@/entitites/task";
-// import { User } from "@/entitites/User";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { motion } from "framer-motion";
 import {
   Users,
   Clock,
   FolderOpen,
   TrendingUp,
-  Calendar,
   CheckCircle2,
-  AlertTriangle,
-  IndianRupee,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { format } from "date-fns";
+
+import { Employee } from "@/entitites/employee";
+import { Attendance } from "@/entitites/attendance";
+import { Project } from "@/entitites/project";
+import { Task } from "@/entitites/task";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 import StatsCards from "../components/StatsCards";
 import RecentActivity from "../components/RecentActivity";
 import AttendanceOverview from "../components/AttendanceOverview";
 import ProjectProgress from "../components/ProjectProcess";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-export default function Dashboard() {
-  const navigate = useNavigate();
-  const [stats, setStats] = useState({
+
+// ===== Types =====
+type StatBlock = {
+  totalEmployees: number;
+  activeProjects: number;
+  todayAttendance: number;
+  completedTasks: number;
+};
+
+type ActivityItem = {
+  id: number | string;
+  type: "attendance" | "task" | "project" | string;
+  message: string;
+  time: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+};
+
+// ===== Constants =====
+const DATE_FMT = "yyyy-MM-dd";
+
+// Prefer a single, testable function for computing stats
+function computeStats(
+  employees: Array<{ status?: string }> = [],
+  projects: Array<{ status?: string }> = [],
+  tasks: Array<{ status?: string }> = [],
+  attendance: Array<{ status?: string; date?: string }> = []
+): StatBlock {
+  const todayStr = format(new Date(), DATE_FMT);
+
+  return {
+    totalEmployees: employees.filter((e) => e.status === "active").length,
+    activeProjects: projects.filter((p) => p.status === "active").length,
+    todayAttendance: attendance.filter(
+      (a) => a.status === "present" && a.date === todayStr
+    ).length,
+    completedTasks: tasks.filter((t) => t.status === "completed").length,
+  };
+}
+
+// Co-locate mock/demo data with component to make replacement easy later
+const DEMO_ACTIVITIES: ActivityItem[] = [
+  {
+    id: 1,
+    type: "attendance",
+    message: "John Smith clocked in",
+    time: "2 minutes ago",
+    icon: Clock,
+    color: "text-green-600",
+  },
+  {
+    id: 2,
+    type: "task",
+    message: 'Task "UI Design" completed',
+    time: "15 minutes ago",
+    icon: CheckCircle2,
+    color: "text-blue-600",
+  },
+  {
+    id: 3,
+    type: "project",
+    message: 'New project "Mobile App" created',
+    time: "1 hour ago",
+    icon: FolderOpen,
+    color: "text-purple-600",
+  },
+];
+
+// ===== Custom Hook (single responsibility: data for dashboard) =====
+function useDashboardData() {
+  const [stats, setStats] = useState<StatBlock>({
     totalEmployees: 0,
     activeProjects: 0,
     todayAttendance: 0,
     completedTasks: 0,
   });
-  const [recentActivities, setRecentActivities] = useState<any>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  // const [currentUser, setCurrentUser] = useState(null);
-  const { user } = useAuth();
-  console.log(user);
+  const [recentActivities, setRecentActivities] =
+    useState<ActivityItem[]>(DEMO_ACTIVITIES);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<unknown|any>(null);
+
   useEffect(() => {
-    loadDashboardData();
+    let isMounted = true;
+
+    async function load() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // If any endpoint fails, we still want to fail-fast with a clear error.
+        const [employees, projects, tasks, attendance] = await Promise.all([
+          Employee.list(),
+          Project.list(),
+          Task.list(),
+          Attendance.list(),
+        ]);
+
+        if (!isMounted) return;
+
+        setStats(computeStats(employees, projects, tasks, attendance));
+
+        // Replace this with real activity feed when available
+        setRecentActivities(DEMO_ACTIVITIES);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Error loading dashboard data:", err);
+        setError(err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const loadDashboardData = async () => {
-    setIsLoading(true);
-    try {
-      const [employees, projects, tasks, attendance] = await Promise.all([
-        Employee.list(),
-        Project.list(),
-        Task.list(),
-        Attendance.list(),
-        // User.me().catch(() => null)
-      ]);
+  return { stats, recentActivities, isLoading, error };
+}
 
-      // setCurrentUser(user);
+// ===== Component =====
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-      setStats({
-        totalEmployees: employees.filter((emp) => emp.status === "active")
-          .length,
-        activeProjects: projects.filter((proj) => proj.status === "active")
-          .length,
-        todayAttendance: attendance.filter(
-          (att) =>
-            att.date === format(new Date(), "yyyy-MM-dd") &&
-            att.status === "present"
-        ).length,
-        completedTasks: tasks.filter((task) => task.status === "completed")
-          .length,
-      });
+  const { stats, recentActivities, isLoading, error } = useDashboardData();
 
-      // Mock recent activities for demo
-      setRecentActivities([
-        {
-          id: 1,
-          type: "attendance",
-          message: "John Smith clocked in",
-          time: "2 minutes ago",
-          icon: Clock,
-          color: "text-green-600",
-        },
-        {
-          id: 2,
-          type: "task",
-          message: 'Task "UI Design" completed',
-          time: "15 minutes ago",
-          icon: CheckCircle2,
-          color: "text-blue-600",
-        },
-        {
-          id: 3,
-          type: "project",
-          message: 'New project "Mobile App" created',
-          time: "1 hour ago",
-          icon: FolderOpen,
-          color: "text-purple-600",
-        },
-      ]);
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-    }
-    setIsLoading(false);
-  };
-
-  const handleAddEmployee = () => {
+  const handleAddEmployee = useCallback(() => {
     navigate("/Employees?AddEmployee");
-  };
+  }, [navigate]);
+
+  const greetingName = useMemo(() => {
+    // Fallback to a friendly generic if user or name missing
+    return user?.name || user?.displayName || "there";
+  }, [user]);
+
   return (
-    <div className="flex flex-col w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border ">
+    <div className="flex flex-col w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2 flex flex-col items-start md:mb-4"
       >
         <p className="text-3xl lg:text-4xl font-bold text-slate-900">
-          Welcome back, Siva
+          Welcome back, {greetingName}
         </p>
         <p className="text-lg text-slate-600">
-          Here's what's happening with your team today
+          Here&apos;s what&apos;s happening with your team today
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2  lg:grid-cols-4 gap-6 my-4 mb-8">
+     
+      {error  && (
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          We couldn&apos;t refresh some data. Attempting to show the latest
+          available info.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-4 mb-8">
         <StatsCards
           title="Total Employees"
           value={stats.totalEmployees}
@@ -159,6 +224,7 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <AttendanceOverview isLoading={isLoading} />
+          {/* NOTE: Import path says ProjectProcess; component used here is ProjectProgress */}
           <ProjectProgress isLoading={isLoading} />
         </div>
 
@@ -188,13 +254,6 @@ export default function Dashboard() {
                 <Users className="w-4 h-4 mr-2" />
                 Add New Employee
               </Button>
-              {/* <Button
-                variant="secondary"
-                className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
-              >
-                <IndianRupee className="w-4 h-4 mr-2" />
-                Run Payroll
-              </Button> */}
             </CardContent>
           </Card>
         </div>
