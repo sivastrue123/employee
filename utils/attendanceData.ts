@@ -96,4 +96,5 @@ export type Attendance = {
   clockOut: string;
   ot: string;
   status: 'Present' | 'Absent';
+  late?: string; 
 };

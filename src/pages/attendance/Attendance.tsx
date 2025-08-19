@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/table";
 
 import { attendanceData as rawAttendanceData } from "../../../utils/attendanceData";
+import axios from "axios";
+import { useAuth } from "@/context/AuthContext";
 
 // -------- Types --------
 type AttendanceStatus = "Present" | "Absent";
@@ -47,6 +49,7 @@ interface AttendanceRecord {
   clockOut?: string;
   ot?: string;
   status: AttendanceStatus;
+  late?: string;
 }
 
 // If your CustomDatePicker is based on react-day-picker, this shape is typical.
@@ -58,7 +61,7 @@ type SortState = { id: "attendanceDate"; desc: boolean } | null;
 type Preset = "today" | "week" | "month" | "clear";
 
 // Guard the imported data with a type assertion if the source file is JS.
-const attendanceData = rawAttendanceData as AttendanceRecord[];
+
 
 // --- HubSpot-y helpers ---
 const kpiCard = {
@@ -71,6 +74,7 @@ const kpiCard = {
 const pageSize = 10;
 
 const Attendance: React.FC = () => {
+  const { user } = useAuth();
   const [monthlyPresents, setMonthlyPresents] = useState<number>(0);
   const [monthlyAbsents, setMonthlyAbsents] = useState<number>(0);
 
@@ -86,26 +90,21 @@ const Attendance: React.FC = () => {
 
   const [page, setPage] = useState<number>(1);
 
-  // Monthly aggregates
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+
+  const handleGetAttendanceData = async () => {
+    // Simulate fetching data
+    const response = await axios.get<any>(
+      `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
+    );
+    console.log(response.data)
+    setAttendanceData(response.data.data);
+  };
   useEffect(() => {
-    const today = new Date();
-    const currentMonthData = attendanceData.filter((item) => {
-      const itemDate = parseISO(item.attendanceDate);
-      return (
-        itemDate.getMonth() === today.getMonth() &&
-        itemDate.getFullYear() === today.getFullYear()
-      );
-    });
+    // Simulate fetching data
+    handleGetAttendanceData();
+  }, [user?.employee_id]);
 
-    setMonthlyPresents(
-      currentMonthData.filter((i) => i.status === "Present").length
-    );
-    setMonthlyAbsents(
-      currentMonthData.filter((i) => i.status === "Absent").length
-    );
-  }, []);
-
-  // Manual filter + sort
   const filteredAndSortedData = useMemo<AttendanceRecord[]>(() => {
     let currentData = [...attendanceData];
 
@@ -157,7 +156,29 @@ const Attendance: React.FC = () => {
     }
 
     return currentData;
-  }, [date, dateRange, query, sorting]);
+  }, [date, dateRange, query, sorting,attendanceData]);
+  // Monthly aggregates
+  useEffect(() => {
+    const today = new Date();
+    const currentMonthData = attendanceData.filter((item) => {
+      const itemDate = parseISO(item.attendanceDate);
+      return (
+        itemDate.getMonth() === today.getMonth() &&
+        itemDate.getFullYear() === today.getFullYear()
+      );
+    });
+
+    setMonthlyPresents(
+      currentMonthData.filter((i) => i.status === "Present").length
+    );
+    setMonthlyAbsents(
+      currentMonthData.filter((i) => i.status === "Absent").length
+    );
+
+  }, [attendanceData]);
+
+  // Manual filter + sort
+  
 
   // Reset page when filters change
   useEffect(() => {
@@ -437,6 +458,7 @@ const Attendance: React.FC = () => {
                 <TableHead className="whitespace-nowrap">Clock In</TableHead>
                 <TableHead className="whitespace-nowrap">Clock Out</TableHead>
                 <TableHead className="whitespace-nowrap">OT</TableHead>
+                 <TableHead className="whitespace-nowrap">Late</TableHead>
                 <TableHead className="whitespace-nowrap">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -454,6 +476,7 @@ const Attendance: React.FC = () => {
                     <TableCell>{row.clockIn ?? "—"}</TableCell>
                     <TableCell>{row.clockOut ?? "—"}</TableCell>
                     <TableCell>{row.ot ?? "—"}</TableCell>
+                    <TableCell>{row.late ?? "—"}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
