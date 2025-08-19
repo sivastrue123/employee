@@ -40,7 +40,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 const navigationItems = [
   {
@@ -209,7 +209,7 @@ export default function SidebarComp({ children }: any) {
       const clockInTime = new Date(response.data.data.clockIn).getTime();
       console.log(clockInTime);
       const now = Date.now();
-      const elapsed = Math.floor((now - clockInTime) / 1000); 
+      const elapsed = Math.floor((now - clockInTime) / 1000);
 
       // Save to localStorage
       localStorage.setItem("isClockedIn", "true");
@@ -218,13 +218,44 @@ export default function SidebarComp({ children }: any) {
 
       setIsClockedIn(true);
       setElapsedTime(elapsed);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.status === 409) {
+        alert("You have already clocked in today.");
+      } else if (error.response && error.response.data) {
+        console.error("Clock-in error:", error.response.data);
+      }
+
       console.error("Clock-in error:", error);
     }
   };
 
   const handleClockOut = () => {
-    console.log("first");
+    const clockedOutTime = new Date().toISOString();
+    const attendanceId = localStorage.getItem("attendanceId");
+    if (!attendanceId) {
+      console.error("No attendance record found for clock-out.");
+      return;
+    }
+    axios
+      .put(
+        `/api/attendance/editAttendance/${attendanceId}?userId=${user?.userId}`,
+        {
+          clockOut: clockedOutTime,
+        }
+      )
+      .then((response) => {
+        console.log("Clock-out response:", response.data);
+        localStorage.removeItem("isClockedIn");
+        localStorage.removeItem("clockInTime");
+        localStorage.removeItem("attendanceId");
+        localStorage.removeItem("clockedInDate");
+
+        setIsClockedIn(false);
+        setElapsedTime(0);
+      })
+      .catch((error) => {
+        console.error("Clock-out error:", error);
+      });
   };
 
   if (isLoading) {
@@ -314,7 +345,7 @@ export default function SidebarComp({ children }: any) {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <div
-                        onClick={handleClockOut}
+                       
                         className="px-3 py-2 space-y-3 cursor-pointer"
                       >
                         <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4">
