@@ -81,7 +81,7 @@ export const CustomDatePicker = ({ selected, onSelect, footer }: any) => {
     <div className="rdp">
       {" "}
       {/* Using rdp class for DayPicker styles */}
-      <div className="rdp-caption">
+      <div className="rdp-caption flex items-center justify-between mb-2">
         <Button
           variant="ghost"
           size="icon"

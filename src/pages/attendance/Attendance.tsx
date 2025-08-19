@@ -1,12 +1,17 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  ColumnFiltersState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  SortingState,
-  useReactTable,
-} from "@tanstack/react-table";
+// import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+// import {
+//   ColumnFiltersState,
+//   getCoreRowModel,
+//   getFilteredRowModel,
+//   getSortedRowModel,
+//   SortingState,
+//   useReactTable,
+// } from "@tanstack/react-table";
+import { ChevronDownIcon } from "lucide-react";
+
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+
 import { motion } from "framer-motion";
 import {
   endOfDay,
@@ -39,6 +44,7 @@ import {
 } from "@/components/ui/table.js";
 import { Badge } from "@/components/ui/badge.js";
 import { attendanceData } from "../../../utils/attendanceData.js";
+import { Input } from "@/components/ui/input.js";
 
 function Attendance() {
   const [monthlyPresents, setMonthlyPresents] = useState(0);
@@ -50,7 +56,10 @@ function Attendance() {
     { from?: Date; to?: Date } | undefined
   >(undefined);
 
+  const [open, setOpen] = React.useState(false);
+  const [date, setDate] = useState<Date | undefined>(undefined);
   // Calculate monthly presents and absents for the current month
+
   useEffect(() => {
     const today = new Date();
     const currentMonthData = attendanceData.filter((item) => {
@@ -75,7 +84,12 @@ function Attendance() {
   // Filter and sort data manually
   const filteredAndSortedData = useMemo(() => {
     let currentData = [...attendanceData];
-
+    if(date){
+      currentData = currentData.filter((item) => {
+        const itemDate = parseISO(item.attendanceDate);
+        return isSameDay(itemDate, date);
+      });
+    }
     // Apply date range filter
     if (dateRange && (dateRange.from || dateRange.to)) {
       currentData = currentData.filter((item) => {
@@ -121,7 +135,7 @@ function Attendance() {
     }
 
     return currentData;
-  }, [attendanceData, dateRange, sorting]);
+  }, [attendanceData, dateRange, sorting,date]);
 
   // Calculate presents/absents for displayed data (after filters)
   const filteredAttendanceSummary = useMemo(() => {
@@ -150,22 +164,44 @@ function Attendance() {
         <p className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
           Attendace
         </p>
-        <p className="text-lg text-slate-600">
-          Manage your time efficiently
-        </p>
+        <p className="text-lg text-slate-600">Manage your time efficiently</p>
       </div>
       <div className="w-[80%] bg-white p-6 rounded-xl shadow-lg">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <h2 className="text-2xl font-bold text-gray-700">
             Detailed Attendance
           </h2>
-
-          {/* Date Range Filter */}
-          <Popover>
-            <PopoverTrigger>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
               <Button
-                variant={"outline"}
-                className={`w-full sm:w-[300px] justify-start text-left font-normal ${
+                variant="outline"
+                id="date"
+                className="w-48 justify-between font-normal"
+              >
+                {date ? date.toLocaleDateString() : "Select date"}
+                <ChevronDownIcon />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto overflow-hidden p-0"
+              align="start"
+            >
+              <Calendar
+                mode="single"
+                selected={date}
+                captionLayout="dropdown"
+                onSelect={(date) => {
+                  setDate(date);
+                  setOpen(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger className="!border-none !bg-transparent  ">
+              <Button
+                // variant={"default"}
+                className={`w-full !border-none text-black sm:w-[300px] justify-start text-left font-normal ${
                   !dateRange?.from ? "text-gray-500" : ""
                 }`}
               >
@@ -257,7 +293,6 @@ function Attendance() {
           </TableBody>
         </Table>
       </div>
-
     </div>
   );
 }
