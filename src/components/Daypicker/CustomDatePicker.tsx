@@ -57,19 +57,19 @@ export const CustomDatePicker = ({ selected, onSelect, footer }: any) => {
     const classNames = [];
     if (selected?.from && selected?.to) {
       if (isSameDay(day, selected.from) || isSameDay(day, selected.to)) {
-        classNames.push("bg-blue-600 text-white rounded-md");
+        classNames.push("!bg-blue-600 !text-white !rounded-md");
       } else if (
         isWithinInterval(day, { start: selected.from, end: selected.to })
       ) {
-        classNames.push("bg-blue-100 text-blue-800 rounded-none"); // Mid-range color
+        classNames.push("!bg-blue-100 !text-blue-800 !rounded-none"); // Mid-range color
       }
     } else if (selected?.from && isSameDay(day, selected.from)) {
-      classNames.push("bg-blue-600 text-white rounded-md");
+      classNames.push("!bg-blue-600 !text-white !rounded-md");
     }
 
     // Add hover and other basic styles
     classNames.push(
-      "w-10 h-10 flex items-center justify-center text-sm rounded-md hover:bg-gray-200"
+      "w-10 h-10 bg-red-500 flex items-center justify-center text-sm rounded-md hover:bg-gray-200"
     );
 
     return classNames.join(" ");

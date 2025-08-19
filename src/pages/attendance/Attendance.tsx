@@ -21,6 +21,7 @@ import {
   isSameDay,
   isWithinInterval,
   parseISO,
+  set,
   startOfDay,
 } from "date-fns";
 import React, { useEffect, useMemo, useState } from "react";
@@ -84,7 +85,10 @@ function Attendance() {
   // Filter and sort data manually
   const filteredAndSortedData = useMemo(() => {
     let currentData = [...attendanceData];
-    if(date){
+    if (date) {
+      if (dateRange && dateRange.from && dateRange.to) {
+        setDateRange(undefined);
+      }
       currentData = currentData.filter((item) => {
         const itemDate = parseISO(item.attendanceDate);
         return isSameDay(itemDate, date);
@@ -92,6 +96,9 @@ function Attendance() {
     }
     // Apply date range filter
     if (dateRange && (dateRange.from || dateRange.to)) {
+      if (date) {
+        setDate(undefined); // Clear date selection if date range is applied
+      }
       currentData = currentData.filter((item) => {
         const itemDate = parseISO(item.attendanceDate);
         const { from, to } = dateRange;
@@ -135,7 +142,7 @@ function Attendance() {
     }
 
     return currentData;
-  }, [attendanceData, dateRange, sorting,date]);
+  }, [attendanceData, dateRange, sorting, date]);
 
   // Calculate presents/absents for displayed data (after filters)
   const filteredAttendanceSummary = useMemo(() => {
