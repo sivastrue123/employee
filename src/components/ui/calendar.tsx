@@ -185,23 +185,44 @@ function CalendarDayButton({
     if (modifiers.focused) ref.current?.focus();
   }, [modifiers.focused]);
 
+  // derive states
+  const isSingleSelected =
+    !!modifiers.selected &&
+    !modifiers.range_start &&
+    !modifiers.range_end &&
+    !modifiers.range_middle;
+
+  const isRangeEdge = !!modifiers.range_start || !!modifiers.range_end;
+  const isRangeMiddle = !!modifiers.range_middle;
+  const isSelectedLike = isSingleSelected || isRangeEdge; // “active” look
+
   return (
     <Button
       ref={ref}
-      variant="ghost"
+      // 🔑 make selected look like an active/primary button
+      variant={isSelectedLike ? "default" : "ghost"}
       size="icon"
       data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
+      data-selected={isSelectedLike ? "true" : "false"}
+      data-selected-single={isSingleSelected ? "true" : "false"}
+      data-range-start={modifiers.range_start ? "true" : "false"}
+      data-range-end={modifiers.range_end ? "true" : "false"}
+      data-range-middle={isRangeMiddle ? "true" : "false"}
       className={cn(
-        "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70",
+        // base layout
+        "flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal",
+        // rounded rules for ranges
+        "data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md",
+        // “active” selected look
+        "data-[selected=true]:!bg-sky-500 data-[selected=true]:text-white data-[selected=true]:shadow-sm data-[selected=true]:ring-2 data-[selected=true]:ring-ring/60 data-[selected=true]:ring-offset-0 data-[selected=true]:font-semibold",
+        // keep range-middle softer
+        "data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground",
+        // today hint — but don’t overpower selected
+        "data-[range-middle=false]:data-[selected=false]:group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-ring/50",
+        // ensure “today” style never overrides a selected
+        "[&[data-selected=true]_.rdp-day_today]:bg-primary [&[data-selected=true]_.rdp-day_today]:text-primary-foreground",
+        // small text inside button
+        "[&>span]:text-xs [&>span]:opacity-70",
         defaultClassNames.day,
         className
       )}
