@@ -138,8 +138,12 @@ export default function SidebarComp({ children }: any) {
         );
 
         const record = response.data?.data;
-
-        if (record && record.clockIn && !record.clockOut) {
+   
+        if (
+          record &&
+          record.isActive
+        ) {
+          console.log("hiiiiiiiiiiii")
           const clockInTime = new Date(record.clockIn).toISOString();
           const clockInDate = new Date(clockInTime).getTime();
           const now = Date.now();
@@ -229,7 +233,7 @@ export default function SidebarComp({ children }: any) {
     }
   };
 
-  const handleClockOut = () => {
+  const handleClockOut = (isLoggedOut = false) => {
     const clockedOutTime = new Date().toISOString();
     const attendanceId = localStorage.getItem("attendanceId");
     if (!attendanceId) {
@@ -238,7 +242,9 @@ export default function SidebarComp({ children }: any) {
     }
     axios
       .put(
-        `/api/attendance/editAttendance/${attendanceId}?userId=${user?.userId}`,
+        `/api/attendance/editAttendance/${attendanceId}?userId=${user?.userId}${
+          isLoggedOut ? "&LoggedOut=true" : ""
+        } `,
         {
           clockOut: clockedOutTime,
         }
@@ -344,10 +350,7 @@ export default function SidebarComp({ children }: any) {
                 {isClockedIn ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <div
-                       
-                        className="px-3 py-2 space-y-3 cursor-pointer"
-                      >
+                      <div className="px-3 py-2 space-y-3 cursor-pointer">
                         <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4">
                           <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
                             <Clock className="w-4 h-4 text-red-600" />
@@ -374,7 +377,55 @@ export default function SidebarComp({ children }: any) {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={handleClockOut}
+                          onClick={() => {
+                            handleClockOut(false);
+                          }}
+                          className="!bg-sky-600 !text-white !hover:bg-sky-700"
+                        >
+                          BreakOut
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                          onClick={() => {
+                            handleClockOut(true);
+                          }}
+                          className="!bg-red-600 !text-white !hover:bg-sky-700"
+                        >
+                          Logout
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <div className="px-3 py-2 space-y-3 cursor-pointer">
+                        <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-4">
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
+                            <Clock className="w-4 h-4 text-emerald-600" />
+                            <span>Quick Clock In</span>
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Track your time instantly
+                          </p>
+                        </div>
+                      </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Please Click Confirm to Clock In ?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {/* By clicking confirm, you will clock out and your
+                          current session will end. your total clocked in time
+                          will be recorded. total hours worked :{" "}
+                          {formatTime(elapsedTime)} */}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleClockIn}
                           className="!bg-sky-600 !text-white !hover:bg-sky-700"
                         >
                           Confirm
@@ -382,21 +433,6 @@ export default function SidebarComp({ children }: any) {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                ) : (
-                  <div
-                    onClick={handleClockIn}
-                    className="px-3 py-2 space-y-3 cursor-pointer"
-                  >
-                    <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800 mb-1">
-                        <Clock className="w-4 h-4 text-emerald-600" />
-                        <span>Quick Clock In</span>
-                      </div>
-                      <p className="text-xs text-slate-600">
-                        Track your time instantly
-                      </p>
-                    </div>
-                  </div>
                 )}
               </SidebarGroupContent>
             </SidebarGroup>
