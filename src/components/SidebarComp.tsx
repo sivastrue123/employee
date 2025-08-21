@@ -42,6 +42,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import axios, { AxiosError } from "axios";
 
+const parseWorkedTime = (timeString: string) => {
+  const parts = timeString.split(" ");
+  let totalSeconds = 0;
+  for (let i = 0; i < parts.length; i += 2) {
+    const value = parseInt(parts[i]);
+    const unit = parts[i + 1];
+    if (unit && !isNaN(value)) {
+      if (unit.startsWith("hr")) {
+        totalSeconds += value * 3600;
+      } else if (unit.startsWith("min")) {
+        totalSeconds += value * 60;
+      } else if (unit.startsWith("sec")) {
+        totalSeconds += value;
+      }
+    }
+  }
+  return totalSeconds;
+};
 const navigationItems = [
   {
     title: "Dashboard",
@@ -112,15 +130,14 @@ export default function SidebarComp({ children }: any) {
       const localClockedIn = localStorage.getItem("isClockedIn");
       const localClockInTime = localStorage.getItem("clockInTime");
       const localClockedInDate = localStorage.getItem("clockedInDate");
-
+      const localTotalWorked = localStorage.getItem("totalWorked");
       if (
         localClockedIn === "true" &&
         localClockInTime &&
-        localClockedInDate === today
+        localClockedInDate === today &&
+        localTotalWorked
       ) {
-        const clockInDate = new Date(localClockInTime).getTime();
-        const now = Date.now();
-        const elapsed = Math.floor((now - clockInDate) / 1000);
+        const elapsed = Math.floor(parseWorkedTime(localTotalWorked));
         setIsClockedIn(true);
         setElapsedTime(elapsed);
         return;
@@ -138,29 +155,41 @@ export default function SidebarComp({ children }: any) {
         );
 
         const record = response.data?.data;
-   
-        if (
-          record &&
-          record.isActive
-        ) {
-          console.log("hiiiiiiiiiiii")
-          const clockInTime = new Date(record.clockIn).toISOString();
-          const clockInDate = new Date(clockInTime).getTime();
-          const now = Date.now();
-          const elapsed = Math.floor((now - clockInDate) / 1000);
 
-          localStorage.setItem("isClockedIn", "true");
-          localStorage.setItem("clockInTime", clockInTime);
-          localStorage.setItem("clockedInDate", today);
-          localStorage.setItem("attendanceId", record._id);
+        if (record && record.isActive) {
+          if (record?.totalWorkedTime) {
+            const clockInTime = new Date(record.clockIn).toISOString();
+            const elapsed = Math.floor(
+              parseWorkedTime(record?.totalWorkedTime)
+            );
+            localStorage.setItem("totalWorked", record?.totalWorkedTime);
+            localStorage.setItem("isClockedIn", "true");
+            localStorage.setItem("clockInTime", clockInTime);
+            localStorage.setItem("clockedInDate", today);
+            localStorage.setItem("attendanceId", record._id);
 
-          setIsClockedIn(true);
-          setElapsedTime(elapsed);
+            setIsClockedIn(true);
+            setElapsedTime(elapsed);
+          } else {
+            const clockInTime = new Date(record.clockIn).toISOString();
+            const clockInDate = new Date(clockInTime).getTime();
+            const now = Date.now();
+            const elapsed = Math.floor((now - clockInDate) / 1000);
+
+            localStorage.setItem("isClockedIn", "true");
+            localStorage.setItem("clockInTime", clockInTime);
+            localStorage.setItem("clockedInDate", today);
+            localStorage.setItem("attendanceId", record._id);
+
+            setIsClockedIn(true);
+            setElapsedTime(elapsed);
+          }
         } else {
           localStorage.removeItem("isClockedIn");
           localStorage.removeItem("clockInTime");
           localStorage.removeItem("clockedInDate");
           localStorage.removeItem("attendanceId");
+          localStorage.removeItem("totalWorked");
 
           setIsClockedIn(false);
           setElapsedTime(0);
@@ -208,20 +237,38 @@ export default function SidebarComp({ children }: any) {
         data
       );
 
-      console.log("Clock-in response:", response.data);
-      console.log("clockInTime:", response.data.data.clockIn);
-      const clockInTime = new Date(response.data.data.clockIn).getTime();
-      console.log(clockInTime);
-      const now = Date.now();
-      const elapsed = Math.floor((now - clockInTime) / 1000);
+      if (!response?.data?.data?.totalWorkedTime) {
+        console.log("Clock-in response:", response.data);
+        console.log("clockInTime:", response.data.data.clockIn);
+        const clockInTime = new Date(response.data.data.clockIn).getTime();
+        console.log(clockInTime);
+        const now = Date.now();
+        const elapsed = Math.floor((now - clockInTime) / 1000);
 
-      // Save to localStorage
-      localStorage.setItem("isClockedIn", "true");
-      localStorage.setItem("clockInTime", response.data.data.clockIn);
-      localStorage.setItem("attendanceId", response.data.data._id);
+        // Save to localStorage
+        localStorage.setItem("isClockedIn", "true");
+        localStorage.setItem("clockInTime", response.data.data.clockIn);
+        localStorage.setItem("attendanceId", response.data.data._id);
 
-      setIsClockedIn(true);
-      setElapsedTime(elapsed);
+        setIsClockedIn(true);
+        setElapsedTime(elapsed);
+      } else {
+        const elapsed = Math.floor(
+          parseWorkedTime(response?.data?.data?.totalWorkedTime)
+        );
+
+        // Save to localStorage
+        localStorage.setItem(
+          "totalWorked",
+          response?.data?.data?.totalWorkedTime
+        );
+        localStorage.setItem("isClockedIn", "true");
+        localStorage.setItem("clockInTime", response.data.data.clockIn);
+        localStorage.setItem("attendanceId", response.data.data._id);
+
+        setIsClockedIn(true);
+        setElapsedTime(elapsed);
+      }
     } catch (error: any) {
       if (error?.status === 409) {
         alert("You have already clocked in today.");

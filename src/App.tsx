@@ -86,7 +86,7 @@ export default function App() {
             className={`min-h-screen w-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat transition-opacity duration-500 ${
               isImageLoaded ? "opacity-100" : "opacity-0 absolute inset-0"
             }`}
-            style={{ backgroundImage: `url(${Data_security_02})` }}
+            // style={{ backgroundImage: `url(${Data_security_02})` }}
           >
             <div className=" bg-opacity-70 backdrop-filter backdrop-blur-[5px] p-8 rounded-xl shadow-lg w-full max-w-md text-center">
               <h1 className="text-3xl font-semibold mb-6 text-gray-800">
