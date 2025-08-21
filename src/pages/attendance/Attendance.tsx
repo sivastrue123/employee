@@ -13,6 +13,7 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
+  parse,
 } from "date-fns";
 import { ChevronDownIcon, CalendarIcon } from "lucide-react";
 
@@ -62,7 +63,6 @@ type Preset = "today" | "week" | "month" | "clear";
 
 // Guard the imported data with a type assertion if the source file is JS.
 
-
 // --- HubSpot-y helpers ---
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
@@ -72,6 +72,38 @@ const kpiCard = {
 } as const;
 
 const pageSize = 10;
+
+const timeFormats = [
+  "h:mm a",
+  "hh:mm a",
+  "h.mm a",
+  "hh.mm a", // 12h with colon or dot
+  "H:mm",
+  "HH:mm",
+  "H.mm",
+  "HH.mm", // 24h with colon or dot
+  "h:mma",
+  "hh:mma",
+  "h.mma",
+  "hh.mma", // compact "6:39pm" / "6.39pm"
+];
+
+function toLowerSafe(s?: string) {
+  return (s ?? "").toLowerCase();
+}
+function squash(s?: string) {
+  // normalize spaces + common time separators to enable fuzzy matching
+  return toLowerSafe(s).replace(/[\s:.\-_/]/g, "");
+}
+function parseTimeToMinutes(s?: string): number | null {
+  const raw = (s ?? "").trim();
+  if (!raw) return null;
+  for (const fmt of timeFormats) {
+    const d = parse(raw, fmt, new Date(2000, 0, 1)); // fixed anchor date
+    if (!isNaN(d.getTime())) return d.getHours() * 60 + d.getMinutes();
+  }
+  return null;
+}
 
 const Attendance: React.FC = () => {
   const { user } = useAuth();
@@ -97,7 +129,7 @@ const Attendance: React.FC = () => {
     const response = await axios.get<any>(
       `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
     );
-    console.log(response.data)
+    console.log(response.data);
     setAttendanceData(response.data.data);
   };
   useEffect(() => {
@@ -131,18 +163,40 @@ const Attendance: React.FC = () => {
 
     // query filter
     if (query.trim()) {
-      const q = query.toLowerCase();
+      const q = toLowerSafe(query);
+      const qSquash = squash(query);
+      const qMins = parseTimeToMinutes(query);
+
       currentData = currentData.filter((item) => {
-        const dStr = format(
+        const dateStr = format(
           parseISO(item.attendanceDate),
           "PPPP"
         ).toLowerCase();
-        return (
-          dStr.includes(q) ||
-          item.status.toLowerCase().includes(q) ||
-          (item.clockIn ?? "").toLowerCase().includes(q) ||
-          (item.clockOut ?? "").toLowerCase().includes(q)
-        );
+
+        const cin = toLowerSafe(item.clockIn);
+        const cout = toLowerSafe(item.clockOut);
+
+        const cinSquash = squash(item.clockIn);
+        const coutSquash = squash(item.clockOut);
+
+        // minutes representation (if parseable)
+        const cinMins = parseTimeToMinutes(item.clockIn);
+        const coutMins = parseTimeToMinutes(item.clockOut);
+
+        const status = toLowerSafe(item.status);
+
+        const textHit =
+          dateStr.includes(q) ||
+          status.includes(q) ||
+          cin.includes(q) ||
+          cout.includes(q) ||
+          cinSquash.includes(qSquash) ||
+          coutSquash.includes(qSquash);
+
+        const timeHit =
+          qMins !== null && (cinMins === qMins || coutMins === qMins);
+
+        return textHit || timeHit;
       });
     }
 
@@ -156,7 +210,7 @@ const Attendance: React.FC = () => {
     }
 
     return currentData;
-  }, [date, dateRange, query, sorting,attendanceData]);
+  }, [date, dateRange, query, sorting, attendanceData]);
   // Monthly aggregates
   useEffect(() => {
     const today = new Date();
@@ -174,11 +228,9 @@ const Attendance: React.FC = () => {
     setMonthlyAbsents(
       currentMonthData.filter((i) => i.status === "Absent").length
     );
-
   }, [attendanceData]);
 
   // Manual filter + sort
-  
 
   // Reset page when filters change
   useEffect(() => {
@@ -458,7 +510,7 @@ const Attendance: React.FC = () => {
                 <TableHead className="whitespace-nowrap">Clock In</TableHead>
                 <TableHead className="whitespace-nowrap">Clock Out</TableHead>
                 <TableHead className="whitespace-nowrap">OT</TableHead>
-                 <TableHead className="whitespace-nowrap">Late</TableHead>
+                <TableHead className="whitespace-nowrap">Late</TableHead>
                 <TableHead className="whitespace-nowrap">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -473,8 +525,12 @@ const Attendance: React.FC = () => {
                     <TableCell className="font-medium">
                       {format(parseISO(row.attendanceDate), "PPP")}
                     </TableCell>
-                    <TableCell>{row.clockIn ?? "—"}</TableCell>
-                    <TableCell>{row.clockOut ?? "—"}</TableCell>
+                    <TableCell>
+                      {row.clockIn == "" ? "—" : row.clockIn}
+                    </TableCell>
+                    <TableCell className="">
+                      {row.clockOut === "" ? "—" : row.clockOut}
+                    </TableCell>
                     <TableCell>{row.ot ?? "—"}</TableCell>
                     <TableCell>{row.late ?? "—"}</TableCell>
                     <TableCell>

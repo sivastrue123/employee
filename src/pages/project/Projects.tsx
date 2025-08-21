@@ -144,7 +144,7 @@ const Projects: React.FC = () => {
           Projects
         </p>
         <p className="mt-1 text-slate-600">
-          Track current initiatives, owners, status, and deadlines — at a
+          Track current clients, managers, status, and deadlines — at a
           glance.
         </p>
       </div>
@@ -152,7 +152,7 @@ const Projects: React.FC = () => {
       {/* KPI row */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className={kpiCard.base}>
-          <div className={kpiCard.title}>Total Projects</div>
+          <div className={kpiCard.title}>Total Clients</div>
           <div className={kpiCard.value}>{projectData.length}</div>
           <div className={kpiCard.sub}>Currently active</div>
         </div>
@@ -208,7 +208,7 @@ const Projects: React.FC = () => {
                     onClick={() => toggleSort("name")}
                     className="px-0"
                   >
-                    Project <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
+                    Client <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
                   </Button>
                 </TableHead>
                 <TableHead className="whitespace-nowrap">
@@ -217,7 +217,7 @@ const Projects: React.FC = () => {
                     onClick={() => toggleSort("owner")}
                     className="px-0"
                   >
-                    Owner <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
+                    Manager <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
                   </Button>
                 </TableHead>
                 <TableHead className="whitespace-nowrap">Team</TableHead>
