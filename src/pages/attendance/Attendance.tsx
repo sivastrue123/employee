@@ -39,27 +39,22 @@ import {
 import { attendanceData as rawAttendanceData } from "../../../utils/attendanceData";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
+import {
+  parseTimeToMinutes,
+  squash,
+  toLowerSafe,
+} from "@/helpers/attendanceDateHelper";
+import {
+  SortState,
+  Preset,
+  AttendanceRecord,
+  DateRange,
+} from "@/types/attendanceTypes";
 
 // -------- Types --------
-type AttendanceStatus = "Present" | "Absent";
-
-interface AttendanceRecord {
-  id: string | number;
-  attendanceDate: string; // ISO string
-  clockIn?: string;
-  clockOut?: string;
-  ot?: string;
-  status: AttendanceStatus;
-  late?: string;
-}
 
 // If your CustomDatePicker is based on react-day-picker, this shape is typical.
 // Adjust if your component exports its own type.
-type DateRange = { from?: Date; to?: Date } | undefined;
-
-type SortState = { id: "attendanceDate"; desc: boolean } | null;
-
-type Preset = "today" | "week" | "month" | "clear";
 
 // Guard the imported data with a type assertion if the source file is JS.
 
@@ -72,38 +67,6 @@ const kpiCard = {
 } as const;
 
 const pageSize = 10;
-
-const timeFormats = [
-  "h:mm a",
-  "hh:mm a",
-  "h.mm a",
-  "hh.mm a", // 12h with colon or dot
-  "H:mm",
-  "HH:mm",
-  "H.mm",
-  "HH.mm", // 24h with colon or dot
-  "h:mma",
-  "hh:mma",
-  "h.mma",
-  "hh.mma", // compact "6:39pm" / "6.39pm"
-];
-
-function toLowerSafe(s?: string) {
-  return (s ?? "").toLowerCase();
-}
-function squash(s?: string) {
-  // normalize spaces + common time separators to enable fuzzy matching
-  return toLowerSafe(s).replace(/[\s:.\-_/]/g, "");
-}
-function parseTimeToMinutes(s?: string): number | null {
-  const raw = (s ?? "").trim();
-  if (!raw) return null;
-  for (const fmt of timeFormats) {
-    const d = parse(raw, fmt, new Date(2000, 0, 1)); // fixed anchor date
-    if (!isNaN(d.getTime())) return d.getHours() * 60 + d.getMinutes();
-  }
-  return null;
-}
 
 const Attendance: React.FC = () => {
   const { user } = useAuth();
