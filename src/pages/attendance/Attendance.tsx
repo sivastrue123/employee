@@ -15,7 +15,7 @@ import {
   endOfMonth,
   parse,
 } from "date-fns";
-import { ChevronDownIcon, CalendarIcon } from "lucide-react";
+import { ChevronDownIcon, CalendarIcon, Search } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -297,7 +297,9 @@ const Attendance: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
             {/* Search */}
+            
             <div className="relative">
+              
               <Input
                 aria-label="Search attendance"
                 placeholder="Search date, status, or time…"
@@ -308,7 +310,7 @@ const Attendance: React.FC = () => {
                 }
               />
               <span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">
-                ⌘K
+                <Search className=" w-4 h-4" />
               </span>
             </div>
 

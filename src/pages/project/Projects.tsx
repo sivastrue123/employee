@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { format, isAfter, parseISO } from "date-fns";
-import { ArrowUpDown, CalendarIcon, TagIcon, User2 } from "lucide-react";
+import { ArrowUpDown, CalendarIcon, Search, TagIcon, User2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -186,7 +186,7 @@ const Projects: React.FC = () => {
                 onChange={(e) => setQuery(e.target.value)}
               />
               <span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">
-                ⌘K
+                <Search className=" w-4 h-4" />
               </span>
             </div>
           </div>
