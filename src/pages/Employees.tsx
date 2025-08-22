@@ -186,7 +186,9 @@ export default function Employees() {
 
   return (
     <div
-      className={`flex-1 lg:px-10 !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto`}
+      className={`flex-1 ${
+        viewMode == "table" ? "lg:px-14" : "lg:px-10"
+      }  !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto`}
     >
       <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
         <div>
