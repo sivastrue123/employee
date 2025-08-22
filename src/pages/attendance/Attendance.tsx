@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   endOfDay,
@@ -16,10 +16,12 @@ import {
   parse,
 } from "date-fns";
 import { ChevronDownIcon, CalendarIcon, Search } from "lucide-react";
-
-import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
+import { useDebouncedCallback } from "use-debounce";
+import { useAuth } from "@/context/AuthContext";
+import axios from "axios";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -35,10 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
 import { attendanceData as rawAttendanceData } from "../../../utils/attendanceData";
-import axios from "axios";
-import { useAuth } from "@/context/AuthContext";
 import {
   parseTimeToMinutes,
   squash,
@@ -51,14 +50,9 @@ import {
   DateRange,
 } from "@/types/attendanceTypes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 // -------- Types --------
 
-// If your CustomDatePicker is based on react-day-picker, this shape is typical.
-// Adjust if your component exports its own type.
-
-// Guard the imported data with a type assertion if the source file is JS.
-
-// --- HubSpot-y helpers ---
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
   title: "text-sm font-medium text-slate-500",
@@ -72,35 +66,51 @@ const Attendance: React.FC = () => {
   const { user, attendanceRefresh } = useAuth();
   const [monthlyPresents, setMonthlyPresents] = useState<number>(0);
   const [monthlyAbsents, setMonthlyAbsents] = useState<number>(0);
-  console.log(attendanceRefresh);
   const [sorting, setSorting] = useState<SortState>(null);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
-
   const [dateRange, setDateRange] = useState<DateRange>(undefined);
   const [openSingle, setOpenSingle] = useState<boolean>(false);
   const [openRange, setOpenRange] = useState<boolean>(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
-
   const [query, setQuery] = useState<string>("");
-
   const [page, setPage] = useState<number>(1);
-
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  const debouncedSearch = useDebouncedCallback((query) => {
+    setQuery(query);
+  }, 500); // 500ms debounce delay
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDebouncedQuery(e.target.value);
+    debouncedSearch(e.target.value);
+  };
 
   const handleGetAttendanceData = async () => {
-    // Simulate fetching data
-    const response = await axios.get<any>(
-      `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
-    );
-    console.log(response.data);
-    setAttendanceData(response.data.data);
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
+      );
+      setAttendanceData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching attendance data:", error);
+      setAttendanceData([]);
+      alert(
+        "Something went wrong while fetching attendance data. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
   useEffect(() => {
-    // Simulate fetching data
     handleGetAttendanceData();
   }, [user?.employee_id, attendanceRefresh]);
 
-  const filteredAndSortedData = useMemo<AttendanceRecord[]>(() => {
+  const filteredAndSortedData = useMemo(() => {
     let currentData = [...attendanceData];
 
     // single-date filter
@@ -135,14 +145,12 @@ const Attendance: React.FC = () => {
           parseISO(item.attendanceDate),
           "PPPP"
         ).toLowerCase();
-
         const cin = toLowerSafe(item.clockIn);
         const cout = toLowerSafe(item.clockOut);
 
         const cinSquash = squash(item.clockIn);
         const coutSquash = squash(item.clockOut);
 
-        // minutes representation (if parseable)
         const cinMins = parseTimeToMinutes(item.clockIn);
         const coutMins = parseTimeToMinutes(item.clockOut);
 
@@ -174,6 +182,7 @@ const Attendance: React.FC = () => {
 
     return currentData;
   }, [date, dateRange, query, sorting, attendanceData, attendanceRefresh]);
+
   // Monthly aggregates
   useEffect(() => {
     const today = new Date();
@@ -192,8 +201,6 @@ const Attendance: React.FC = () => {
       currentMonthData.filter((i) => i.status === "Absent").length
     );
   }, [attendanceData, attendanceRefresh]);
-
-  // Manual filter + sort
 
   // Reset page when filters change
   useEffect(() => {
@@ -249,7 +256,6 @@ const Attendance: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pb-16">
-      {/* Page header */}
       <div className="mb-6">
         <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
           Attendance
@@ -291,6 +297,7 @@ const Attendance: React.FC = () => {
           <div className={kpiCard.sub}>Based on filters below</div>
         </div>
       </div>
+
       {user?.role === "admin" ? (
         <>
           <Tabs defaultValue="user" className="">
@@ -298,10 +305,7 @@ const Attendance: React.FC = () => {
               <TabsTrigger value="user" className="tab-trigger">
                 User
               </TabsTrigger>
-              <TabsTrigger
-                value="employees"
-                className="tab-trigger"
-              >
+              <TabsTrigger value="employees" className="tab-trigger">
                 Employees
               </TabsTrigger>
             </TabsList>
