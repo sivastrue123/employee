@@ -51,6 +51,7 @@ import {
 } from "@/types/attendanceTypes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserTable from "./UserTable";
+import EmployeeTable from "./EmployeeTable";
 
 // -------- Types --------
 
@@ -337,7 +338,7 @@ const Attendance: React.FC = () => {
               </>
             </TabsContent>
             <TabsContent value="employees">
-              All Employees table data is here
+             <EmployeeTable/>
             </TabsContent>
             <style>{`
               .tab-trigger {
