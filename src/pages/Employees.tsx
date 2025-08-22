@@ -187,7 +187,7 @@ export default function Employees() {
   return (
     <div
       className={`flex-1 ${
-        viewMode == "table" ? "lg:px-14" : "lg:px-10"
+        viewMode == "table" ? "lg:pl-14 lg:pr-10" : "lg:px-10"
       }  !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto`}
     >
       <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
@@ -239,7 +239,7 @@ export default function Employees() {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>

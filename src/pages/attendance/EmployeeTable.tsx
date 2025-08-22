@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,20 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon, ChevronDownIcon, Search } from "lucide-react";
 import { motion } from "framer-motion";
-import { format, parseISO } from "date-fns";
+import {
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isAfter,
+  isBefore,
+  isSameDay,
+  isWithinInterval,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import {
   Table,
   TableBody,
@@ -21,18 +34,31 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CustomDatePicker } from "@/components/Daypicker/CustomDatePicker";
 import { Badge } from "@/components/ui/badge";
+import { useDebouncedCallback } from "use-debounce";
+import { useAuth } from "@/context/AuthContext";
+import { DateRange, Preset, SortState } from "@/types/attendanceTypes";
+import {
+  parseTimeToMinutes,
+  squash,
+  toLowerSafe,
+} from "@/helpers/attendanceDateHelper";
 
-const EmployeeTable = () => {
+const EmployeeTable: React.FC<any> = ({setMonthlyAbsents,setMonthlyPresents,setCurrentViewAbsent,setcurrentViewPresent}) => {
   const [allEmployeeData, setEmployeeData] = useState<any[]>([]);
-  const [query, setQuery] = useState("");
-  const [date, setDate] = useState<Date | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<any>(undefined);
-  const [sorting, setSorting] = useState<{ id: string; desc: boolean } | null>(
-    null
-  );
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(10); // Customize page size as needed
+  const { user, attendanceRefresh } = useAuth();
 
+  const [sorting, setSorting] = useState<SortState>(null);
+  const [activePreset, setActivePreset] = useState<Preset | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(undefined);
+  const [openSingle, setOpenSingle] = useState<boolean>(false);
+  const [openRange, setOpenRange] = useState<boolean>(false);
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [query, setQuery] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+
+  const [loading, setLoading] = useState(false);
+
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const handleGetAllEmployeeData = async () => {
     const response = await axios.get("/api/attendance/getAllAttendance");
     setEmployeeData(response.data.data); // Setting the data to the state
@@ -41,34 +67,158 @@ const EmployeeTable = () => {
   useEffect(() => {
     handleGetAllEmployeeData();
   }, []);
+  const debouncedSearch = useDebouncedCallback((query) => {
+    setQuery(query);
+  }, 500); // 500ms debounce delay
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDebouncedQuery(e.target.value);
+    debouncedSearch(e.target.value);
+  };
+
+  const filteredAndSortedData = useMemo(() => {
+    let currentData = [...allEmployeeData];
+
+    // single-date filter
+    if (date) {
+      currentData = currentData.filter((item) =>
+        isSameDay(parseISO(item.attendanceDate), date)
+      );
+    }
+
+    // range filter
+    if (dateRange && (dateRange.from || dateRange.to)) {
+      const start = dateRange.from ? startOfDay(dateRange.from) : undefined;
+      const end = dateRange.to ? endOfDay(dateRange.to) : undefined;
+
+      currentData = currentData.filter((item) => {
+        const d = parseISO(item.attendanceDate);
+        if (start && end) return isWithinInterval(d, { start, end });
+        if (start) return isAfter(d, start) || isSameDay(d, start);
+        if (end) return isBefore(d, end) || isSameDay(d, end);
+        return true;
+      });
+    }
+
+    // query filter
+    if (query.trim()) {
+      const q = toLowerSafe(query);
+      const qSquash = squash(query);
+      const qMins = parseTimeToMinutes(query);
+
+      currentData = currentData.filter((item) => {
+        const dateStr = format(
+          parseISO(item.attendanceDate),
+          "PPPP"
+        ).toLowerCase();
+        const cin = toLowerSafe(item.clockIn);
+        const cout = toLowerSafe(item.clockOut);
+
+        const cinSquash = squash(item.clockIn);
+        const coutSquash = squash(item.clockOut);
+
+        const cinMins = parseTimeToMinutes(item.clockIn);
+        const coutMins = parseTimeToMinutes(item.clockOut);
+
+        const status = toLowerSafe(item.status);
+
+        const textHit =
+          dateStr.includes(q) ||
+          status.includes(q) ||
+          cin.includes(q) ||
+          cout.includes(q) ||
+          cinSquash.includes(qSquash) ||
+          coutSquash.includes(qSquash);
+
+        const timeHit =
+          qMins !== null && (cinMins === qMins || coutMins === qMins);
+
+        return textHit || timeHit;
+      });
+    }
+
+    // sorting
+    if (sorting?.id === "attendanceDate") {
+      currentData.sort((a, b) => {
+        const A = parseISO(a.attendanceDate).getTime();
+        const B = parseISO(b.attendanceDate).getTime();
+        return sorting.desc ? B - A : A - B;
+      });
+    }
+
+    return currentData;
+  }, [date, dateRange, query, sorting, allEmployeeData, attendanceRefresh]);
+
+  // Monthly aggregates
+  useEffect(() => {
+    const today = new Date();
+    const currentMonthData = allEmployeeData.filter((item) => {
+      const itemDate = parseISO(item.attendanceDate);
+      return (
+        itemDate.getMonth() === today.getMonth() &&
+        itemDate.getFullYear() === today.getFullYear()
+      );
+    });
+
+    setMonthlyPresents(
+      currentMonthData.filter((i) => i.status === "Present").length
+    );
+    setMonthlyAbsents(
+      currentMonthData.filter((i) => i.status === "Absent").length
+    );
+  }, [allEmployeeData, attendanceRefresh]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [date, dateRange, query, sorting]);
+
+  const filteredAttendanceSummary = useMemo(() => {
+    const presents = filteredAndSortedData.filter(
+      (i) => i.status === "Present"
+    ).length;
+    const absents = filteredAndSortedData.filter(
+      (i) => i.status === "Absent"
+    ).length;
+    setCurrentViewAbsent(absents)
+    setcurrentViewPresent(presents)
+    return { presents, absents };
+  }, [filteredAndSortedData]);
+
+
+  const total = filteredAndSortedData.length;
+  const totalPages = Math.max(1, Math.ceil(total / 10));
+  const paged = filteredAndSortedData.slice((page - 1) * 10, page * 10);
 
   const handleSort = (columnId: "attendanceDate") => {
-    const isDesc = sorting?.desc ?? false;
-    setSorting({
-      id: columnId,
-      desc: !isDesc,
+    setSorting((prev) => {
+      if (prev && prev.id === columnId)
+        return { id: columnId, desc: !prev.desc };
+      return { id: columnId, desc: true };
     });
   };
 
-  // Filter logic
-  const filteredData = allEmployeeData.filter((item) => {
-    const matchesQuery =
-      item.attendanceDate.includes(query) ||
-      item.status.toLowerCase().includes(query.toLowerCase());
-    const matchesDate = date
-      ? format(parseISO(item.attendanceDate), "yyyy-MM-dd") ===
-        format(date, "yyyy-MM-dd")
-      : true;
-    const matchesDateRange =
-      dateRange?.from && dateRange?.to
-        ? parseISO(item.attendanceDate) >= dateRange?.from &&
-          parseISO(item.attendanceDate) <= dateRange?.to
-        : true;
+  const applyPreset = (preset: Preset) => {
+    const now = new Date();
+    setActivePreset(preset === "clear" ? null : preset);
 
-    return matchesQuery && matchesDate && matchesDateRange;
-  });
-
-  const pagedData = filteredData.slice((page - 1) * pageSize, page * pageSize);
+    if (preset === "today") {
+      setDate(now);
+      setDateRange(undefined);
+    } else if (preset === "week") {
+      setDate(undefined);
+      setDateRange({
+        from: startOfWeek(now, { weekStartsOn: 1 }),
+        to: endOfWeek(now, { weekStartsOn: 1 }),
+      });
+    } else if (preset === "month") {
+      setDate(undefined);
+      setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+    } else {
+      setDate(undefined);
+      setDateRange(undefined);
+    }
+  };
 
   return (
     <>
@@ -89,8 +239,7 @@ const EmployeeTable = () => {
               </span>
             </div>
 
-            {/* Single date */}
-            <Popover open={false} onOpenChange={() => {}}>
+            <Popover open={openSingle} onOpenChange={setOpenSingle}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-44 justify-between">
                   <span className="truncate">
@@ -106,15 +255,17 @@ const EmployeeTable = () => {
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={(d) => {
+                  onSelect={(d?: Date) => {
                     setDate(d);
+                    if (d) setDateRange && setDateRange(undefined);
+                    setOpenSingle(false);
                   }}
                 />
               </PopoverContent>
             </Popover>
 
             {/* Range date */}
-            <Popover open={false} onOpenChange={() => {}}>
+            <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -138,10 +289,69 @@ const EmployeeTable = () => {
               <PopoverContent className="w-auto p-0">
                 <CustomDatePicker
                   selected={dateRange}
-                  onSelect={setDateRange}
+                  onSelect={(r: DateRange) => {
+                    setDateRange && setDateRange(r);
+                    if (r?.from || r?.to) setDate(undefined);
+                  }}
+                  footer={
+                    <div className="flex w-full items-center justify-between p-2">
+                      <div className="text-xs text-slate-500">
+                        Tip: drag to select a range
+                      </div>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setDateRange && setDateRange(undefined)}
+                        className="text-sm"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  }
                 />
               </PopoverContent>
             </Popover>
+             <div className="flex ">
+                <Button variant="destructive" className="!bg-red-500"   size="sm">+ Mark Absentees</Button>
+              </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant={activePreset === "today" ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => applyPreset("today")}
+                className={
+                  activePreset === "today" ? "!hidden sm:inline-flex" : ""
+                }
+              >
+                Today
+              </Button>
+              <Button
+                variant={activePreset === "week" ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => applyPreset("week")}
+                className={
+                  activePreset === "week" ? "!hidden sm:inline-flex" : ""
+                }
+              >
+                This week
+              </Button>
+              <Button
+                variant={activePreset === "month" ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => applyPreset("month")}
+                className={
+                  activePreset === "month" ? "!hidden sm:inline-flex" : ""
+                }
+              >
+                This month
+              </Button>
+              <Button
+                variant={activePreset === null ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => applyPreset("clear")}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -189,8 +399,8 @@ const EmployeeTable = () => {
             </TableHeader>
 
             <TableBody>
-              {pagedData.length > 0 ? (
-                pagedData.map((row) => (
+              {paged.length > 0 ? (
+                paged.map((row: any) => (
                   <TableRow
                     key={row.id}
                     className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
@@ -246,19 +456,18 @@ const EmployeeTable = () => {
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-3 border-t p-3 sm:flex-row">
           <div className="text-xs text-slate-600">
-            Showing{" "}
-            <span className="font-medium">{(page - 1) * pageSize + 1}</span> to{" "}
+            Showing <span className="font-medium">{(page - 1) * 10 + 1}</span>{" "}
+            to{" "}
             <span className="font-medium">
-              {Math.min(page * pageSize, filteredData.length)}
+              {Math.min(page * 10, paged.length)}
             </span>{" "}
-            of <span className="font-medium">{filteredData.length}</span>{" "}
-            entries
+            of <span className="font-medium">{paged.length}</span> entries
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setPage((p: number) => Math.max(1, p - 1))}
               disabled={page === 1}
             >
               Previous
@@ -270,11 +479,11 @@ const EmployeeTable = () => {
               variant="outline"
               size="sm"
               onClick={() =>
-                setPage((p) =>
-                  Math.min(Math.ceil(filteredData.length / pageSize), p + 1)
+                setPage((p: number) =>
+                  Math.min(Math.ceil(allEmployeeData.length / 10), p + 1)
                 )
               }
-              disabled={page === Math.ceil(filteredData.length / pageSize)}
+              disabled={page === Math.ceil(allEmployeeData.length / 10)}
             >
               Next
             </Button>

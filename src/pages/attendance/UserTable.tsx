@@ -21,51 +21,230 @@ import { Calendar } from "@/components/ui/calendar";
 import { CustomDatePicker } from "@/components/Daypicker/CustomDatePicker";
 import { DateRange, Preset } from "@/types/attendanceTypes";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useMemo, useState, useRef } from "react";
 
-interface UserTableProps {
-  query: string;
-  totalPages: number;
-  setPage: React.Dispatch<React.SetStateAction<number>>;
-  total: number;
-  page: number;
-  pageSize: number;
-  paged: any[]; // Change to a more specific type if possible
-  handleSort:  (columnId: "attendanceDate") => void
-  sorting: { id: string; desc: boolean } | null;
-  applyPreset: (preset: Preset) => void;
-  activePreset: string | null;
-  setQuery: (query: string) => void;
-  openSingle: boolean;
-  setOpenSingle: (open: boolean) => void;
-  date: Date | undefined;
-  setDate: (date: Date | undefined) => void;
-  setDateRange:React.Dispatch<React.SetStateAction<DateRange>> | undefined;
-  setOpenRange: (open: boolean) => void;
-  openRange: boolean;
-  dateRange: DateRange;
-}
-    const UserTable: React.FC<UserTableProps> = ({
-    query,
-    totalPages,
-    setPage,
-    total,
-    page,
-    pageSize,
-    paged,
-    handleSort,
-    sorting,
-    applyPreset,
-    activePreset,
-    setQuery,
-    openSingle,
-    setOpenSingle,
-    date,
-    setDate,
-    setDateRange,
-    setOpenRange,
-    openRange,
-    dateRange,
-    }) => {
+import {
+  endOfDay,
+  isAfter,
+  isBefore,
+  isSameDay,
+  isWithinInterval,
+  startOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+} from "date-fns";
+
+import { useDebouncedCallback } from "use-debounce";
+
+import axios from "axios";
+
+import {
+  parseTimeToMinutes,
+  squash,
+  toLowerSafe,
+} from "@/helpers/attendanceDateHelper";
+import { SortState, AttendanceRecord } from "@/types/attendanceTypes";
+
+const UserTable: React.FC<any> = ({
+  pageSize,
+  user,
+  attendanceRefresh,
+  setMonthlyPresents,
+  setMonthlyAbsents,
+  setCurrentViewAbsent,
+  setcurrentViewPresent,
+}) => {
+  const [sorting, setSorting] = useState<SortState>(null);
+  const [activePreset, setActivePreset] = useState<Preset | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(undefined);
+  const [openSingle, setOpenSingle] = useState<boolean>(false);
+  const [openRange, setOpenRange] = useState<boolean>(false);
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [query, setQuery] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  const debouncedSearch = useDebouncedCallback((query) => {
+    setQuery(query);
+  }, 500); // 500ms debounce delay
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDebouncedQuery(e.target.value);
+    debouncedSearch(e.target.value);
+  };
+
+  const handleGetAttendanceData = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
+      );
+      setAttendanceData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching attendance data:", error);
+      setAttendanceData([]);
+      alert(
+        "Something went wrong while fetching attendance data. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    handleGetAttendanceData();
+  }, [user?.employee_id, attendanceRefresh]);
+
+  const filteredAndSortedData = useMemo(() => {
+    let currentData = [...attendanceData];
+
+    // single-date filter
+    if (date) {
+      currentData = currentData.filter((item) =>
+        isSameDay(parseISO(item.attendanceDate), date)
+      );
+    }
+
+    // range filter
+    if (dateRange && (dateRange.from || dateRange.to)) {
+      const start = dateRange.from ? startOfDay(dateRange.from) : undefined;
+      const end = dateRange.to ? endOfDay(dateRange.to) : undefined;
+
+      currentData = currentData.filter((item) => {
+        const d = parseISO(item.attendanceDate);
+        if (start && end) return isWithinInterval(d, { start, end });
+        if (start) return isAfter(d, start) || isSameDay(d, start);
+        if (end) return isBefore(d, end) || isSameDay(d, end);
+        return true;
+      });
+    }
+
+    // query filter
+    if (query.trim()) {
+      const q = toLowerSafe(query);
+      const qSquash = squash(query);
+      const qMins = parseTimeToMinutes(query);
+
+      currentData = currentData.filter((item) => {
+        const dateStr = format(
+          parseISO(item.attendanceDate),
+          "PPPP"
+        ).toLowerCase();
+        const cin = toLowerSafe(item.clockIn);
+        const cout = toLowerSafe(item.clockOut);
+
+        const cinSquash = squash(item.clockIn);
+        const coutSquash = squash(item.clockOut);
+
+        const cinMins = parseTimeToMinutes(item.clockIn);
+        const coutMins = parseTimeToMinutes(item.clockOut);
+
+        const status = toLowerSafe(item.status);
+
+        const textHit =
+          dateStr.includes(q) ||
+          status.includes(q) ||
+          cin.includes(q) ||
+          cout.includes(q) ||
+          cinSquash.includes(qSquash) ||
+          coutSquash.includes(qSquash);
+
+        const timeHit =
+          qMins !== null && (cinMins === qMins || coutMins === qMins);
+
+        return textHit || timeHit;
+      });
+    }
+
+    // sorting
+    if (sorting?.id === "attendanceDate") {
+      currentData.sort((a, b) => {
+        const A = parseISO(a.attendanceDate).getTime();
+        const B = parseISO(b.attendanceDate).getTime();
+        return sorting.desc ? B - A : A - B;
+      });
+    }
+
+    return currentData;
+  }, [date, dateRange, query, sorting, attendanceData, attendanceRefresh]);
+
+  // Monthly aggregates
+  useEffect(() => {
+    const today = new Date();
+    const currentMonthData = attendanceData.filter((item) => {
+      const itemDate = parseISO(item.attendanceDate);
+      return (
+        itemDate.getMonth() === today.getMonth() &&
+        itemDate.getFullYear() === today.getFullYear()
+      );
+    });
+
+    setMonthlyPresents(
+      currentMonthData.filter((i) => i.status === "Present").length
+    );
+    setMonthlyAbsents(
+      currentMonthData.filter((i) => i.status === "Absent").length
+    );
+  }, [attendanceData, attendanceRefresh]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [date, dateRange, query, sorting]);
+
+  const filteredAttendanceSummary = useMemo(() => {
+    const presents = filteredAndSortedData.filter(
+      (i) => i.status === "Present"
+    ).length;
+    const absents = filteredAndSortedData.filter(
+      (i) => i.status === "Absent"
+    ).length;
+    setCurrentViewAbsent(absents);
+    setcurrentViewPresent(presents);
+    return { presents, absents };
+  }, [filteredAndSortedData]);
+
+  const total = filteredAndSortedData.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const paged = filteredAndSortedData.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
+
+  const handleSort = (columnId: "attendanceDate") => {
+    setSorting((prev) => {
+      if (prev && prev.id === columnId)
+        return { id: columnId, desc: !prev.desc };
+      return { id: columnId, desc: true };
+    });
+  };
+
+  const applyPreset = (preset: Preset) => {
+    const now = new Date();
+    setActivePreset(preset === "clear" ? null : preset);
+
+    if (preset === "today") {
+      setDate(now);
+      setDateRange(undefined);
+    } else if (preset === "week") {
+      setDate(undefined);
+      setDateRange({
+        from: startOfWeek(now, { weekStartsOn: 1 }),
+        to: endOfWeek(now, { weekStartsOn: 1 }),
+      });
+    } else if (preset === "month") {
+      setDate(undefined);
+      setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+    } else {
+      setDate(undefined);
+      setDateRange(undefined);
+    }
+  };
   return (
     <>
       {" "}
@@ -113,7 +292,7 @@ interface UserTableProps {
                   captionLayout="dropdown"
                   onSelect={(d?: Date) => {
                     setDate(d);
-                    if (d) setDateRange&& setDateRange(undefined);
+                    if (d) setDateRange && setDateRange(undefined);
                     setOpenSingle(false);
                   }}
                 />
@@ -147,7 +326,7 @@ interface UserTableProps {
                 <CustomDatePicker
                   selected={dateRange}
                   onSelect={(r: DateRange) => {
-                  setDateRange&&  setDateRange(r);
+                    setDateRange && setDateRange(r);
                     if (r?.from || r?.to) setDate(undefined);
                   }}
                   footer={
@@ -157,7 +336,7 @@ interface UserTableProps {
                       </div>
                       <Button
                         variant="ghost"
-                        onClick={() => setDateRange&&setDateRange(undefined)}
+                        onClick={() => setDateRange && setDateRange(undefined)}
                         className="text-sm"
                       >
                         Clear
@@ -167,7 +346,7 @@ interface UserTableProps {
                 />
               </PopoverContent>
             </Popover>
-
+             
             {/* Presets */}
             <div className="flex items-center gap-1">
               <Button
@@ -337,7 +516,9 @@ interface UserTableProps {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p: number) => Math.min(totalPages, p + 1))}
+              onClick={() =>
+                setPage((p: number) => Math.min(totalPages, p + 1))
+              }
               disabled={page === totalPages}
             >
               Next
