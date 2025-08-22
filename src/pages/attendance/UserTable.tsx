@@ -458,7 +458,7 @@ const UserTable: React.FC<any> = ({
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
+                <TableRow className="w-full">
                   <TableCell
                     colSpan={5}
                     className="h-56 text-center align-middle"

@@ -42,11 +42,48 @@ import {
   squash,
   toLowerSafe,
 } from "@/helpers/attendanceDateHelper";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DropdownMenuCheckboxItemProps } from "@radix-ui/react-dropdown-menu";
+type Checked = DropdownMenuCheckboxItemProps["checked"];
 
-const EmployeeTable: React.FC<any> = ({setMonthlyAbsents,setMonthlyPresents,setCurrentViewAbsent,setcurrentViewPresent}) => {
+const EmployeeTable: React.FC<any> = ({
+  setMonthlyAbsents,
+  setMonthlyPresents,
+  setCurrentViewAbsent,
+  setcurrentViewPresent,
+}) => {
   const [allEmployeeData, setEmployeeData] = useState<any[]>([]);
   const { user, attendanceRefresh } = useAuth();
+  const [employeeOptions, setEmployeeOptions] = useState<any[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
+  useEffect(() => {
+    // Fetch all employees when the component mounts
+    const fetchEmployees = async () => {
+      const response = await axios.get("/api/employee/getAllEmployee");
+      setEmployeeOptions(response.data); // Assuming the API returns a list of employees
+    };
+
+    fetchEmployees();
+  }, []);
+
+  const handleEmployeeSelect = (employeeId: string) => {
+    setSelectedEmployeeIds((prev) => {
+      if (prev.includes(employeeId)) {
+        return prev.filter((id) => id !== employeeId); // Deselect
+      } else {
+        return [...prev, employeeId]; // Select
+      }
+    });
+  };
+console.log(selectedEmployeeIds)
   const [sorting, setSorting] = useState<SortState>(null);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(undefined);
@@ -180,11 +217,10 @@ const EmployeeTable: React.FC<any> = ({setMonthlyAbsents,setMonthlyPresents,setC
     const absents = filteredAndSortedData.filter(
       (i) => i.status === "Absent"
     ).length;
-    setCurrentViewAbsent(absents)
-    setcurrentViewPresent(presents)
+    setCurrentViewAbsent(absents);
+    setcurrentViewPresent(presents);
     return { presents, absents };
   }, [filteredAndSortedData]);
-
 
   const total = filteredAndSortedData.length;
   const totalPages = Math.max(1, Math.ceil(total / 10));
@@ -219,7 +255,18 @@ const EmployeeTable: React.FC<any> = ({setMonthlyAbsents,setMonthlyPresents,setC
       setDateRange(undefined);
     }
   };
+  //     const handleGetFilteredData = async () => {
+  //     const employeeIds = selectedEmployeeIds.join(',');
+  //     const response = await axios.get(`/api/attendance/getAttendanceByEmployees/${employeeIds}`);
+  //     setEmployeeData(response.data); // Store the filtered data
+  //   };
 
+  //   useEffect(() => {
+  //     if (selectedEmployeeIds.length > 0) {
+  //       handleGetFilteredData();  // Fetch filtered data based on selected employees
+  //     }
+  //   }, [selectedEmployeeIds]);
+console.log(employeeOptions)
   return (
     <>
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
@@ -310,9 +357,31 @@ const EmployeeTable: React.FC<any> = ({setMonthlyAbsents,setMonthlyPresents,setC
                 />
               </PopoverContent>
             </Popover>
-             <div className="flex ">
-                <Button variant="destructive" className="!bg-red-500"   size="sm">+ Mark Absentees</Button>
-              </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">Select Employees</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Select Employees</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {employeeOptions.map((employee) => (
+                  <DropdownMenuCheckboxItem
+                    key={employee.employee_id}
+                    checked={selectedEmployeeIds.includes(employee.employee_id)}
+                    onCheckedChange={() => handleEmployeeSelect(employee.employee_id)}
+                    className="!text-black"
+                  >
+                    {employee.first_name+ employee.last_name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="flex ">
+              <Button variant="destructive" className="!bg-red-500" size="sm">
+                + Mark Absentees
+              </Button>
+            </div>
             <div className="flex items-center gap-1">
               <Button
                 variant={activePreset === "today" ? "outline" : "ghost"}
