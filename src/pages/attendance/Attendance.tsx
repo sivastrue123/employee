@@ -69,10 +69,10 @@ const kpiCard = {
 const pageSize = 10;
 
 const Attendance: React.FC = () => {
-  const { user } = useAuth();
+  const { user,attendanceRefresh } = useAuth();
   const [monthlyPresents, setMonthlyPresents] = useState<number>(0);
   const [monthlyAbsents, setMonthlyAbsents] = useState<number>(0);
-
+console.log(attendanceRefresh)
   const [sorting, setSorting] = useState<SortState>(null);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
 
@@ -98,7 +98,7 @@ const Attendance: React.FC = () => {
   useEffect(() => {
     // Simulate fetching data
     handleGetAttendanceData();
-  }, [user?.employee_id]);
+  }, [user?.employee_id,attendanceRefresh]);
 
   const filteredAndSortedData = useMemo<AttendanceRecord[]>(() => {
     let currentData = [...attendanceData];
@@ -173,7 +173,7 @@ const Attendance: React.FC = () => {
     }
 
     return currentData;
-  }, [date, dateRange, query, sorting, attendanceData]);
+  }, [date, dateRange, query, sorting, attendanceData,attendanceRefresh]);
   // Monthly aggregates
   useEffect(() => {
     const today = new Date();
@@ -191,7 +191,7 @@ const Attendance: React.FC = () => {
     setMonthlyAbsents(
       currentMonthData.filter((i) => i.status === "Absent").length
     );
-  }, [attendanceData]);
+  }, [attendanceData,attendanceRefresh]);
 
   // Manual filter + sort
 
@@ -490,6 +490,9 @@ const Attendance: React.FC = () => {
                         <TableHead className="whitespace-nowrap">
                           Clock Out
                         </TableHead>
+                         <TableHead className="whitespace-nowrap">
+                          Total Hours Worked
+                        </TableHead>
                         <TableHead className="whitespace-nowrap">OT</TableHead>
                         <TableHead className="whitespace-nowrap">
                           Late
@@ -515,6 +518,9 @@ const Attendance: React.FC = () => {
                             </TableCell>
                             <TableCell className="">
                               {row.clockOut === "" ? "—" : row.clockOut}
+                            </TableCell>
+                            <TableCell className="">
+                              {row.worked === "" ? "—" : row.worked}
                             </TableCell>
                             <TableCell>{row.ot ?? "—"}</TableCell>
                             <TableCell>{row.late ?? "—"}</TableCell>

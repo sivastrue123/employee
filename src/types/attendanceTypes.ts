@@ -12,6 +12,7 @@ export type AttendanceRecord ={
   attendanceDate: string; // ISO string
   clockIn?: string;
   clockOut?: string;
+  worked?:string;
   ot?: string;
   status: AttendanceStatus;
   late?: string;

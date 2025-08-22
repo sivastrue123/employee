@@ -54,6 +54,10 @@ export const columns: ColumnDef<Attendance>[] = [
     accessorKey: "clockOut",
     header: "Clock Out",
   },
+    {
+    accessorKey: "worked",
+    header: " Total Hours Worked",
+  },
   {
     accessorKey: "ot",
     header: "OT",

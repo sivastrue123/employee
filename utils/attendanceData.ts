@@ -94,6 +94,7 @@ export type Attendance = {
   attendanceDate: string;
   clockIn: string;
   clockOut: string;
+  worked:string;
   ot: string;
   status: 'Present' | 'Absent';
   late?: string; 

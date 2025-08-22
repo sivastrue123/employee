@@ -100,7 +100,7 @@ const formatTime = (seconds: number) => {
 };
 
 export default function SidebarComp({ children }: any) {
-  const { logout, user } = useAuth();
+  const { logout, user, setAttendanceRefresh, attendanceRefresh } = useAuth();
   const location = useLocation();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -249,7 +249,7 @@ export default function SidebarComp({ children }: any) {
         localStorage.setItem("isClockedIn", "true");
         localStorage.setItem("clockInTime", response.data.data.clockIn);
         localStorage.setItem("attendanceId", response.data.data._id);
-
+        setAttendanceRefresh(!attendanceRefresh);
         setIsClockedIn(true);
         setElapsedTime(elapsed);
       } else {
@@ -302,7 +302,7 @@ export default function SidebarComp({ children }: any) {
         localStorage.removeItem("clockInTime");
         localStorage.removeItem("attendanceId");
         localStorage.removeItem("clockedInDate");
-
+        setAttendanceRefresh(!attendanceRefresh);
         setIsClockedIn(false);
         setElapsedTime(0);
       })

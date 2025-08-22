@@ -17,6 +17,8 @@ type AuthContextType = {
   user: User | null;
   setUser: (user: User | null) => void;
   logout: () => void;
+  attendanceRefresh: Boolean;
+  setAttendanceRefresh: React.Dispatch<React.SetStateAction<Boolean>>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,7 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUserState] = useState<User | null>(null);
   const timeoutRef = useRef<number | null>(null);
-
+  const [attendanceRefresh, setAttendanceRefresh] = useState<Boolean>(false);
   const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 
   const resetTimeout = () => {
@@ -70,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUserState(JSON.parse(storedUser));
     }
   }, []);
-
+console.log("from Auth",attendanceRefresh)
   useEffect(() => {
     if (user) {
       resetTimeout();
@@ -91,7 +93,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout }}>
+    <AuthContext.Provider
+      value={{ user, setUser, logout, attendanceRefresh, setAttendanceRefresh }}
+    >
       {children}
     </AuthContext.Provider>
   );
