@@ -63,6 +63,8 @@ const EmployeeTable: React.FC<any> = ({
   const { user, attendanceRefresh } = useAuth();
   const [employeeOptions, setEmployeeOptions] = useState<any[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [dropdownOpen, setDropdownOpen] = React.useState<boolean>(false);
 
   useEffect(() => {
     // Fetch all employees when the component mounts
@@ -74,6 +76,17 @@ const EmployeeTable: React.FC<any> = ({
     fetchEmployees();
   }, []);
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+  const filteredEmployees = employeeOptions.filter((employee) => {
+    const fullName = (
+      employee.first_name +
+      " " +
+      employee.last_name
+    ).toLowerCase();
+    return fullName.includes(searchQuery.toLowerCase());
+  });
   const handleEmployeeSelect = (employeeId: string) => {
     setSelectedEmployeeIds((prev) => {
       if (prev.includes(employeeId)) {
@@ -83,7 +96,7 @@ const EmployeeTable: React.FC<any> = ({
       }
     });
   };
-console.log(selectedEmployeeIds)
+
   const [sorting, setSorting] = useState<SortState>(null);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(undefined);
@@ -96,14 +109,56 @@ console.log(selectedEmployeeIds)
   const [loading, setLoading] = useState(false);
 
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const handleGetAllEmployeeData = async () => {
-    const response = await axios.get("/api/attendance/getAllAttendance");
-    setEmployeeData(response.data.data); // Setting the data to the state
+  const handleGetAllEmployeeData = async (
+    employeeIds?: String[],
+    today?: string,
+    from?: Date,
+    to?: Date
+  ) => {
+    try {
+      let response;
+      const queryParams = [];
+
+      if (employeeIds && employeeIds.length > 0) {
+        queryParams.push(`employeeIds=${selectedEmployeeIds.join(",")}`);
+      }
+      if (today || date) {
+        queryParams.push(`today=${today || date}`);
+      }
+      if ((from && to) || dateRange) {
+        queryParams.push(
+          `from=${from ? from.toISOString() : dateRange?.from}&to=${
+            to ? to.toISOString() : dateRange?.to
+          }`
+        );
+      }
+      const queryString = queryParams.length ? `?${queryParams.join("&")}` : "";
+
+      response = await axios.get(
+        `/api/attendance/getAllAttendance${queryString}`
+      );
+
+      setEmployeeData(response.data.data); // Setting the data to the state
+    } catch (error: any) {
+      if (error.status) {
+        alert("No data found on given filter");
+        setDate(undefined)
+      } else {
+        alert("Something went wrong");
+      }
+    }
   };
 
   useEffect(() => {
-    handleGetAllEmployeeData();
-  }, []);
+    if (selectedEmployeeIds && selectedEmployeeIds.length > 0) {
+      //   setDate(undefined);
+      //   setDateRange(undefined);
+      //    setActivePreset( null );
+      handleGetAllEmployeeData(selectedEmployeeIds);
+    } else {
+      handleGetAllEmployeeData([""]);
+    }
+  }, [selectedEmployeeIds]);
   const debouncedSearch = useDebouncedCallback((query) => {
     setQuery(query);
   }, 500); // 500ms debounce delay
@@ -116,28 +171,6 @@ console.log(selectedEmployeeIds)
   const filteredAndSortedData = useMemo(() => {
     let currentData = [...allEmployeeData];
 
-    // single-date filter
-    if (date) {
-      currentData = currentData.filter((item) =>
-        isSameDay(parseISO(item.attendanceDate), date)
-      );
-    }
-
-    // range filter
-    if (dateRange && (dateRange.from || dateRange.to)) {
-      const start = dateRange.from ? startOfDay(dateRange.from) : undefined;
-      const end = dateRange.to ? endOfDay(dateRange.to) : undefined;
-
-      currentData = currentData.filter((item) => {
-        const d = parseISO(item.attendanceDate);
-        if (start && end) return isWithinInterval(d, { start, end });
-        if (start) return isAfter(d, start) || isSameDay(d, start);
-        if (end) return isBefore(d, end) || isSameDay(d, end);
-        return true;
-      });
-    }
-
-    // query filter
     if (query.trim()) {
       const q = toLowerSafe(query);
       const qSquash = squash(query);
@@ -241,18 +274,32 @@ console.log(selectedEmployeeIds)
     if (preset === "today") {
       setDate(now);
       setDateRange(undefined);
+      handleGetAllEmployeeData([""], now.toISOString(), undefined, undefined);
     } else if (preset === "week") {
       setDate(undefined);
       setDateRange({
         from: startOfWeek(now, { weekStartsOn: 1 }),
         to: endOfWeek(now, { weekStartsOn: 1 }),
       });
+      handleGetAllEmployeeData(
+        [""],
+        undefined,
+        startOfWeek(now),
+        endOfWeek(now)
+      );
     } else if (preset === "month") {
       setDate(undefined);
       setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+      handleGetAllEmployeeData(
+        [""],
+        undefined,
+        startOfMonth(now),
+        endOfMonth(now)
+      );
     } else {
       setDate(undefined);
       setDateRange(undefined);
+      handleGetAllEmployeeData();
     }
   };
   //     const handleGetFilteredData = async () => {
@@ -266,7 +313,10 @@ console.log(selectedEmployeeIds)
   //       handleGetFilteredData();  // Fetch filtered data based on selected employees
   //     }
   //   }, [selectedEmployeeIds]);
-console.log(employeeOptions)
+  console.log(employeeOptions);
+  const handleCloseDropdown = () => {
+    setDropdownOpen(false);
+  };
   return (
     <>
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
@@ -303,7 +353,17 @@ console.log(employeeOptions)
                   mode="single"
                   selected={date}
                   onSelect={(d?: Date) => {
+                    
                     setDate(d);
+                    if (d) {
+                      handleGetAllEmployeeData(
+                        [""],
+                        d.toISOString(),
+                        undefined,
+                        undefined
+                      );
+                   
+                    }
                     if (d) setDateRange && setDateRange(undefined);
                     setOpenSingle(false);
                   }}
@@ -358,30 +418,57 @@ console.log(employeeOptions)
               </PopoverContent>
             </Popover>
 
-            <DropdownMenu>
+            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">Select Employees</Button>
+                <Button variant="outline">Filter By Employees</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Select Employees</DropdownMenuLabel>
+                <DropdownMenuLabel>Filter By Employees</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {employeeOptions.map((employee) => (
-                  <DropdownMenuCheckboxItem
-                    key={employee.employee_id}
-                    checked={selectedEmployeeIds.includes(employee.employee_id)}
-                    onCheckedChange={() => handleEmployeeSelect(employee.employee_id)}
-                    className="!text-black"
-                  >
-                    {employee.first_name+ employee.last_name}
+
+                {/* Search Input */}
+                <Input
+                  placeholder="Search employees..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="mb-2 p-2"
+                />
+
+                {/* Employee List */}
+                {filteredEmployees.length > 0 ? (
+                  filteredEmployees.map((employee) => (
+                    <DropdownMenuCheckboxItem
+                      key={employee.employee_id}
+                      checked={selectedEmployeeIds.includes(
+                        employee.employee_id
+                      )}
+                      onCheckedChange={() =>
+                        handleEmployeeSelect(employee.employee_id)
+                      }
+                      className="!text-black"
+                    >
+                      {employee.first_name} {employee.last_name}
+                    </DropdownMenuCheckboxItem>
+                  ))
+                ) : (
+                  <DropdownMenuCheckboxItem disabled className="!text-gray-400">
+                    No employees found
                   </DropdownMenuCheckboxItem>
-                ))}
+                )}
+
+                {/* Close Button */}
+                <div className="mt-2">
+                  <Button
+                    variant="ghost"
+                    onClick={handleCloseDropdown}
+                    className="w-full"
+                  >
+                    Close
+                  </Button>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
-            <div className="flex ">
-              <Button variant="destructive" className="!bg-red-500" size="sm">
-                + Mark Absentees
-              </Button>
-            </div>
+
             <div className="flex items-center gap-1">
               <Button
                 variant={activePreset === "today" ? "outline" : "ghost"}
@@ -420,6 +507,11 @@ console.log(employeeOptions)
               >
                 Clear
               </Button>
+              <div className="flex ">
+                <Button variant="destructive" className="!bg-red-500" size="sm">
+                  + Mark Absentees
+                </Button>
+              </div>
             </div>
           </div>
         </div>
