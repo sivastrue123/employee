@@ -71,8 +71,12 @@ import Select from "react-select";
 // ✅ Toast: your in-house provider
 import { useToast } from "@/toast/ToastProvider";
 
-type Checked = DropdownMenuCheckboxItemProps["checked"];
+// ---------------- constants ----------------
 const PAGE_SIZE = 10;
+const TRIGGER_INDEX_IN_PAGE = 8; // 0-based → "9th row"
+
+// ---------------- types ----------------
+type Checked = DropdownMenuCheckboxItemProps["checked"];
 type Option = { value: string; label: string };
 type Employee = {
   employee_id: string;
@@ -108,10 +112,9 @@ type Filters = {
   search: string;
   preset: Preset | null;
   sort: SortState;
-  page: number;
 };
 
-const iso = (d?: Date) => (d ? d.toISOString() : undefined);
+// ---------------- utils ----------------
 const asDateOrNull = (val?: unknown): Date | null => {
   if (val == null) return null;
   if (typeof val === "number") {
@@ -136,10 +139,9 @@ const fmtDateTime = (input?: unknown) => {
   return d ? format(d, "PP p") : "—";
 };
 const pad = (n: number, w = 2) => String(Math.abs(n)).padStart(w, "0");
-
 const toOffsetISOString = (d: Date) => {
   const tz = -d.getTimezoneOffset();
-  const sign = tz >= 0 ? "+ " : "- ";
+  const sign = tz >= 0 ? "+" : "-";
   const hhOff = pad(Math.trunc(Math.abs(tz) / 60));
   const mmOff = pad(Math.abs(tz) % 60);
   const yyyy = d.getFullYear();
@@ -149,7 +151,7 @@ const toOffsetISOString = (d: Date) => {
   const mm = pad(d.getMinutes());
   const ss = pad(d.getSeconds());
   const ms = pad(d.getMilliseconds(), 3);
-  return `${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}.${ms}${sign.trim()}${hhOff}:${mmOff}`;
+  return `${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}.${ms}${sign}${hhOff}:${mmOff}`;
 };
 
 const serializeParams = (opts: {
@@ -157,17 +159,25 @@ const serializeParams = (opts: {
   today?: Date;
   from?: Date;
   to?: Date;
+  page?: number;
+  pageSize?: number;
+  search?: string;
 }) => {
+  console.log(opts);
   const params = new URLSearchParams();
   if (opts.employeeIds?.length)
     params.set("employeeIds", opts.employeeIds.join(","));
   if (opts.today) params.set("today", toOffsetISOString(opts.today));
   if (opts.from) params.set("from", toOffsetISOString(opts.from));
   if (opts.to) params.set("to", toOffsetISOString(opts.to));
+  if (opts.page) params.set("page", String(opts.page));
+  if (opts.pageSize) params.set("pageSize", String(opts.pageSize));
+  if (opts.search) params.set("search", String(opts.search));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 };
 
+// ---------------- component ----------------
 const EmployeeTable: React.FC<{
   setMonthlyAbsents: (n: number) => void;
   setMonthlyPresents: (n: number) => void;
@@ -179,11 +189,11 @@ const EmployeeTable: React.FC<{
   setCurrentViewAbsent,
   setcurrentViewPresent,
 }) => {
-  const { attendanceRefresh, setAttendanceRefresh, user } = useAuth();
-  const toast = useToast(); // ✅ toast handle
+  const { attendanceRefresh, user, setAttendanceRefresh } = useAuth();
+  const toast = useToast();
 
   const animatedComponents = makeAnimated();
-  const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
+  // filters (no page here; paging is internal/infinite)
   const [filters, setFilters] = useState<Filters>({
     selectedEmployeeIds: [],
     singleDate: undefined,
@@ -191,15 +201,24 @@ const EmployeeTable: React.FC<{
     search: "",
     preset: null,
     sort: null,
-    page: 1,
   });
+
+  // data state
+  const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
   const [rows, setRows] = useState<AttendanceRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadedPage, setLoadedPage] = useState(0); // how many pages appended
+
+  const [searchDraft, setSearchDraft] = useState<string>("");
+  // ui state
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [openSingle, setOpenSingle] = useState(false);
   const [openRange, setOpenRange] = useState(false);
 
+  // sheet state
   const [open, setOpen] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<Option[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<Option | null>(null);
@@ -222,112 +241,26 @@ const EmployeeTable: React.FC<{
     { value: "Permission", label: "Permission" },
   ];
 
-  // ----------------------------
-  // Debounced search (table-wide)
-  // ----------------------------
+  // ------------ debounced table search ------------
   const setSearchDebounced = useDebouncedCallback((q: string) => {
-    setFilters((f) => ({ ...f, search: q, page: 1 }));
-  }, 400);
+    console.log(q, "search string");
+    setFilters((f) => ({ ...f, search: q }));
+  }, 1200);
 
-  // ----------------------------
-  // Bulk More Actions — with toast UX
-  // ----------------------------
-  const addAttendance = async (payload: {
-    employeeIds: string[];
-    status: string | null;
-    reason: string | null;
-    date: Date | string | null;
-  }) => {
-    return axios.post(`/api/attendance/MoreActions/${user?.userId}`, {
-      payload,
-    });
-  };
+  useEffect(() => {
+    setSearchDraft(filters.search || "");
+  }, [filters.search]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const commitSearchDebounced = useDebouncedCallback((next: string) => {
+    setFilters((f) => ({ ...f, search: next }));
+  }, 3000);
 
-    // Inline validations with actionable toasts
-    if (!selectedEmployees.length) {
-      toast.info("Select at least one employee to proceed.", {
-        title: "Nothing to update",
-        durationMs: 2500,
-        position: "top-center",
-      });
-      return;
-    }
-    if (!selectedStatus?.value) {
-      toast.warning("Pick an attendance status.", {
-        title: "Missing status",
-        durationMs: 2500,
-        position: "top-center",
-      });
-      return;
-    }
-    if (reason.trim().length > 200) {
-      toast.warning("Reason is capped at 200 characters.", {
-        title: "Too long",
-        durationMs: 2500,
-        position: "top-center",
-      });
-      return;
-    }
+  // defensive: cancel any in-flight debounce on unmount
+  useEffect(() => {
+    return () => commitSearchDebounced.cancel();
+  }, [commitSearchDebounced]);
 
-    setSubmitting(true);
-    const loadingId = toast.info("Applying attendance updates…", {
-      durationMs: 0,
-      position: "top-center",
-      dismissible: true,
-    });
-
-    const payload = {
-      employeeIds: selectedEmployees.map((o) => o.value),
-      status: selectedStatus.value,
-      reason: reason.trim() || null,
-      date: new Date().toISOString().split("T")[0],
-    };
-
-    try {
-      await addAttendance(payload);
-      setAttendanceRefresh(!attendanceRefresh);
-      toast.remove(loadingId);
-      toast.success("Attendance updated successfully.", {
-        title: "Done",
-        durationMs: 2200,
-        position: "top-center",
-      });
-
-      // Close sheet + reset local state
-      setOpen(false);
-      setSelectedEmployees([]);
-      setSelectedStatus(null);
-      setReason("");
-
-      // Optional nudge: refresh current view
-      // (If you have an attendanceRefresh trigger, fire it here)
-    } catch (err: any) {
-      toast.remove(loadingId);
-      const isNetwork =
-        err?.code === "ERR_NETWORK" ||
-        err?.message?.toLowerCase?.().includes("network");
-      const apiMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message;
-
-      toast.error(
-        isNetwork
-          ? "Network hiccup while saving. Check your connection and retry."
-          : apiMsg || "We couldn’t apply those updates. Please try again.",
-        { title: "Update failed", durationMs: 5000, position: "top-center" }
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // ----------------------------
-  // Bootstrap employees (toast on failure)
-  // ----------------------------
+  // ------------ bootstrap employees (for filters) ------------
   useEffect(() => {
     let active = true;
     (async () => {
@@ -353,60 +286,79 @@ const EmployeeTable: React.FC<{
     };
   }, [toast]);
 
-  // ----------------------------
-  // Data fetch with cancellation + toast signals
-  // ----------------------------
+  // ------------ fetch logic (paged) ------------
   const lastAbortRef = useRef<AbortController | null>(null);
 
-  const fetchAttendance = useCallback(
-    async (opts: {
-      employeeIds?: string[];
-      singleDate?: Date;
-      range?: { from?: Date; to?: Date };
-    }) => {
-      const { employeeIds, singleDate, range } = opts;
+  const fetchAttendancePage = useCallback(
+    async (pageToLoad: number, isFirstPage: boolean) => {
+      // guard: if no more, or already loading for this call
+      if (!isFirstPage && (!hasMore || loadingMore)) return;
 
-      const qs = serializeParams({
-        employeeIds,
-        today: singleDate,
-        from: range?.from,
-        to: range?.to,
-      });
-
-      // Cancel any in-flight query
+      // cancel previous request
       lastAbortRef.current?.abort();
       const controller = new AbortController();
       lastAbortRef.current = controller;
 
-      setLoading(true);
+      // UX loaders
+      if (isFirstPage) {
+        setInitialLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
 
-      // Optional: loader toast only when filters change meaningfully
-      const loaderId = toast.info("Fetching attendance…", {
-        durationMs: 0,
-        position: "top-center",
-        dismissible: true,
-      });
+      // first page: sticky loader toast; subsequent pages: stay quiet
+      const loaderToastId = isFirstPage
+        ? toast.info("Fetching attendance…", {
+            durationMs: 0,
+            position: "top-center",
+            dismissible: true,
+          })
+        : null;
 
       try {
-        const res = await axios.get<{ data: AttendanceRow[] }>(
-          `/api/attendance/getAllAttendance${qs}`,
-          { signal: controller.signal }
-        );
-        setRows(res.data?.data ?? []);
-        toast.remove(loaderId);
-        toast.success("Attendance refreshed.", {
-          durationMs: 1500,
-          position: "top-center",
+        console.log(filters);
+        const qs = serializeParams({
+          employeeIds: filters.selectedEmployeeIds,
+          today: filters?.singleDate,
+          from: filters.range?.from,
+          to: filters.range?.to,
+          page: pageToLoad, // 🚀 backend will receive paging signal
+          pageSize: PAGE_SIZE,
+          search: filters?.search,
         });
-      } catch (e: any) {
-        if (axios.isCancel(e)) {
-          toast.remove(loaderId);
-          return; // silent on user-driven cancels
+
+        const res = await axios.get(`/api/attendance/getAllAttendance${qs}`, {
+          signal: controller.signal,
+        });
+
+        const data = res.data?.data ?? [];
+        console.log(res.data);
+        setRows((prev) => (isFirstPage ? data : [...prev, ...data]));
+        setLoadedPage(pageToLoad);
+        setHasMore(res?.data.hasMore);
+        setMonthlyAbsents(res?.data?.monthSummary?.absent);
+        setMonthlyPresents(res?.data?.monthSummary?.present);
+
+        if (loaderToastId) {
+          toast.remove(loaderToastId);
+          toast.success("Attendance refreshed.", {
+            durationMs: 1500,
+            position: "top-center",
+          });
         }
-        setRows([]);
-        toast.remove(loaderId);
+      } catch (e: any) {
+        console.log(e);
+        if (axios.isCancel(e)) {
+          if (loaderToastId) toast.remove(loaderToastId);
+          return;
+        }
+        setHasMore(false);
+        if (loaderToastId) toast.remove(loaderToastId);
+
         const status = e?.response?.status;
         if (status === 404) {
+          // nothing to show
+          if (isFirstPage) setRows([]);
           toast.info("No records found for the selected view.", {
             durationMs: 2200,
             position: "bottom-center",
@@ -423,34 +375,43 @@ const EmployeeTable: React.FC<{
           );
         }
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
+        setLoadingMore(false);
       }
     },
-    [toast]
+    [
+      filters.selectedEmployeeIds,
+      filters.singleDate,
+      filters.range?.from,
+      filters.range?.to,
+      filters.search,
+      hasMore,
+      loadingMore,
+      toast,
+    ]
   );
 
-  // Fetch on filter changes
+  // initial + on filter changes → reset and load page 1
   useEffect(() => {
-    const { selectedEmployeeIds, singleDate, range } = filters;
-    const cleanRange =
-      range?.from || range?.to ? { from: range.from, to: range.to } : undefined;
-
-    fetchAttendance({
-      employeeIds: selectedEmployeeIds,
-      singleDate,
-      range: cleanRange,
-    });
+    // setRows([]);
+    setHasMore(true);
+    setLoadedPage(0);
+    fetchAttendancePage(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    filters.selectedEmployeeIds,
-    filters.singleDate,
-    filters.range,
     attendanceRefresh,
-    fetchAttendance,
+    // key filters to reset on
+    filters.selectedEmployeeIds.join(","),
+    filters.singleDate?.toString(),
+    filters.range?.from?.toString(),
+    filters.range?.to?.toString(),
+    // sort influences server order (if your API supports it, add it here)
+    filters.search,
+    filters.sort?.id,
+    filters.sort?.desc,
   ]);
 
-  // ----------------------------
-  // Derived datasets
-  // ----------------------------
+  // ------------ client-side search & sort (local) ------------
   const filteredAndSorted = useMemo(() => {
     const q = filters.search.trim();
     const qLower = toLowerSafe(q);
@@ -499,9 +460,7 @@ const EmployeeTable: React.FC<{
     return data;
   }, [rows, filters.search, filters.sort]);
 
-  // ----------------------------
-  // KPIs for the dashboard
-  // ----------------------------
+  // ------------ KPI rollups ------------
   useEffect(() => {
     const now = new Date();
     const month = now.getMonth();
@@ -512,13 +471,10 @@ const EmployeeTable: React.FC<{
       return d.getMonth() === month && d.getFullYear() === year;
     });
 
-    setMonthlyPresents(thisMonth.filter((i) => i.status === "Present").length);
-    setMonthlyAbsents(thisMonth.filter((i) => i.status === "Absent").length);
-  }, [rows, setMonthlyAbsents, setMonthlyPresents]);
+    // setMonthlyPresents(thisMonth.filter((i) => i.status === "Present").length);
+    // setMonthlyAbsents(thisMonth.filter((i) => i.status === "Absent").length);
+  }, [rows]);
 
-  // ----------------------------
-  // Current view rollups
-  // ----------------------------
   useEffect(() => {
     const presents = filteredAndSorted.filter(
       (i) => i.status === "Present"
@@ -530,84 +486,59 @@ const EmployeeTable: React.FC<{
     setcurrentViewPresent(presents);
   }, [filteredAndSorted, setCurrentViewAbsent, setcurrentViewPresent]);
 
-  // ----------------------------
-  // Pagination
-  // ----------------------------
-  const total = filteredAndSorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(filters.page, totalPages);
-  const sliceStart = (page - 1) * PAGE_SIZE;
-  const sliceEnd = Math.min(sliceStart + PAGE_SIZE, total);
-  const paged = filteredAndSorted.slice(sliceStart, sliceEnd);
+  // ------------ IntersectionObserver (lazy load on 9th row) ------------
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const triggerElRef = useRef<HTMLTableRowElement | null>(null);
 
-  // ----------------------------
-  // UI handlers
-  // ----------------------------
-  const handleSort = (columnId: "attendanceDate") => {
-    setFilters((f) => {
-      if (f.sort?.id === columnId) {
-        return { ...f, sort: { id: columnId, desc: !f.sort.desc }, page: 1 };
-      }
-      return { ...f, sort: { id: columnId, desc: true }, page: 1 };
-    });
-  };
+  // compute the absolute index of the trigger row for the current loaded page
+  const triggerIndex =
+    loadedPage > 0 ? (loadedPage - 1) * PAGE_SIZE + TRIGGER_INDEX_IN_PAGE : -1;
 
-  const applyPreset = (preset: Preset) => {
-    const now = new Date();
-    if (preset === "today") {
-      setFilters((f) => ({
-        ...f,
-        preset,
-        singleDate: now,
-        range: undefined,
-        page: 1,
-      }));
-      toast.info("Filtered to today.", {
-        durationMs: 1200,
-        position: "bottom-center",
-      });
-    } else if (preset === "week") {
-      setFilters((f) => ({
-        ...f,
-        preset,
-        singleDate: undefined,
-        range: {
-          from: startOfWeek(now, { weekStartsOn: 1 }),
-          to: endOfWeek(now, { weekStartsOn: 1 }),
-        },
-        page: 1,
-      }));
-      toast.info("Filtered to this week.", {
-        durationMs: 1200,
-        position: "bottom-center",
-      });
-    } else if (preset === "month") {
-      setFilters((f) => ({
-        ...f,
-        preset,
-        singleDate: undefined,
-        range: { from: startOfMonth(now), to: endOfMonth(now) },
-        page: 1,
-      }));
-      toast.info("Filtered to this month.", {
-        durationMs: 1200,
-        position: "bottom-center",
-      });
-    } else {
-      setFilters((f) => ({
-        ...f,
-        preset: null,
-        singleDate: undefined,
-        range: undefined,
-        page: 1,
-      }));
-      toast.info("Cleared filters.", {
-        durationMs: 1200,
-        position: "bottom-center",
-      });
+  useEffect(() => {
+    // cleanup previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
     }
-  };
 
+    if (!hasMore) return; // nothing more to load
+    if (rows.length < PAGE_SIZE) return; // requirement: only if we have 10 or more rows
+    if (!triggerElRef.current) return; // not yet rendered
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          // proactively fetch next page
+          fetchAttendancePage(loadedPage + 1, false);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "0px",
+        threshold: 0.25, // fire when ~25% visible
+      }
+    );
+
+    observerRef.current.observe(triggerElRef.current);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+    };
+  }, [rows.length, triggerIndex, hasMore, loadedPage, fetchAttendancePage]);
+
+  // helpers to attach the trigger ref to the correct row
+  const attachTriggerRef =
+    (index: number) => (el: HTMLTableRowElement | null) => {
+      if (index === triggerIndex) {
+        triggerElRef.current = el;
+      }
+    };
+
+  // --------- Employee filter helpers ---------
   const filteredEmployees = useMemo(() => {
     const q = employeeSearch.trim().toLowerCase();
     if (!q) return employeeOptions;
@@ -622,15 +553,103 @@ const EmployeeTable: React.FC<{
       const nextIds = exists
         ? f.selectedEmployeeIds.filter((id) => id !== employeeId)
         : [...f.selectedEmployeeIds, employeeId];
-      return { ...f, selectedEmployeeIds: nextIds, page: 1 };
+      return { ...f, selectedEmployeeIds: nextIds };
     });
   };
 
-  // ----------------------------
-  // Render
-  // ----------------------------
+  // --------- Bulk “More Actions” (unchanged UX, just included for completeness) ---------
+  const addAttendance = async (payload: {
+    employeeIds: string[];
+    status: string | null;
+    reason: string | null;
+    date: Date | string | null;
+  }) => {
+    return axios.post(`/api/attendance/MoreActions/${user?.userId}`, {
+      payload,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!selectedEmployees.length) {
+      toast.info("Select at least one employee to proceed.", {
+        title: "Nothing to update",
+        durationMs: 2500,
+        position: "top-center",
+      });
+      return;
+    }
+    if (!selectedStatus?.value) {
+      toast.warning("Pick an attendance status.", {
+        title: "Missing status",
+        durationMs: 2500,
+        position: "top-center",
+      });
+      return;
+    }
+    if (reason.trim().length > 200) {
+      toast.warning("Reason is capped at 200 characters.", {
+        title: "Too long",
+        durationMs: 2500,
+        position: "top-center",
+      });
+      return;
+    }
+    setAttendanceRefresh(!attendanceRefresh);
+    setSubmitting(true);
+    const loadingId = toast.info("Applying attendance updates…", {
+      durationMs: 0,
+      position: "top-center",
+      dismissible: true,
+    });
+
+    const payload = {
+      employeeIds: selectedEmployees.map((o) => o.value),
+      status: selectedStatus.value,
+      reason: reason.trim() || null,
+      date: new Date().toISOString().split("T")[0],
+    };
+
+    try {
+      await addAttendance(payload);
+
+      toast.remove(loadingId);
+      toast.success("Attendance updated successfully.", {
+        title: "Done",
+        durationMs: 2200,
+        position: "top-center",
+      });
+
+      setOpen(false);
+      setSelectedEmployees([]);
+      setSelectedStatus(null);
+      setReason("");
+    } catch (err: any) {
+      toast.remove(loadingId);
+      const isNetwork =
+        err?.code === "ERR_NETWORK" ||
+        err?.message?.toLowerCase?.().includes("network");
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+
+      toast.error(
+        isNetwork
+          ? "Network hiccup while saving. Check your connection and retry."
+          : apiMsg || "We couldn’t apply those updates. Please try again.",
+        { title: "Update failed", durationMs: 5000, position: "top-center" }
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ---------------- render ----------------
   return (
     <>
+      {/* Filters + actions shell (unchanged) */}
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
@@ -638,11 +657,22 @@ const EmployeeTable: React.FC<{
             <div className="relative">
               <Input
                 aria-label="Search attendance"
-                placeholder="Search date, status, or time…"
+                placeholder="Search status, employee, created by, edited by…"
                 className="w-[260px] pr-10"
-                defaultValue={filters.search}
-                onChange={(e) => setSearchDebounced(e.target.value)}
+                value={searchDraft}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchDraft(v); // update UI immediately
+                  commitSearchDebounced(v); // schedule commit after 3s of silence
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    // power users: commit immediately
+                    commitSearchDebounced.flush();
+                  }
+                }}
               />
+
               <span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">
                 <Search className="w-4 h-4" />
               </span>
@@ -668,12 +698,16 @@ const EmployeeTable: React.FC<{
                   mode="single"
                   selected={filters.singleDate}
                   onSelect={(d?: Date) => {
+                    let date: Date | undefined;
+                    if (d) {
+                      date = new Date(d);
+                      // date = date_12.setHours(0, 0, 0, 0);
+                    }
                     setFilters((f) => ({
                       ...f,
-                      singleDate: d,
+                      singleDate: date,
                       range: undefined,
                       preset: d ? "today" : null,
-                      page: 1,
                     }));
                     setOpenSingle(false);
                   }}
@@ -713,7 +747,6 @@ const EmployeeTable: React.FC<{
                         range: undefined,
                         singleDate: undefined,
                         preset: null,
-                        page: 1,
                       }));
                       return;
                     }
@@ -730,29 +763,8 @@ const EmployeeTable: React.FC<{
                       range: r ? { from: normFrom, to: normTo } : undefined,
                       singleDate: undefined,
                       preset: normFrom && normTo ? "week" : null,
-                      page: 1,
                     }));
                   }}
-                  footer={
-                    <div className="flex w-full items-center justify-between p-2">
-                      <div className="text-xs text-slate-500">
-                        Tip: drag to select a range
-                      </div>
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          setFilters((f) => ({
-                            ...f,
-                            range: undefined,
-                            page: 1,
-                          }))
-                        }
-                        className="text-sm"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  }
                 />
               </PopoverContent>
             </Popover>
@@ -778,27 +790,46 @@ const EmployeeTable: React.FC<{
                   onChange={(e) => setEmployeeSearch(e.target.value)}
                   className="mb-2 p-2"
                 />
-                {filteredEmployees.length > 0 ? (
-                  filteredEmployees.map((emp) => {
-                    const checked = filters.selectedEmployeeIds.includes(
-                      emp.employee_id
-                    );
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={emp.employee_id}
-                        checked={checked}
-                        onCheckedChange={() => toggleEmployee(emp.employee_id)}
-                        className="!text-black"
-                      >
-                        {emp.first_name} {emp.last_name}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  })
-                ) : (
-                  <DropdownMenuCheckboxItem disabled className="!text-gray-400">
-                    No employees found
-                  </DropdownMenuCheckboxItem>
-                )}
+                {useMemo(() => {
+                  const list =
+                    employeeSearch.trim().length === 0
+                      ? employeeOptions
+                      : employeeOptions.filter((e) =>
+                          `${e.first_name} ${e.last_name}`
+                            .toLowerCase()
+                            .includes(employeeSearch.trim().toLowerCase())
+                        );
+                  return list.length > 0 ? (
+                    list.map((emp) => {
+                      const checked = filters.selectedEmployeeIds.includes(
+                        emp.employee_id
+                      );
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={emp.employee_id}
+                          checked={checked}
+                          onCheckedChange={() =>
+                            toggleEmployee(emp.employee_id)
+                          }
+                          className="!text-black"
+                        >
+                          {emp.first_name} {emp.last_name}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuCheckboxItem
+                      disabled
+                      className="!text-gray-400"
+                    >
+                      No employees found
+                    </DropdownMenuCheckboxItem>
+                  );
+                }, [
+                  employeeOptions,
+                  employeeSearch,
+                  filters.selectedEmployeeIds,
+                ])}
                 <div className="mt-2 flex gap-2">
                   <Button
                     variant="ghost"
@@ -812,11 +843,7 @@ const EmployeeTable: React.FC<{
                       variant="ghost"
                       className="w-full"
                       onClick={() =>
-                        setFilters((f) => ({
-                          ...f,
-                          selectedEmployeeIds: [],
-                          page: 1,
-                        }))
+                        setFilters((f) => ({ ...f, selectedEmployeeIds: [] }))
                       }
                     >
                       Clear
@@ -831,7 +858,20 @@ const EmployeeTable: React.FC<{
               <Button
                 variant={filters.preset === "today" ? "outline" : "ghost"}
                 size="sm"
-                onClick={() => applyPreset("today")}
+                onClick={() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  setFilters((f) => ({
+                    ...f,
+                    preset: "today",
+                    singleDate: today,
+                    range: undefined,
+                  }));
+                  toast.info("Filtered to today.", {
+                    durationMs: 1200,
+                    position: "bottom-center",
+                  });
+                }}
                 className={
                   filters.preset === "today" ? "!hidden sm:inline-flex" : ""
                 }
@@ -841,7 +881,22 @@ const EmployeeTable: React.FC<{
               <Button
                 variant={filters.preset === "week" ? "outline" : "ghost"}
                 size="sm"
-                onClick={() => applyPreset("week")}
+                onClick={() => {
+                  const now = new Date();
+                  setFilters((f) => ({
+                    ...f,
+                    preset: "week",
+                    singleDate: undefined,
+                    range: {
+                      from: startOfWeek(now, { weekStartsOn: 1 }),
+                      to: endOfWeek(now, { weekStartsOn: 1 }),
+                    },
+                  }));
+                  toast.info("Filtered to this week.", {
+                    durationMs: 1200,
+                    position: "bottom-center",
+                  });
+                }}
                 className={
                   filters.preset === "week" ? "!hidden sm:inline-flex" : ""
                 }
@@ -851,7 +906,19 @@ const EmployeeTable: React.FC<{
               <Button
                 variant={filters.preset === "month" ? "outline" : "ghost"}
                 size="sm"
-                onClick={() => applyPreset("month")}
+                onClick={() => {
+                  const now = new Date();
+                  setFilters((f) => ({
+                    ...f,
+                    preset: "month",
+                    singleDate: undefined,
+                    range: { from: startOfMonth(now), to: endOfMonth(now) },
+                  }));
+                  toast.info("Filtered to this month.", {
+                    durationMs: 1200,
+                    position: "bottom-center",
+                  });
+                }}
                 className={
                   filters.preset === "month" ? "!hidden sm:inline-flex" : ""
                 }
@@ -861,7 +928,22 @@ const EmployeeTable: React.FC<{
               <Button
                 variant={filters.preset === null ? "outline" : "ghost"}
                 size="sm"
-                onClick={() => applyPreset("clear")}
+                onClick={() => {
+                  // hard reset all date filters and search
+                  commitSearchDebounced.cancel(); // prevent stale pending apply
+                  setSearchDraft(""); // clear the input instantly
+                  setFilters((f) => ({
+                    ...f,
+                    preset: null,
+                    singleDate: undefined,
+                    range: undefined,
+                    search: "", // this triggers a fresh page-1 fetch
+                  }));
+                  toast.info("Cleared filters.", {
+                    durationMs: 1200,
+                    position: "bottom-center",
+                  });
+                }}
               >
                 Clear
               </Button>
@@ -889,15 +971,14 @@ const EmployeeTable: React.FC<{
                       <div className="p-2 space-y-4">
                         <Label>Employees</Label>
                         <Select<Option, true>
-                          // closeMenuOnSelect={false}
                           components={animatedComponents}
                           placeholder="Select Employees"
                           isMulti
                           options={employeeSelectOptions}
                           value={selectedEmployees}
-                          onChange={(selected) => {
-                            setSelectedEmployees(selected ? [...selected] : []);
-                          }}
+                          onChange={(selected) =>
+                            setSelectedEmployees(selected ? [...selected] : [])
+                          }
                         />
 
                         <Label>Attendance Status</Label>
@@ -937,8 +1018,9 @@ const EmployeeTable: React.FC<{
         </div>
       </div>
 
+      {/* Data table + lazy load sentinel */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18 }}
         className="rounded-xl border bg-white shadow-sm"
@@ -947,19 +1029,7 @@ const EmployeeTable: React.FC<{
           <Table className="min-w-full text-sm">
             <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
               <TableRow>
-                <TableHead className="whitespace-nowrap">
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleSort("attendanceDate")}
-                  >
-                    Date{" "}
-                    {filters.sort?.id === "attendanceDate"
-                      ? filters.sort.desc
-                        ? "🔽"
-                        : "🔼"
-                      : ""}
-                  </Button>
-                </TableHead>
+                <TableHead className="whitespace-nowrap">Date</TableHead>
                 <TableHead className="whitespace-nowrap">
                   Employee Name
                 </TableHead>
@@ -980,16 +1050,17 @@ const EmployeeTable: React.FC<{
             </TableHeader>
 
             <TableBody>
-              {loading ? (
+              {initialLoading && rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={13} className="h-40 text-center">
                     Loading…
                   </TableCell>
                 </TableRow>
-              ) : paged.length > 0 ? (
-                paged.map((row) => (
+              ) : rows.length > 0 ? (
+                rows.map((row, index) => (
                   <TableRow
                     key={row.id}
+                    ref={attachTriggerRef(index)} // 🔔 attach IO to the right row
                     className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
                   >
                     <TableCell className="font-medium">
@@ -1044,48 +1115,31 @@ const EmployeeTable: React.FC<{
                   </TableCell>
                 </TableRow>
               )}
+
+              {/* Load-more status row */}
+              {loadingMore && rows.length > 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={13}
+                    className="py-4 text-center text-slate-500"
+                  >
+                    Loading more…
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!hasMore && rows.length >= PAGE_SIZE && (
+                <TableRow>
+                  <TableCell
+                    colSpan={13}
+                    className="py-4 text-center text-slate-400"
+                  >
+                    You’re all caught up.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex flex-col items-center justify-between gap-3 border-t p-3 sm:flex-row">
-          <div className="text-xs text-slate-600">
-            Showing{" "}
-            <span className="font-medium">
-              {total === 0 ? 0 : sliceStart + 1}
-            </span>{" "}
-            to <span className="font-medium">{sliceEnd}</span> of{" "}
-            <span className="font-medium">{total}</span> entries
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setFilters((f) => ({ ...f, page: Math.max(1, page - 1) }))
-              }
-              disabled={page <= 1}
-            >
-              Previous
-            </Button>
-            <div className="text-xs text-slate-600">
-              Page <span className="font-medium">{page}</span> / {totalPages}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setFilters((f) => ({
-                  ...f,
-                  page: Math.min(totalPages, page + 1),
-                }))
-              }
-              disabled={page >= totalPages}
-            >
-              Next
-            </Button>
-          </div>
         </div>
       </motion.div>
     </>
