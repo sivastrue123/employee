@@ -13,14 +13,11 @@ import {
 } from "@/components/ui/select";
 import { X } from "lucide-react";
 import axios from "axios";
-const DEPARTMENTS = [
-  "Development",
-  "Support",
-  "AI",
-  "Sales",
-  "Management",
-  "API",
-];
+
+// ✅ bring in your first-party toast system
+import { useToast } from "@/toast/ToastProvider";
+
+const DEPARTMENTS = ["Development", "Support", "AI", "Sales", "Management", "API"];
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
@@ -28,6 +25,8 @@ const STATUS_OPTIONS = [
 ];
 
 export default function EmployeeForm({ employee, onSave, onCancel }: any) {
+  const toast = useToast(); // ✅
+
   const [formData, setFormData] = useState<any>(
     employee
       ? {
@@ -51,47 +50,112 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
           profile_image: "",
         }
   );
-  console.log(employee);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // —— client-side validations with empathetic toasts ——
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email || "");
+    const phoneDigits = (formData.phone || "").replace(/\D/g, "");
+    const phoneOk = phoneDigits.length === 0 || phoneDigits.length === 10;
+    const requiredMissing =
+      !formData.first_name ||
+      !formData.last_name ||
+      !formData.email ||
+      !formData.employee_id ||
+      !formData.role ||
+      !formData.position ||
+      !formData.department ||
+      formData.hourly_rate === "" ||
+      formData.hourly_rate === null;
+
+    if (requiredMissing) {
+      toast.warning("Please complete all required fields marked with *.", {
+        title: "Missing information",
+        durationMs: 3500,
+        position: "top-center",
+      });
+      return;
+    }
+    if (!emailOk) {
+      toast.warning("That doesn’t look like a valid email address.", {
+        title: "Check email",
+        durationMs: 3000,
+        position: "top-center",
+      });
+      return;
+    }
+    if (!phoneOk) {
+      toast.warning("Phone number must be exactly 10 digits.", {
+        title: "Check phone",
+        durationMs: 3000,
+        position: "top-center",
+      });
+      return;
+    }
+    if (Number(formData.hourly_rate) < 0) {
+      toast.warning("Hourly rate cannot be negative.", {
+        title: "Check compensation",
+        durationMs: 3000,
+        position: "top-center",
+      });
+      return;
+    }
+
+    // —— submit with a sticky loader toast ——
+    setIsSubmitting(true);
+    const loadingId = toast.info(
+      employee ? "Updating employee record…" : "Creating new employee…",
+      { durationMs: 0, position: "top-center", dismissible: true }
+    );
+
     try {
-      setIsSubmitting(true);
-      if (formData.phone) {
-        const numericValue = formData.phone.replace(/\D/g, "");
-        if (numericValue.length !== 10 && numericValue.length > 0) {
-          alert("Phone number must be exactly 10 digits.");
-        }
-      }
-      e.preventDefault();
-      let response;
+      const payload = {
+        ...formData,
+        phone: phoneDigits || "", // normalize
+      };
+
       if (employee) {
-        response = await axios.patch(
-          `/api/employee/editEmployee/${employee._id}`,
-          formData
-        );
+        await axios.patch(`/api/employee/editEmployee/${employee._id}`, payload);
       } else {
-        response = await axios.post("/api/employee/addEmployee", formData);
+        await axios.post("/api/employee/addEmployee", payload);
       }
 
-      console.log("Response:", response.data);
-      console.log(formData);
-
+      // Let the parent own the success toast to avoid double messaging
+      toast.remove(loadingId);
       onSave();
-      setIsSubmitting(false);
-    } catch (error) {
-      console.error("Error:", error);
-      setIsSubmitting(false);
+    } catch (err: any) {
+      console.error("Error:", err);
+      toast.remove(loadingId);
+
+      const isNetwork =
+        err?.code === "ERR_NETWORK" ||
+        err?.message?.toLowerCase?.().includes("network");
+
+      // Prefer backend message when available
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+
+      toast.error(
+        isNetwork
+          ? "Network hiccup while saving. Please check your connection and retry."
+          : apiMsg || "We couldn’t save your changes. Please try again.",
+        {
+          title: "Save failed",
+          durationMs: 5000,
+          position: "top-center",
+        }
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleChange = (field: any, value: any) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -107,20 +171,30 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl max-h-[90vh]  "
+        className="w-full max-w-2xl max-h-[90vh]"
       >
-        <Card className="border-0 shadow-2xl ">
+        <Card className="border-0 shadow-2xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-2xl font-bold">
               {employee ? "Edit Employee" : "Add New Employee"}
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={onCancel}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                toast.info("No changes were saved.", {
+                  durationMs: 1800,
+                  position: "bottom-center",
+                });
+                onCancel();
+              }}
+            >
               <X className="w-5 h-5" />
             </Button>
           </CardHeader>
 
-          <CardContent className="">
-            <form onSubmit={handleSubmit} className="">
+          <CardContent>
+            <form onSubmit={handleSubmit}>
               <div className="overflow-auto max-h-[50vh] space-y-6 z-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -128,9 +202,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                     <Input
                       id="first_name"
                       value={formData.first_name}
-                      onChange={(e) =>
-                        handleChange("first_name", e.target.value)
-                      }
+                      onChange={(e) => handleChange("first_name", e.target.value)}
                       required
                     />
                   </div>
@@ -140,9 +212,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                     <Input
                       id="last_name"
                       value={formData.last_name}
-                      onChange={(e) =>
-                        handleChange("last_name", e.target.value)
-                      }
+                      onChange={(e) => handleChange("last_name", e.target.value)}
                       required
                     />
                   </div>
@@ -166,6 +236,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => handleChange("phone", e.target.value)}
+                      placeholder="10 digits (optional)"
                     />
                   </div>
                 </div>
@@ -176,9 +247,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                     <Input
                       id="employee_id"
                       value={formData.employee_id}
-                      onChange={(e) =>
-                        handleChange("employee_id", e.target.value)
-                      }
+                      onChange={(e) => handleChange("employee_id", e.target.value)}
                       required
                     />
                   </div>
@@ -191,10 +260,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                       onValueChange={(value) => handleChange("role", value)}
                     >
                       <SelectTrigger className="!w-full !bg-white">
-                        <SelectValue
-                          placeholder="Select Role"
-                          className="!text-black"
-                        />
+                        <SelectValue placeholder="Select Role" className="!text-black" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={"admin"}>{"Admin"}</SelectItem>
@@ -219,9 +285,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                     <Label htmlFor="department">Department *</Label>
                     <Select
                       value={formData.department}
-                      onValueChange={(value) =>
-                        handleChange("department", value)
-                      }
+                      onValueChange={(value) => handleChange("department", value)}
                       defaultValue={employee ? employee.department : ""}
                     >
                       <SelectTrigger className="!w-full !bg-white">
@@ -245,9 +309,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                       id="hire_date"
                       type="date"
                       value={formData.hire_date}
-                      onChange={(e) =>
-                        handleChange("hire_date", e.target.value)
-                      }
+                      onChange={(e) => handleChange("hire_date", e.target.value)}
                     />
                   </div>
 
@@ -260,7 +322,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                       min="0"
                       value={formData.hourly_rate}
                       onChange={(e) =>
-                        handleChange("hourly_rate", parseFloat(e.target.value))
+                        handleChange("hourly_rate", e.target.value === "" ? "" : parseFloat(e.target.value))
                       }
                       required
                     />
@@ -286,8 +348,19 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                   </Select>
                 </div>
               </div>
+
               <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onCancel}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    toast.info("No changes were saved.", {
+                      durationMs: 1800,
+                      position: "bottom-center",
+                    });
+                    onCancel();
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -295,9 +368,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                   disabled={isSubmitting}
                   className="!bg-slate-900 hover:!bg-slate-800"
                 >
-                  {isSubmitting
-                    ? "Saving..."
-                    : `${employee ? "Save" : "Create"} Employee`}
+                  {isSubmitting ? "Saving..." : `${employee ? "Save" : "Create"} Employee`}
                 </Button>
               </div>
             </form>

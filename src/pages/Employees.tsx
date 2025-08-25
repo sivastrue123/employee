@@ -9,7 +9,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios, { CancelTokenSource } from "axios";
 
-import { Employee } from "@/entitites/employee"; // assuming this is your runtime model & type
+import { Employee } from "@/entitites/employee";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -28,16 +28,17 @@ import EmployeeFilters from "@/components/EmployeeFilters";
 import EmployeeTable from "@/components/EmployeeTable";
 import { useAuth } from "@/context/AuthContext";
 
+// ✅ bring in your first-party toast system
+import { useToast } from "@/toast/ToastProvider";
+
 // ---------- Types ----------
 type ViewMode = "grid" | "table";
-
-type ApiEmployee = Employee; // if different from UI type, map it here
+type ApiEmployee = Employee;
 
 // ---------- Helpers ----------
 const ADD_EMPLOYEE_QP = "AddEmployee";
 const isAddEmployeeParam = (search: string) => {
   const params = new URLSearchParams(search);
-  // support both `?AddEmployee` and `?modal=AddEmployee`
   return params.has(ADD_EMPLOYEE_QP) || params.get("modal") === ADD_EMPLOYEE_QP;
 };
 
@@ -48,6 +49,7 @@ export default function Employees() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast(); // ✅
 
   const [employees, setEmployees] = useState<ApiEmployee[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -76,27 +78,39 @@ export default function Employees() {
   // guard route (simple client check; enforce on server too)
   useEffect(() => {
     if (user && user.role !== "admin") {
+      toast.warning("You don’t have access to Employee Management.", {
+        title: "Access limited",
+        durationMs: 3500,
+        position: "top-center",
+      });
       navigate("/Dashboard", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // navigate is stable in react-router v6
+  }, [user]);
 
   // reflect query param changes (open form if `?AddEmployee`)
   useEffect(() => {
     setShowForm(isAddEmployeeParam(location.search));
   }, [location.search]);
 
-  // debounced search (250ms feels snappy)
+  // debounced search
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(searchInput), 250);
     return () => clearTimeout(id);
   }, [searchInput]);
 
-  // data loader with cancellation
+  // —— data loader with cancellation + toasts ——
   const loadEmployees = useCallback(async () => {
     let cancelSource: CancelTokenSource | null = axios.CancelToken.source();
     setIsLoading(true);
     setError(null);
+
+    // sticky loader toast while we fetch
+    const loadingId = toast.info("Fetching team roster…", {
+      durationMs: 0,
+      position: "top-center",
+      dismissible: true,
+    });
 
     try {
       const res = await axios.get<ApiEmployee[]>(
@@ -107,30 +121,45 @@ export default function Employees() {
       );
       if (isMountedRef.current) {
         setEmployees(res.data ?? []);
+        // right-size success signal (quiet, time-boxed)
+        toast.remove(loadingId);
+        // toast.success("Roster refreshed.", {
+        //   durationMs: 1800,
+        //   position: "top-center",
+        // });
       }
     } catch (err: any) {
       if (!axios.isCancel(err)) {
         console.error("Error loading employees:", err);
         if (isMountedRef.current) setError(err);
+        toast.remove(loadingId);
+        const isNetwork =
+          err?.code === "ERR_NETWORK" ||
+          err?.message?.toLowerCase()?.includes("network");
+        toast.error(
+          isNetwork
+            ? "Network hiccup while loading employees. Please check your connection and retry."
+            : "We couldn’t load employees right now. Please try again.",
+          { title: "Load failed", durationMs: 4500, position: "top-center" }
+        );
       }
     } finally {
       if (isMountedRef.current) setIsLoading(false);
     }
 
     return () => cancelSource?.cancel("component unmounted");
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const cleanup = loadEmployees();
     return () => {
-      // handle promise that returns cleanup fn
       Promise.resolve(cleanup).then((fn) => {
         if (typeof fn === "function") fn();
       });
     };
   }, [loadEmployees]);
 
-  // memoized filtered list (no extra state + effects)
+  // memoized filtered list
   const filteredEmployees = useMemo(() => {
     const q = normalize(debouncedSearch);
     return employees
@@ -153,6 +182,34 @@ export default function Employees() {
       );
   }, [employees, debouncedSearch, selectedDepartment, selectedStatus]);
 
+  // one-shot "no results" notifier that won’t spam while typing
+  const hasAnnouncedNoResultsRef = useRef(false);
+  useEffect(() => {
+    const hasQueryOrFilter =
+      normalize(debouncedSearch).length > 0 ||
+      selectedDepartment !== "all" ||
+      selectedStatus !== "all";
+
+    if (!isLoading && hasQueryOrFilter) {
+      if (filteredEmployees.length === 0 && !hasAnnouncedNoResultsRef.current) {
+        toast.info("No matching employees. Try adjusting filters.", {
+          durationMs: 2500,
+          position: "bottom-center",
+        });
+        hasAnnouncedNoResultsRef.current = true;
+      } else if (filteredEmployees.length > 0) {
+        hasAnnouncedNoResultsRef.current = false;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    filteredEmployees.length,
+    debouncedSearch,
+    selectedDepartment,
+    selectedStatus,
+    isLoading,
+  ]);
+
   // handlers
   const openAddForm = useCallback(() => {
     setEditingEmployee(null);
@@ -160,7 +217,13 @@ export default function Employees() {
     const params = new URLSearchParams(location.search);
     params.set(ADD_EMPLOYEE_QP, "");
     navigate({ search: `?${ADD_EMPLOYEE_QP}` }, { replace: false });
-  }, [location.search, navigate]);
+
+    toast.info("Add a new team member.", {
+      title: "Create employee",
+      durationMs: 2200,
+      position: "top-center",
+    });
+  }, [location.search, navigate, toast]);
 
   const closeForm = useCallback(() => {
     setShowForm(false);
@@ -173,16 +236,44 @@ export default function Employees() {
     );
   }, [location.search, navigate]);
 
-  const handleEditEmployee = useCallback((employee: ApiEmployee) => {
-    setEditingEmployee(employee);
-    setShowForm(true);
-  }, []);
+  const handleEditEmployee = useCallback(
+    (employee: ApiEmployee) => {
+      setEditingEmployee(employee);
+      setShowForm(true);
+      toast.info(`Editing ${employee.first_name} ${employee.last_name}.`, {
+        durationMs: 2000,
+        position: "top-center",
+      });
+    },
+    [toast]
+  );
 
   const handleAfterSave = useCallback(() => {
-    // refresh and close
-    loadEmployees();
+    // optimistic success confirmation (EmployeeForm calls this after a successful persist)
+    toast.success("Employee details saved.", {
+      title: "Changes applied",
+      durationMs: 2200,
+      position: "top-center",
+    });
+    loadEmployees(); // refresh and close
     closeForm();
-  }, [closeForm, loadEmployees]);
+  }, [closeForm, loadEmployees, toast]);
+
+  const switchToGrid = () => {
+    setViewMode("grid");
+    toast.info("Switched to grid view.", {
+      durationMs: 1200,
+      position: "bottom-center",
+    });
+  };
+
+  const switchToTable = () => {
+    setViewMode("table");
+    toast.info("Switched to table view.", {
+      durationMs: 1200,
+      position: "bottom-center",
+    });
+  };
 
   return (
     <div
@@ -263,7 +354,7 @@ export default function Employees() {
                   <TooltipTrigger asChild>
                     <Button
                       variant={viewMode === "grid" ? "secondary" : "outline"}
-                      onClick={() => setViewMode("grid")}
+                      onClick={switchToGrid}
                       className={
                         viewMode === "grid"
                           ? "!bg-sky-400"
@@ -284,7 +375,7 @@ export default function Employees() {
                   <TooltipTrigger asChild>
                     <Button
                       variant={viewMode === "table" ? "secondary" : "outline"}
-                      onClick={() => setViewMode("table")}
+                      onClick={switchToTable}
                       className={
                         viewMode === "table"
                           ? "!bg-sky-400"
@@ -365,7 +456,13 @@ export default function Employees() {
           <EmployeeForm
             employee={editingEmployee}
             onSave={handleAfterSave}
-            onCancel={closeForm}
+            onCancel={() => {
+              toast.info("No changes were saved.", {
+                durationMs: 1800,
+                position: "bottom-center",
+              });
+              closeForm();
+            }}
           />
         )}
       </AnimatePresence>

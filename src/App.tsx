@@ -79,7 +79,7 @@ export default function App() {
         });
 
         toast.remove(validatingId);
-        toast.success(`Welcome back${details?.role ? `, ${details.role}` : ""}! You’re in.`, {
+        toast.success(`Welcome back${decoded?.name ? `, ${decoded.name}` : ""}! You’re in.`, {
           title: "Signed in",
           durationMs: 2500,
           position: "top-center",
