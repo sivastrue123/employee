@@ -225,6 +225,25 @@ const EmployeeTable: React.FC<{
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // --- time inputs for "Present"
+  const [clockInTime, setClockInTime] = useState<string>(""); // "hh:mm" 12h
+  const [clockInMeridiem, setClockInMeridiem] = useState<"AM" | "PM">("AM");
+  const [clockOutTime, setClockOutTime] = useState<string>("");
+  const [clockOutMeridiem, setClockOutMeridiem] = useState<"AM" | "PM">("PM");
+
+  // Parse "hh:mm" + AM/PM into a Date for *today* (local)
+  const toTodayFrom12h = (hhmm: string, meridiem: "AM" | "PM"): Date | null => {
+    const m = /^(\d{1,2}):([0-5]\d)$/.exec(hhmm.trim());
+    if (!m) return null;
+    let hours = parseInt(m[1], 10);
+    const minutes = parseInt(m[2], 10);
+    if (hours < 1 || hours > 12) return null;
+    hours = (hours % 12) + (meridiem === "PM" ? 12 : 0);
+    const d = new Date();
+    d.setHours(hours, minutes, 0, 0); // today at hh:mm:00.000 local
+    return d;
+  };
+
   const employeeSelectOptions: Option[] = useMemo(
     () =>
       employeeOptions.map((emp) => ({
@@ -444,9 +463,9 @@ const EmployeeTable: React.FC<{
           cout.includes(qLower) ||
           cinSquash.includes(qSquash) ||
           coutSquash.includes(qSquash) ||
-          name.includes(qLower)||
-          createdName.includes(qLower)
-          editedName.includes(qLower);
+          name.includes(qLower) ||
+          createdName.includes(qLower);
+        editedName.includes(qLower);
 
         const timeHit =
           qMins !== null && (cinMins === qMins || coutMins === qMins);
@@ -569,6 +588,8 @@ const EmployeeTable: React.FC<{
     status: string | null;
     reason: string | null;
     date: Date | string | null;
+    clockIn?: any;
+    clockOut?: any;
   }) => {
     return axios.post(`/api/attendance/MoreActions/${user?.userId}`, {
       payload,
@@ -602,6 +623,37 @@ const EmployeeTable: React.FC<{
       });
       return;
     }
+
+    let clockInISO: string | undefined;
+    let clockOutISO: string | undefined;
+
+    if (selectedStatus.value === "Present") {
+      const ci = toTodayFrom12h(clockInTime, clockInMeridiem);
+      const co = toTodayFrom12h(clockOutTime, clockOutMeridiem);
+      if (!ci || !co) {
+        toast.warning(
+          "Please provide both Clock In and Clock Out in hh:mm + AM/PM.",
+          {
+            title: "Time required",
+            durationMs: 2800,
+            position: "top-center",
+          }
+        );
+        return;
+      }
+      if (ci >= co) {
+        toast.warning("Clock In must be earlier than Clock Out.", {
+          title: "Invalid time range",
+          durationMs: 2800,
+          position: "top-center",
+        });
+        return;
+      }
+      // Reuse your existing helper to include timezone offset with colon
+      clockInISO = toOffsetISOString(ci); // e.g. 2025-08-21T09:15:00.000+05:30
+      clockOutISO = toOffsetISOString(co); // e.g. 2025-08-21T18:00:00.000+05:30
+    }
+
     setAttendanceRefresh(!attendanceRefresh);
     setSubmitting(true);
     const loadingId = toast.info("Applying attendance updates…", {
@@ -610,12 +662,16 @@ const EmployeeTable: React.FC<{
       dismissible: true,
     });
 
-    const payload = {
+    const payload: any = {
       employeeIds: selectedEmployees.map((o) => o.value),
       status: selectedStatus.value,
       reason: reason.trim() || null,
       date: new Date().toISOString().split("T")[0],
     };
+    if (clockInISO && clockOutISO) {
+      payload.clockIn = clockInISO;
+      payload.clockOut = clockOutISO;
+    }
 
     try {
       await addAttendance(payload);
@@ -986,7 +1042,6 @@ const EmployeeTable: React.FC<{
                             setSelectedEmployees(selected ? [...selected] : [])
                           }
                         />
-
                         <Label>Attendance Status</Label>
                         <Select<Option, false>
                           closeMenuOnSelect
@@ -997,7 +1052,100 @@ const EmployeeTable: React.FC<{
                           onChange={(selected) => setSelectedStatus(selected)}
                           isMulti={false}
                         />
+                        {selectedStatus?.value === "Present" && (
+                          <div className="mt-2 space-y-3">
+                            <div>
+                              <Label className="mb-1 block">
+                                Clock In (12-hour)
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder="hh:mm"
+                                  value={clockInTime}
+                                  onChange={(e) =>
+                                    setClockInTime(e.target.value)
+                                  }
+                                  inputMode="numeric"
+                                  pattern="^(\d{1,2}):([0-5]\d)$"
+                                  className="w-32"
+                                />
+                                <select
+                                  className="border rounded px-2 py-2"
+                                  value={clockInMeridiem}
+                                  onChange={(e) =>
+                                    setClockInMeridiem(
+                                      e.target.value as "AM" | "PM"
+                                    )
+                                  }
+                                >
+                                  <option>AM</option>
+                                  <option>PM</option>
+                                </select>
+                              </div>
+                            </div>
 
+                            <div>
+                              <Label className="mb-1 block">
+                                Clock Out (12-hour)
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder="hh:mm"
+                                  value={clockOutTime}
+                                  onChange={(e) =>
+                                    setClockOutTime(e.target.value)
+                                  }
+                                  inputMode="numeric"
+                                  pattern="^(\d{1,2}):([0-5]\d)$"
+                                  className="w-32"
+                                />
+                                <select
+                                  className="border rounded px-2 py-2"
+                                  value={clockOutMeridiem}
+                                  onChange={(e) =>
+                                    setClockOutMeridiem(
+                                      e.target.value as "AM" | "PM"
+                                    )
+                                  }
+                                >
+                                  <option>AM</option>
+                                  <option>PM</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Optional live preview */}
+                            <div className="text-xs text-slate-500">
+                              {(() => {
+                                const ci = toTodayFrom12h(
+                                  clockInTime,
+                                  clockInMeridiem
+                                );
+                                const co = toTodayFrom12h(
+                                  clockOutTime,
+                                  clockOutMeridiem
+                                );
+                                const ciISO = ci ? toOffsetISOString(ci) : null;
+                                const coISO = co ? toOffsetISOString(co) : null;
+                                return (
+                                  <>
+                                    {ciISO && (
+                                      <div>
+                                        Clock In → <code>{ciISO}</code>
+                                      </div>
+                                    )}
+                                    {coISO && (
+                                      <div>
+                                        Clock Out → <code>{coISO}</code>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                        {/* Notes to land the plane */}
                         <Label>Reason</Label>
                         <textarea
                           className="w-full border-[2px]"
@@ -1006,7 +1154,6 @@ const EmployeeTable: React.FC<{
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
                         />
-
                         <Button
                           className="!bg-sky-500 !text-white !w-full"
                           type="submit"
