@@ -4,11 +4,18 @@ import "./index.css";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import React from "react";
+import { ToastProvider } from "./toast/ToastProvider";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <ToastProvider
+        maxVisible={3}
+        defaultDurationMs={5000}
+        defaultPosition="top-right"
+      >
+        <App />
+      </ToastProvider>
     </AuthProvider>
   </React.StrictMode>
 );

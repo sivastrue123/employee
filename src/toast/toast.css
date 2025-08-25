@@ -1,0 +1,41 @@
+:root {
+  --toast-bg: #ffffff;
+  --toast-fg: #0b1220;
+  --toast-fg-muted: #667085;
+  --toast-border: #e6e8f0;
+
+  /* Accents map variants → brand colors */
+  --toast-accent-success: #12b76a;
+  --toast-accent-error: #f04438;
+  --toast-accent-info: #3b82f6;
+  --toast-accent-warning: #f59e0b;
+  --toast-accent-fg: #ffffff;
+
+  /* dynamic per-variant token consumed inline via style attribute */
+  --toast-accent: var(--toast-accent-info);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --toast-bg: #0b1220;
+    --toast-fg: #ecf0f6;
+    --toast-fg-muted: #9aa4b2;
+    --toast-border: #1f2937;
+
+    --toast-accent-fg: #0b1220;
+  }
+}
+
+/* Variant hooks: flip the accent variable on the fly */
+[data-toast-variant="success"] {
+  --toast-accent: var(--toast-accent-success);
+}
+[data-toast-variant="error"] {
+  --toast-accent: var(--toast-accent-error);
+}
+[data-toast-variant="warning"] {
+  --toast-accent: var(--toast-accent-warning);
+}
+[data-toast-variant="info"] {
+  --toast-accent: var(--toast-accent-info);
+}
