@@ -6,12 +6,14 @@ import path from "path";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  // base: "/myapp/", 
+  // build: { outDir: "dist" },
   server: {
     proxy: {
       "/api": {
         target: "http://localhost:8000",
         changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, ""), 
+        // rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },

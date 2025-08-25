@@ -35,23 +35,34 @@ export const CustomDatePicker = ({ selected, onSelect, footer }: any) => {
   const goToPreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  const handleDayClick = (day: any) => {
-    const { from, to } = selected || {};
-    if (!from || isSameDay(day, from) || (to && isBefore(day, from))) {
-      // Start a new selection or reset if clicking before current 'from'
-      onSelect({ from: day, to: undefined });
-    } else if (from && !to) {
-      // Select 'to' date
-      onSelect({ from, to: day });
-    } else if (from && to && isAfter(day, to)) {
-      // Extend the range
-      onSelect({ from, to: day });
-    } else {
-      // If clicking inside an existing range, or if 'from' and 'to' are already set
-      // and clicking before 'from' again, reset to new 'from'.
-      onSelect({ from: day, to: undefined });
-    }
-  };
+const handleDayClick = (day: any) => {
+  const { from, to } = selected || {};
+console.log(selected,day)
+  // Create a new date object for the clicked day
+  const dayLocal = new Date(day);
+
+  // Set time to 00:00:00 for the start date (from)
+  dayLocal.setHours(0, 0, 0, 0);
+
+  if (!from || isSameDay(dayLocal, from) || (to && isBefore(dayLocal, from))) {
+    // Start a new selection or reset if clicking before current 'from'
+    onSelect({ from: dayLocal, to: undefined });
+  } else if (from && !to) {
+    // Select 'to' date, set time to 23:59:59.999 (end of the day)
+    const toDate = new Date(dayLocal);
+    toDate.setHours(23, 59, 59, 999); // Set 'to' to the last millisecond of the day
+    onSelect({ from, to: toDate });
+  } else if (from && to && isAfter(dayLocal, to)) {
+    // Extend the range
+    const toDate = new Date(dayLocal);
+    toDate.setHours(23, 59, 59, 999); // Ensure 'to' is the last millisecond of the day
+    onSelect({ from, to: toDate });
+  } else {
+    // If clicking inside an existing range, or if 'from' and 'to' are already set
+    // and clicking before 'from' again, reset to new 'from'.
+    onSelect({ from: dayLocal, to: undefined });
+  }
+};
 
   const getDayClassName = (day: any) => {
     const classNames = [];

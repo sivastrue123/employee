@@ -110,55 +110,60 @@ const EmployeeTable: React.FC<any> = ({
 
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const handleGetAllEmployeeData = async (
-    employeeIds?: String[],
+    employeeIds?: string[],
     today?: string,
     from?: Date,
     to?: Date
   ) => {
     try {
+      console.log(from, to, "all the adte ");
       let response;
-      const queryParams = [];
+      const queryParams: string[] = [];
 
+      // Handle employeeIds
       if (employeeIds && employeeIds.length > 0) {
-        queryParams.push(`employeeIds=${selectedEmployeeIds.join(",")}`);
+        queryParams.push(`employeeIds=${employeeIds.join(",")}`);
       }
+
+      // Handle the `today` parameter
       if (today || date) {
         queryParams.push(`today=${today || date}`);
       }
-      if ((from && to) || dateRange) {
+
+      // Handle `from` and `to` dates
+      if (from && to) {
+        // Ensure the dates are valid and serialized correctly
         queryParams.push(
-          `from=${from ? from.toISOString() : dateRange?.from}&to=${
-            to ? to.toISOString() : dateRange?.to
+          `from=${from ? from.toISOString() : ""}&to=${
+            to ? to.toISOString() : ""
           }`
         );
       }
+      if (from && !to) {
+        queryParams.push(
+          `from=${from ? from.toISOString() : ""}`
+        );
+      }
+
+      // Build the query string
       const queryString = queryParams.length ? `?${queryParams.join("&")}` : "";
 
+      // Make the API request
       response = await axios.get(
         `/api/attendance/getAllAttendance${queryString}`
       );
 
       setEmployeeData(response.data.data); // Setting the data to the state
     } catch (error: any) {
-      if (error.status) {
-        alert("No data found on given filter");
-        setDate(undefined)
+      if (error.response?.status) {
+        alert("No data found for the given filter.");
+        setDate(undefined);
       } else {
-        alert("Something went wrong");
+        alert("Something went wrong.");
       }
     }
   };
 
-  useEffect(() => {
-    if (selectedEmployeeIds && selectedEmployeeIds.length > 0) {
-      //   setDate(undefined);
-      //   setDateRange(undefined);
-      //    setActivePreset( null );
-      handleGetAllEmployeeData(selectedEmployeeIds);
-    } else {
-      handleGetAllEmployeeData([""]);
-    }
-  }, [selectedEmployeeIds]);
   const debouncedSearch = useDebouncedCallback((query) => {
     setQuery(query);
   }, 500); // 500ms debounce delay
@@ -239,9 +244,9 @@ const EmployeeTable: React.FC<any> = ({
   }, [allEmployeeData, attendanceRefresh]);
 
   // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [date, dateRange, query, sorting]);
+  //   useEffect(() => {
+  //     setPage(1);
+  //   }, [date, dateRange, query, sorting]);
 
   const filteredAttendanceSummary = useMemo(() => {
     const presents = filteredAndSortedData.filter(
@@ -302,18 +307,41 @@ const EmployeeTable: React.FC<any> = ({
       handleGetAllEmployeeData();
     }
   };
-  //     const handleGetFilteredData = async () => {
-  //     const employeeIds = selectedEmployeeIds.join(',');
-  //     const response = await axios.get(`/api/attendance/getAttendanceByEmployees/${employeeIds}`);
-  //     setEmployeeData(response.data); // Store the filtered data
-  //   };
 
-  //   useEffect(() => {
-  //     if (selectedEmployeeIds.length > 0) {
-  //       handleGetFilteredData();  // Fetch filtered data based on selected employees
-  //     }
-  //   }, [selectedEmployeeIds]);
-  console.log(employeeOptions);
+  useEffect(() => {
+    if (dateRange) {
+      const { from, to } = dateRange;
+      console.log(dateRange);
+
+      // Ensure that at least one of `from` or `to` is present
+      if (!from && !to) {
+        alert("At least one date (from or to) must be selected.");
+        return; // Exit if both are missing
+      }
+
+      // If `from` date is greater than `to`, swap them
+      if (from && to && new Date(from) > new Date(to)) {
+        // Swap the `from` and `to` without directly modifying the state object
+        setDateRange((prevState) => ({
+          ...prevState,
+          from: to,
+          to: from,
+        }));
+        return; // Exit to prevent further API calls with invalid range
+      }
+
+      // Call the API with valid `from` and `to` dates
+      handleGetAllEmployeeData(
+        [selectedEmployeeIds.join(",")],
+        undefined,
+        from,
+        to
+      );
+    } else {
+      handleGetAllEmployeeData([selectedEmployeeIds.join(",")]);
+    }
+  }, [dateRange, selectedEmployeeIds]);
+
   const handleCloseDropdown = () => {
     setDropdownOpen(false);
   };
@@ -353,7 +381,6 @@ const EmployeeTable: React.FC<any> = ({
                   mode="single"
                   selected={date}
                   onSelect={(d?: Date) => {
-                    
                     setDate(d);
                     if (d) {
                       handleGetAllEmployeeData(
@@ -362,7 +389,6 @@ const EmployeeTable: React.FC<any> = ({
                         undefined,
                         undefined
                       );
-                   
                     }
                     if (d) setDateRange && setDateRange(undefined);
                     setOpenSingle(false);
