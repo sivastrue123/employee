@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +38,11 @@ import { CustomDatePicker } from "@/components/Daypicker/CustomDatePicker";
 import { Badge } from "@/components/ui/badge";
 import { useDebouncedCallback } from "use-debounce";
 import { useAuth } from "@/context/AuthContext";
-import { DateRange as RDateRange, Preset, SortState } from "@/types/attendanceTypes";
+import {
+  DateRange as RDateRange,
+  Preset,
+  SortState,
+} from "@/types/attendanceTypes";
 import {
   parseTimeToMinutes,
   squash,
@@ -124,6 +134,24 @@ const fmtDateTime = (input?: unknown) => {
   const d = asDateOrNull(input);
   return d ? format(d, "PP p") : "—";
 };
+const pad = (n: number, w = 2) => String(Math.abs(n)).padStart(w, "0");
+
+const toOffsetISOString = (d: Date) => {
+  const tz = -d.getTimezoneOffset(); // minutes east of UTC
+  const sign = tz >= 0 ? "+" : "-";
+  const hhOff = pad(Math.trunc(Math.abs(tz) / 60));
+  const mmOff = pad(Math.abs(tz) % 60);
+
+  const yyyy = d.getFullYear();
+  const MM = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  const ms = pad(d.getMilliseconds(), 3);
+
+  return `${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}.${ms}${sign}${hhOff}:${mmOff}`;
+};
 
 const serializeParams = (opts: {
   employeeIds?: string[];
@@ -133,22 +161,13 @@ const serializeParams = (opts: {
 }) => {
   const params = new URLSearchParams();
 
-  if (opts.employeeIds && opts.employeeIds.length > 0) {
+  if (opts.employeeIds?.length)
     params.set("employeeIds", opts.employeeIds.join(","));
-  }
 
-  if (opts.today) {
-    // normalize to day bounds server-side friendly
-    const start = startOfDay(opts.today);
-    const end = endOfDay(opts.today);
-    params.set("today", iso(opts.today)!);
-    // optional: if API supports from/to with today, keep only today param per your backend
-  }
+  if (opts.today) params.set("today", toOffsetISOString(opts.today));
 
-  if (opts.from || opts.to) {
-    if (opts.from) params.set("from", startOfDay(opts.from).toISOString());
-    if (opts.to) params.set("to", endOfDay(opts.to).toISOString());
-  }
+  if (opts.from) params.set("from", toOffsetISOString(opts.from));
+  if (opts.to) params.set("to", toOffsetISOString(opts.to));
 
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -218,7 +237,7 @@ const EmployeeTable: React.FC<{
       range?: { from?: Date; to?: Date };
     }) => {
       const { employeeIds, singleDate, range } = opts;
-
+      console.log(range, "From before the api call");
       // build query
       const qs = serializeParams({
         employeeIds,
@@ -226,6 +245,7 @@ const EmployeeTable: React.FC<{
         from: range?.from,
         to: range?.to,
       });
+      console.log(qs, "after the query is selected ");
 
       // cancel previous in-flight
       lastAbortRef.current?.abort();
@@ -268,7 +288,13 @@ const EmployeeTable: React.FC<{
       singleDate,
       range: cleanRange,
     });
-  }, [filters.selectedEmployeeIds, filters.singleDate, filters.range, attendanceRefresh, fetchAttendance]);
+  }, [
+    filters.selectedEmployeeIds,
+    filters.singleDate,
+    filters.range,
+    attendanceRefresh,
+    fetchAttendance,
+  ]);
 
   // --- Derived datasets
   const filteredAndSorted = useMemo(() => {
@@ -281,7 +307,10 @@ const EmployeeTable: React.FC<{
 
     if (q) {
       data = data.filter((item) => {
-        const dateStr = format(parseISO(item.attendanceDate), "PPPP").toLowerCase();
+        const dateStr = format(
+          parseISO(item.attendanceDate),
+          "PPPP"
+        ).toLowerCase();
         const cin = toLowerSafe(item.clockIn ?? "");
         const cout = toLowerSafe(item.clockOut ?? "");
         const cinSquash = squash(item.clockIn ?? "");
@@ -298,7 +327,8 @@ const EmployeeTable: React.FC<{
           cinSquash.includes(qSquash) ||
           coutSquash.includes(qSquash);
 
-        const timeHit = qMins !== null && (cinMins === qMins || coutMins === qMins);
+        const timeHit =
+          qMins !== null && (cinMins === qMins || coutMins === qMins);
         return textHit || timeHit;
       });
     }
@@ -333,8 +363,12 @@ const EmployeeTable: React.FC<{
 
   // --- Current view rollup
   useEffect(() => {
-    const presents = filteredAndSorted.filter((i) => i.status === "Present").length;
-    const absents = filteredAndSorted.filter((i) => i.status === "Absent").length;
+    const presents = filteredAndSorted.filter(
+      (i) => i.status === "Present"
+    ).length;
+    const absents = filteredAndSorted.filter(
+      (i) => i.status === "Absent"
+    ).length;
     setCurrentViewAbsent(absents);
     setcurrentViewPresent(presents);
   }, [filteredAndSorted, setCurrentViewAbsent, setcurrentViewPresent]);
@@ -440,12 +474,17 @@ const EmployeeTable: React.FC<{
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-44 justify-between">
                   <span className="truncate">
-                    {filters.singleDate ? format(filters.singleDate, "PP") : "Select date"}
+                    {filters.singleDate
+                      ? format(filters.singleDate, "PP")
+                      : "Select date"}
                   </span>
                   <ChevronDownIcon className="h-4 w-4 opacity-70" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+              <PopoverContent
+                className="w-auto overflow-hidden p-0"
+                align="start"
+              >
                 <Calendar
                   mode="single"
                   selected={filters.singleDate}
@@ -466,7 +505,10 @@ const EmployeeTable: React.FC<{
             {/* Range date */}
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[280px] justify-start text-left">
+                <Button
+                  variant="outline"
+                  className="w-[280px] justify-start text-left"
+                >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {filters.range?.from ? (
                     filters.range.to ? (
@@ -487,20 +529,46 @@ const EmployeeTable: React.FC<{
                   selected={filters.range}
                   onSelect={(r: DateRange) => {
                     // auto-heal reversed ranges
-                    const from = r?.from && r?.to && r.from > r.to ? r.to : r?.from;
-                    const to = r?.from && r?.to && r.from > r.to ? r.from : r?.to;
+                    if (!r) {
+                      setFilters((f) => ({
+                        ...f,
+                        range: undefined,
+                        singleDate: undefined,
+                        preset: null,
+                        page: 1,
+                      }));
+                      return;
+                    }
 
+                    const rawFrom = r?.from ?? undefined;
+                    const rawTo = r?.to ?? undefined;
+
+                    // If both picked, ensure chronological order, then normalize roles
+                    let start = rawFrom;
+                    let end = rawTo;
+
+                    if (start && end && start > end) {
+                      // swap
+                      [start, end] = [end, start];
+                    }
+
+                    // Normalize to day-bounds (key bit)
+                    const normFrom = start ? startOfDay(start) : undefined;
+                    const normTo = end ? endOfDay(end) : undefined;
                     setFilters((f) => ({
                       ...f,
-                      range: r ? { from, to } : undefined,
+                      range: r ? { from: normFrom, to: normTo } : undefined,
                       singleDate: undefined,
-                      preset: r ? (from && to ? "week" : null) : null, // heuristic
+                      // Optional heuristic: only set a preset when both ends exist
+                      preset: normFrom && normTo ? "week" : null,
                       page: 1,
                     }));
                   }}
                   footer={
                     <div className="flex w-full items-center justify-between p-2">
-                      <div className="text-xs text-slate-500">Tip: drag to select a range</div>
+                      <div className="text-xs text-slate-500">
+                        Tip: drag to select a range
+                      </div>
                       <Button
                         variant="ghost"
                         onClick={() =>
@@ -543,7 +611,9 @@ const EmployeeTable: React.FC<{
                 />
                 {filteredEmployees.length > 0 ? (
                   filteredEmployees.map((emp) => {
-                    const checked = filters.selectedEmployeeIds.includes(emp.employee_id);
+                    const checked = filters.selectedEmployeeIds.includes(
+                      emp.employee_id
+                    );
                     return (
                       <DropdownMenuCheckboxItem
                         key={emp.employee_id}
@@ -573,7 +643,11 @@ const EmployeeTable: React.FC<{
                       variant="ghost"
                       className="w-full"
                       onClick={() =>
-                        setFilters((f) => ({ ...f, selectedEmployeeIds: [], page: 1 }))
+                        setFilters((f) => ({
+                          ...f,
+                          selectedEmployeeIds: [],
+                          page: 1,
+                        }))
                       }
                     >
                       Clear
@@ -589,7 +663,9 @@ const EmployeeTable: React.FC<{
                 variant={filters.preset === "today" ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("today")}
-                className={filters.preset === "today" ? "!hidden sm:inline-flex" : ""}
+                className={
+                  filters.preset === "today" ? "!hidden sm:inline-flex" : ""
+                }
               >
                 Today
               </Button>
@@ -597,7 +673,9 @@ const EmployeeTable: React.FC<{
                 variant={filters.preset === "week" ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("week")}
-                className={filters.preset === "week" ? "!hidden sm:inline-flex" : ""}
+                className={
+                  filters.preset === "week" ? "!hidden sm:inline-flex" : ""
+                }
               >
                 This week
               </Button>
@@ -605,7 +683,9 @@ const EmployeeTable: React.FC<{
                 variant={filters.preset === "month" ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("month")}
-                className={filters.preset === "month" ? "!hidden sm:inline-flex" : ""}
+                className={
+                  filters.preset === "month" ? "!hidden sm:inline-flex" : ""
+                }
               >
                 This month
               </Button>
@@ -637,7 +717,10 @@ const EmployeeTable: React.FC<{
             <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
               <TableRow>
                 <TableHead className="whitespace-nowrap">
-                  <Button variant="ghost" onClick={() => handleSort("attendanceDate")}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("attendanceDate")}
+                  >
                     Date{" "}
                     {filters.sort?.id === "attendanceDate"
                       ? filters.sort.desc
@@ -646,11 +729,15 @@ const EmployeeTable: React.FC<{
                       : ""}
                   </Button>
                 </TableHead>
-                <TableHead className="whitespace-nowrap">Employee Name</TableHead>
+                <TableHead className="whitespace-nowrap">
+                  Employee Name
+                </TableHead>
                 <TableHead className="whitespace-nowrap">Department</TableHead>
                 <TableHead className="whitespace-nowrap">Clock In</TableHead>
                 <TableHead className="whitespace-nowrap">Clock Out</TableHead>
-                <TableHead className="whitespace-nowrap">Total Hours Worked</TableHead>
+                <TableHead className="whitespace-nowrap">
+                  Total Hours Worked
+                </TableHead>
                 <TableHead className="whitespace-nowrap">OT</TableHead>
                 <TableHead className="whitespace-nowrap">Late</TableHead>
                 <TableHead className="whitespace-nowrap">Status</TableHead>
@@ -686,7 +773,9 @@ const EmployeeTable: React.FC<{
                     <TableCell>{row.late ?? "—"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={row.status === "Present" ? "default" : "destructive"}
+                        variant={
+                          row.status === "Present" ? "default" : "destructive"
+                        }
                         className="uppercase tracking-wide"
                       >
                         {row.status}
@@ -700,7 +789,10 @@ const EmployeeTable: React.FC<{
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-56 text-center align-middle">
+                  <TableCell
+                    colSpan={13}
+                    className="h-56 text-center align-middle"
+                  >
                     <div className="mx-auto max-w-sm">
                       <div className="mb-2 text-5xl">🗓️</div>
                       <div className="text-lg font-semibold text-slate-900">
@@ -721,7 +813,9 @@ const EmployeeTable: React.FC<{
         <div className="flex flex-col items-center justify-between gap-3 border-t p-3 sm:flex-row">
           <div className="text-xs text-slate-600">
             Showing{" "}
-            <span className="font-medium">{total === 0 ? 0 : sliceStart + 1}</span>{" "}
+            <span className="font-medium">
+              {total === 0 ? 0 : sliceStart + 1}
+            </span>{" "}
             to <span className="font-medium">{sliceEnd}</span> of{" "}
             <span className="font-medium">{total}</span> entries
           </div>
@@ -729,7 +823,9 @@ const EmployeeTable: React.FC<{
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, page - 1) }))}
+              onClick={() =>
+                setFilters((f) => ({ ...f, page: Math.max(1, page - 1) }))
+              }
               disabled={page <= 1}
             >
               Previous
@@ -741,7 +837,10 @@ const EmployeeTable: React.FC<{
               variant="outline"
               size="sm"
               onClick={() =>
-                setFilters((f) => ({ ...f, page: Math.min(totalPages, page + 1) }))
+                setFilters((f) => ({
+                  ...f,
+                  page: Math.min(totalPages, page + 1),
+                }))
               }
               disabled={page >= totalPages}
             >
