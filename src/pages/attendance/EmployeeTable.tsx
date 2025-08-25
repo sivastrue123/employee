@@ -60,7 +60,6 @@ import { DropdownMenuCheckboxItemProps } from "@radix-ui/react-dropdown-menu";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -68,6 +67,9 @@ import {
 import { Label } from "@/components/ui/label";
 import makeAnimated from "react-select/animated";
 import Select from "react-select";
+
+// ✅ Toast: your in-house provider
+import { useToast } from "@/toast/ToastProvider";
 
 type Checked = DropdownMenuCheckboxItemProps["checked"];
 const PAGE_SIZE = 10;
@@ -100,47 +102,35 @@ type AttendanceRow = {
 type DateRange = RDateRange | undefined;
 
 type Filters = {
-  selectedEmployeeIds: string[]; // canonical set
-  singleDate?: Date; // mutually exclusive with range
+  selectedEmployeeIds: string[];
+  singleDate?: Date;
   range?: { from?: Date; to?: Date };
   search: string;
   preset: Preset | null;
-  sort: SortState; // { id: 'attendanceDate', desc: boolean } | null
+  sort: SortState;
   page: number;
 };
 
 const iso = (d?: Date) => (d ? d.toISOString() : undefined);
 const asDateOrNull = (val?: unknown): Date | null => {
   if (val == null) return null;
-
-  // number-like (epoch millis or seconds)
   if (typeof val === "number") {
     const d = new Date(val > 1e12 ? val : val * 1000);
     return isNaN(d.getTime()) ? null : d;
   }
-
   if (typeof val === "string") {
-    // try ISO first
     let d = parseISO(val);
     if (!isNaN(d.getTime())) return d;
-
-    // fallback: native Date parsing (handles '2025-08-25 12:00:00' in many envs)
     d = new Date(val);
     return isNaN(d.getTime()) ? null : d;
   }
-
-  if (val instanceof Date) {
-    return isNaN(val.getTime()) ? null : val;
-  }
-
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
   return null;
 };
-
 const fmtDay = (input?: unknown) => {
   const d = asDateOrNull(input);
   return d ? format(d, "PPP") : "—";
 };
-
 const fmtDateTime = (input?: unknown) => {
   const d = asDateOrNull(input);
   return d ? format(d, "PP p") : "—";
@@ -148,11 +138,10 @@ const fmtDateTime = (input?: unknown) => {
 const pad = (n: number, w = 2) => String(Math.abs(n)).padStart(w, "0");
 
 const toOffsetISOString = (d: Date) => {
-  const tz = -d.getTimezoneOffset(); // minutes east of UTC
-  const sign = tz >= 0 ? "+" : "-";
+  const tz = -d.getTimezoneOffset();
+  const sign = tz >= 0 ? "+ " : "- ";
   const hhOff = pad(Math.trunc(Math.abs(tz) / 60));
   const mmOff = pad(Math.abs(tz) % 60);
-
   const yyyy = d.getFullYear();
   const MM = pad(d.getMonth() + 1);
   const dd = pad(d.getDate());
@@ -160,8 +149,7 @@ const toOffsetISOString = (d: Date) => {
   const mm = pad(d.getMinutes());
   const ss = pad(d.getSeconds());
   const ms = pad(d.getMilliseconds(), 3);
-
-  return `${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}.${ms}${sign}${hhOff}:${mmOff}`;
+  return `${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}.${ms}${sign.trim()}${hhOff}:${mmOff}`;
 };
 
 const serializeParams = (opts: {
@@ -171,15 +159,11 @@ const serializeParams = (opts: {
   to?: Date;
 }) => {
   const params = new URLSearchParams();
-
   if (opts.employeeIds?.length)
     params.set("employeeIds", opts.employeeIds.join(","));
-
   if (opts.today) params.set("today", toOffsetISOString(opts.today));
-
   if (opts.from) params.set("from", toOffsetISOString(opts.from));
   if (opts.to) params.set("to", toOffsetISOString(opts.to));
-
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 };
@@ -195,10 +179,10 @@ const EmployeeTable: React.FC<{
   setCurrentViewAbsent,
   setcurrentViewPresent,
 }) => {
-  const { attendanceRefresh, user } = useAuth();
+  const { attendanceRefresh, setAttendanceRefresh, user } = useAuth();
+  const toast = useToast(); // ✅ toast handle
 
   const animatedComponents = makeAnimated();
-  // --- Local state
   const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
   const [filters, setFilters] = useState<Filters>({
     selectedEmployeeIds: [],
@@ -232,66 +216,118 @@ const EmployeeTable: React.FC<{
   );
 
   const attendanceStatus = [
-    {
-      value: "Present",
-      label: "Present",
-    },
+    { value: "Present", label: "Present" },
     { value: "Absent", label: "Absent" },
     { value: "On Leave", label: "OnLeave" },
     { value: "Permission", label: "Permission" },
   ];
 
-  // --- Debounced search (table-wide search)
+  // ----------------------------
+  // Debounced search (table-wide)
+  // ----------------------------
   const setSearchDebounced = useDebouncedCallback((q: string) => {
     setFilters((f) => ({ ...f, search: q, page: 1 }));
   }, 400);
+
+  // ----------------------------
+  // Bulk More Actions — with toast UX
+  // ----------------------------
   const addAttendance = async (payload: {
     employeeIds: string[];
     status: string | null;
     reason: string | null;
     date: Date | string | null;
   }) => {
-    // Example fetch pattern; replace URL and shape as needed.
-    const res = await axios.post(
-      `/api/attendance/MoreActions/${user?.userId}`,
-      { payload }
-    );
-
-    console.log(res);
+    return axios.post(`/api/attendance/MoreActions/${user?.userId}`, {
+      payload,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // Inline validations with actionable toasts
+    if (!selectedEmployees.length) {
+      toast.info("Select at least one employee to proceed.", {
+        title: "Nothing to update",
+        durationMs: 2500,
+        position: "top-center",
+      });
+      return;
+    }
+    if (!selectedStatus?.value) {
+      toast.warning("Pick an attendance status.", {
+        title: "Missing status",
+        durationMs: 2500,
+        position: "top-center",
+      });
+      return;
+    }
+    if (reason.trim().length > 200) {
+      toast.warning("Reason is capped at 200 characters.", {
+        title: "Too long",
+        durationMs: 2500,
+        position: "top-center",
+      });
+      return;
+    }
+
     setSubmitting(true);
+    const loadingId = toast.info("Applying attendance updates…", {
+      durationMs: 0,
+      position: "top-center",
+      dismissible: true,
+    });
 
     const payload = {
       employeeIds: selectedEmployees.map((o) => o.value),
-      status: selectedStatus?.value ?? null,
+      status: selectedStatus.value,
       reason: reason.trim() || null,
       date: new Date().toISOString().split("T")[0],
     };
-    console.log("Submitting attendance payload:", payload);
 
     try {
-      const result = await addAttendance(payload);
-      console.log("API success:", result);
-      // Only close the Sheet on successful API resolution
+      await addAttendance(payload);
+      setAttendanceRefresh(!attendanceRefresh);
+      toast.remove(loadingId);
+      toast.success("Attendance updated successfully.", {
+        title: "Done",
+        durationMs: 2200,
+        position: "top-center",
+      });
+
+      // Close sheet + reset local state
       setOpen(false);
-      // Optional: clear form after success
       setSelectedEmployees([]);
       setSelectedStatus(null);
       setReason("");
-    } catch (err) {
-      console.error("API error:", err);
-      // Keep the Sheet open for remediation
-      // Optionally surface a toast/error UI here
+
+      // Optional nudge: refresh current view
+      // (If you have an attendanceRefresh trigger, fire it here)
+    } catch (err: any) {
+      toast.remove(loadingId);
+      const isNetwork =
+        err?.code === "ERR_NETWORK" ||
+        err?.message?.toLowerCase?.().includes("network");
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+
+      toast.error(
+        isNetwork
+          ? "Network hiccup while saving. Check your connection and retry."
+          : apiMsg || "We couldn’t apply those updates. Please try again.",
+        { title: "Update failed", durationMs: 5000, position: "top-center" }
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // --- Render
-  // --- Bootstrap employees
+  // ----------------------------
+  // Bootstrap employees (toast on failure)
+  // ----------------------------
   useEffect(() => {
     let active = true;
     (async () => {
@@ -300,16 +336,26 @@ const EmployeeTable: React.FC<{
         if (!active) return;
         setEmployeeOptions(res.data ?? []);
       } catch {
-        // soft-fail; UI still usable
+        if (!active) return;
         setEmployeeOptions([]);
+        toast.warning(
+          "Couldn’t load employees for filtering. Try again later.",
+          {
+            title: "Filter data unavailable",
+            durationMs: 3500,
+            position: "bottom-center",
+          }
+        );
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [toast]);
 
-  // --- Data fetch with race cancellation
+  // ----------------------------
+  // Data fetch with cancellation + toast signals
+  // ----------------------------
   const lastAbortRef = useRef<AbortController | null>(null);
 
   const fetchAttendance = useCallback(
@@ -319,49 +365,73 @@ const EmployeeTable: React.FC<{
       range?: { from?: Date; to?: Date };
     }) => {
       const { employeeIds, singleDate, range } = opts;
-      console.log(range, "From before the api call");
-      // build query
+
       const qs = serializeParams({
         employeeIds,
         today: singleDate,
         from: range?.from,
         to: range?.to,
       });
-      console.log(qs, "after the query is selected ");
 
-      // cancel previous in-flight
+      // Cancel any in-flight query
       lastAbortRef.current?.abort();
       const controller = new AbortController();
       lastAbortRef.current = controller;
 
       setLoading(true);
+
+      // Optional: loader toast only when filters change meaningfully
+      const loaderId = toast.info("Fetching attendance…", {
+        durationMs: 0,
+        position: "top-center",
+        dismissible: true,
+      });
+
       try {
         const res = await axios.get<{ data: AttendanceRow[] }>(
           `/api/attendance/getAllAttendance${qs}`,
           { signal: controller.signal }
         );
         setRows(res.data?.data ?? []);
+        toast.remove(loaderId);
+        toast.success("Attendance refreshed.", {
+          durationMs: 1500,
+          position: "top-center",
+        });
       } catch (e: any) {
-        if (axios.isCancel(e)) return; // cancelled—no UX noise
-        // Targeted messaging
+        if (axios.isCancel(e)) {
+          toast.remove(loaderId);
+          return; // silent on user-driven cancels
+        }
+        setRows([]);
+        toast.remove(loaderId);
         const status = e?.response?.status;
         if (status === 404) {
-          setRows([]);
+          toast.info("No records found for the selected view.", {
+            durationMs: 2200,
+            position: "bottom-center",
+          });
         } else {
-          // Keep calm and proceed—avoid blocking UX
-          setRows([]);
+          const isNetwork =
+            e?.code === "ERR_NETWORK" ||
+            e?.message?.toLowerCase?.().includes("network");
+          toast.error(
+            isNetwork
+              ? "Network hiccup while loading attendance. Please retry."
+              : "We couldn’t load attendance right now.",
+            { title: "Load failed", durationMs: 4000, position: "top-center" }
+          );
         }
       } finally {
         setLoading(false);
       }
     },
-    []
+    [toast]
   );
 
-  // --- Fetch on filter changes (single source of truth)
+  // Fetch on filter changes
   useEffect(() => {
     const { selectedEmployeeIds, singleDate, range } = filters;
-    // Coerce empty range to undefined
     const cleanRange =
       range?.from || range?.to ? { from: range.from, to: range.to } : undefined;
 
@@ -378,7 +448,9 @@ const EmployeeTable: React.FC<{
     fetchAttendance,
   ]);
 
-  // --- Derived datasets
+  // ----------------------------
+  // Derived datasets
+  // ----------------------------
   const filteredAndSorted = useMemo(() => {
     const q = filters.search.trim();
     const qLower = toLowerSafe(q);
@@ -427,9 +499,10 @@ const EmployeeTable: React.FC<{
     return data;
   }, [rows, filters.search, filters.sort]);
 
-  // --- KPIs for the dashboard
+  // ----------------------------
+  // KPIs for the dashboard
+  // ----------------------------
   useEffect(() => {
-    // Month rollups
     const now = new Date();
     const month = now.getMonth();
     const year = now.getFullYear();
@@ -443,7 +516,9 @@ const EmployeeTable: React.FC<{
     setMonthlyAbsents(thisMonth.filter((i) => i.status === "Absent").length);
   }, [rows, setMonthlyAbsents, setMonthlyPresents]);
 
-  // --- Current view rollup
+  // ----------------------------
+  // Current view rollups
+  // ----------------------------
   useEffect(() => {
     const presents = filteredAndSorted.filter(
       (i) => i.status === "Present"
@@ -455,7 +530,9 @@ const EmployeeTable: React.FC<{
     setcurrentViewPresent(presents);
   }, [filteredAndSorted, setCurrentViewAbsent, setcurrentViewPresent]);
 
-  // --- Pagination slices (accurate math)
+  // ----------------------------
+  // Pagination
+  // ----------------------------
   const total = filteredAndSorted.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(filters.page, totalPages);
@@ -463,7 +540,9 @@ const EmployeeTable: React.FC<{
   const sliceEnd = Math.min(sliceStart + PAGE_SIZE, total);
   const paged = filteredAndSorted.slice(sliceStart, sliceEnd);
 
-  // --- UI handlers
+  // ----------------------------
+  // UI handlers
+  // ----------------------------
   const handleSort = (columnId: "attendanceDate") => {
     setFilters((f) => {
       if (f.sort?.id === columnId) {
@@ -483,6 +562,10 @@ const EmployeeTable: React.FC<{
         range: undefined,
         page: 1,
       }));
+      toast.info("Filtered to today.", {
+        durationMs: 1200,
+        position: "bottom-center",
+      });
     } else if (preset === "week") {
       setFilters((f) => ({
         ...f,
@@ -494,6 +577,10 @@ const EmployeeTable: React.FC<{
         },
         page: 1,
       }));
+      toast.info("Filtered to this week.", {
+        durationMs: 1200,
+        position: "bottom-center",
+      });
     } else if (preset === "month") {
       setFilters((f) => ({
         ...f,
@@ -502,6 +589,10 @@ const EmployeeTable: React.FC<{
         range: { from: startOfMonth(now), to: endOfMonth(now) },
         page: 1,
       }));
+      toast.info("Filtered to this month.", {
+        durationMs: 1200,
+        position: "bottom-center",
+      });
     } else {
       setFilters((f) => ({
         ...f,
@@ -510,6 +601,10 @@ const EmployeeTable: React.FC<{
         range: undefined,
         page: 1,
       }));
+      toast.info("Cleared filters.", {
+        durationMs: 1200,
+        position: "bottom-center",
+      });
     }
   };
 
@@ -531,7 +626,9 @@ const EmployeeTable: React.FC<{
     });
   };
 
-  // --- Render
+  // ----------------------------
+  // Render
+  // ----------------------------
   return (
     <>
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
@@ -610,7 +707,6 @@ const EmployeeTable: React.FC<{
                 <CustomDatePicker
                   selected={filters.range}
                   onSelect={(r: DateRange) => {
-                    // auto-heal reversed ranges
                     if (!r) {
                       setFilters((f) => ({
                         ...f,
@@ -621,27 +717,18 @@ const EmployeeTable: React.FC<{
                       }));
                       return;
                     }
-
                     const rawFrom = r?.from ?? undefined;
                     const rawTo = r?.to ?? undefined;
-
-                    // If both picked, ensure chronological order, then normalize roles
                     let start = rawFrom;
                     let end = rawTo;
-
-                    if (start && end && start > end) {
-                      // swap
+                    if (start && end && start > end)
                       [start, end] = [end, start];
-                    }
-
-                    // Normalize to day-bounds (key bit)
                     const normFrom = start ? startOfDay(start) : undefined;
                     const normTo = end ? endOfDay(end) : undefined;
                     setFilters((f) => ({
                       ...f,
                       range: r ? { from: normFrom, to: normTo } : undefined,
                       singleDate: undefined,
-                      // Optional heuristic: only set a preset when both ends exist
                       preset: normFrom && normTo ? "week" : null,
                       page: 1,
                     }));
@@ -778,6 +865,8 @@ const EmployeeTable: React.FC<{
               >
                 Clear
               </Button>
+
+              {/* More actions sheet */}
               <div className="flex">
                 <Sheet open={open} onOpenChange={setOpen}>
                   <SheetTrigger className="!border-transaparent !p-0">
@@ -796,12 +885,11 @@ const EmployeeTable: React.FC<{
                       <SheetTitle>More Option</SheetTitle>
                     </SheetHeader>
 
-                    {/* Form wrapper to orchestrate controlled submission */}
                     <form onSubmit={handleSubmit}>
                       <div className="p-2 space-y-4">
                         <Label>Employees</Label>
                         <Select<Option, true>
-                          closeMenuOnSelect={false}
+                          // closeMenuOnSelect={false}
                           components={animatedComponents}
                           placeholder="Select Employees"
                           isMulti
@@ -809,7 +897,6 @@ const EmployeeTable: React.FC<{
                           value={selectedEmployees}
                           onChange={(selected) => {
                             setSelectedEmployees(selected ? [...selected] : []);
-                            console.log("Employees selected:", selected);
                           }}
                         />
 
@@ -820,17 +907,13 @@ const EmployeeTable: React.FC<{
                           placeholder="Select Status"
                           options={attendanceStatus}
                           value={selectedStatus}
-                          onChange={(selected) => {
-                            setSelectedStatus(selected);
-                            console.log("Status selected:", selected);
-                          }}
+                          onChange={(selected) => setSelectedStatus(selected)}
                           isMulti={false}
                         />
 
                         <Label>Reason</Label>
-                        {/* Note: maxLength limits CHARACTERS; if you truly want 200 words, add a custom validator */}
                         <textarea
-                          className="w-full"
+                          className="w-full border-[2px]"
                           maxLength={200}
                           placeholder="Max 200 characters allowed"
                           value={reason}
@@ -917,7 +1000,9 @@ const EmployeeTable: React.FC<{
                     <TableCell>
                       {row.clockIn == "" ? "—" : row.clockIn}
                     </TableCell>
-                    <TableCell>{row.clockOut ==""? "—":row.clockOut}</TableCell>
+                    <TableCell>
+                      {row.clockOut == "" ? "—" : row.clockOut}
+                    </TableCell>
                     <TableCell>{row.worked ?? "—"}</TableCell>
                     <TableCell>{row.ot ?? "—"}</TableCell>
                     <TableCell>{row.late ?? "—"}</TableCell>
@@ -933,7 +1018,11 @@ const EmployeeTable: React.FC<{
                     </TableCell>
                     <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
                     <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
-                    <TableCell>{row.editedBy?.name ==" "||!row.editedBy?.name? "—":row.editedBy?.name}</TableCell>
+                    <TableCell>
+                      {row.editedBy?.name == " " || !row.editedBy?.name
+                        ? "—"
+                        : row.editedBy?.name}
+                    </TableCell>
                     <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
                   </TableRow>
                 ))
