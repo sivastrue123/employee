@@ -127,21 +127,21 @@ export default function SidebarComp({ children }: any) {
   useEffect(() => {
     const checkClockInStatus = async () => {
       const today = new Date().toISOString().split("T")[0];
-      const localClockedIn = localStorage.getItem("isClockedIn");
-      const localClockInTime = localStorage.getItem("clockInTime");
-      const localClockedInDate = localStorage.getItem("clockedInDate");
-      const localTotalWorked = localStorage.getItem("totalWorked");
-      if (
-        localClockedIn === "true" &&
-        localClockInTime &&
-        localClockedInDate === today &&
-        localTotalWorked
-      ) {
-        const elapsed = Math.floor(parseWorkedTime(localTotalWorked));
-        setIsClockedIn(true);
-        setElapsedTime(elapsed);
-        return;
-      }
+      // const localClockedIn = localStorage.getItem("isClockedIn");
+      // const localClockInTime = localStorage.getItem("clockInTime");
+      // const localClockedInDate = localStorage.getItem("clockedInDate");
+      // const localTotalWorked = localStorage.getItem("totalWorked");
+      // if (
+      //   localClockedIn === "true" &&
+      //   localClockInTime &&
+      //   localClockedInDate === today &&
+      //   localTotalWorked
+      // ) {
+      //   const elapsed = Math.floor(parseWorkedTime(localTotalWorked));
+      //   setIsClockedIn(true);
+      //   setElapsedTime(elapsed);
+      //   return;
+      // }
 
       try {
         const response = await axios.get(

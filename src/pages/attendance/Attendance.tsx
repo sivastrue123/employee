@@ -45,7 +45,7 @@ const slideTabs = {
 };
 
 const Attendance: React.FC = () => {
-  const { user, attendanceRefresh } = useAuth();
+  const { user, attendanceRefresh,setAttendanceRefresh } = useAuth();
 
   const [monthlyPresents, setMonthlyPresents] = useState<number>(0);
   const [monthlyAbsents, setMonthlyAbsents] = useState<number>(0);

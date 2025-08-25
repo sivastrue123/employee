@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +14,6 @@ import {
   endOfMonth,
   endOfWeek,
   format,
-  isAfter,
-  isBefore,
-  isSameDay,
-  isWithinInterval,
   parseISO,
   startOfDay,
   startOfMonth,
@@ -36,7 +32,7 @@ import { CustomDatePicker } from "@/components/Daypicker/CustomDatePicker";
 import { Badge } from "@/components/ui/badge";
 import { useDebouncedCallback } from "use-debounce";
 import { useAuth } from "@/context/AuthContext";
-import { DateRange, Preset, SortState } from "@/types/attendanceTypes";
+import { DateRange as RDateRange, Preset, SortState } from "@/types/attendanceTypes";
 import {
   parseTimeToMinutes,
   squash,
@@ -51,300 +47,375 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DropdownMenuCheckboxItemProps } from "@radix-ui/react-dropdown-menu";
-type Checked = DropdownMenuCheckboxItemProps["checked"];
 
-const EmployeeTable: React.FC<any> = ({
+type Checked = DropdownMenuCheckboxItemProps["checked"];
+const PAGE_SIZE = 10;
+
+type Employee = {
+  employee_id: string;
+  first_name: string;
+  last_name: string;
+  department?: string | null;
+};
+
+type AttendanceRow = {
+  id: string;
+  attendanceDate: string; // ISO date
+  employeeId?: string;
+  employeeName?: string | null;
+  employeeDepartment?: string | null;
+  clockIn?: string | null;
+  clockOut?: string | null;
+  worked?: string | null;
+  ot?: string | null;
+  late?: string | null;
+  status: "Present" | "Absent" | string;
+  createdBy?: { name?: string | null } | null;
+  createdAt?: string | null; // ISO
+  editedBy?: { name?: string | null } | null;
+  editedAt?: string | null; // ISO
+};
+
+type DateRange = RDateRange | undefined;
+
+type Filters = {
+  selectedEmployeeIds: string[]; // canonical set
+  singleDate?: Date; // mutually exclusive with range
+  range?: { from?: Date; to?: Date };
+  search: string;
+  preset: Preset | null;
+  sort: SortState; // { id: 'attendanceDate', desc: boolean } | null
+  page: number;
+};
+
+const iso = (d?: Date) => (d ? d.toISOString() : undefined);
+const asDateOrNull = (val?: unknown): Date | null => {
+  if (val == null) return null;
+
+  // number-like (epoch millis or seconds)
+  if (typeof val === "number") {
+    const d = new Date(val > 1e12 ? val : val * 1000);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  if (typeof val === "string") {
+    // try ISO first
+    let d = parseISO(val);
+    if (!isNaN(d.getTime())) return d;
+
+    // fallback: native Date parsing (handles '2025-08-25 12:00:00' in many envs)
+    d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? null : val;
+  }
+
+  return null;
+};
+
+const fmtDay = (input?: unknown) => {
+  const d = asDateOrNull(input);
+  return d ? format(d, "PPP") : "—";
+};
+
+const fmtDateTime = (input?: unknown) => {
+  const d = asDateOrNull(input);
+  return d ? format(d, "PP p") : "—";
+};
+
+const serializeParams = (opts: {
+  employeeIds?: string[];
+  today?: Date;
+  from?: Date;
+  to?: Date;
+}) => {
+  const params = new URLSearchParams();
+
+  if (opts.employeeIds && opts.employeeIds.length > 0) {
+    params.set("employeeIds", opts.employeeIds.join(","));
+  }
+
+  if (opts.today) {
+    // normalize to day bounds server-side friendly
+    const start = startOfDay(opts.today);
+    const end = endOfDay(opts.today);
+    params.set("today", iso(opts.today)!);
+    // optional: if API supports from/to with today, keep only today param per your backend
+  }
+
+  if (opts.from || opts.to) {
+    if (opts.from) params.set("from", startOfDay(opts.from).toISOString());
+    if (opts.to) params.set("to", endOfDay(opts.to).toISOString());
+  }
+
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+};
+
+const EmployeeTable: React.FC<{
+  setMonthlyAbsents: (n: number) => void;
+  setMonthlyPresents: (n: number) => void;
+  setCurrentViewAbsent: (n: number) => void;
+  setcurrentViewPresent: (n: number) => void;
+}> = ({
   setMonthlyAbsents,
   setMonthlyPresents,
   setCurrentViewAbsent,
   setcurrentViewPresent,
 }) => {
-  const [allEmployeeData, setEmployeeData] = useState<any[]>([]);
-  const { user, attendanceRefresh } = useAuth();
-  const [employeeOptions, setEmployeeOptions] = useState<any[]>([]);
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = React.useState<string>("");
-  const [dropdownOpen, setDropdownOpen] = React.useState<boolean>(false);
+  const { attendanceRefresh } = useAuth();
 
+  // --- Local state
+  const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
+  const [filters, setFilters] = useState<Filters>({
+    selectedEmployeeIds: [],
+    singleDate: undefined,
+    range: undefined,
+    search: "",
+    preset: null,
+    sort: null,
+    page: 1,
+  });
+  const [rows, setRows] = useState<AttendanceRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [openSingle, setOpenSingle] = useState(false);
+  const [openRange, setOpenRange] = useState(false);
+
+  // --- Debounced search (table-wide search)
+  const setSearchDebounced = useDebouncedCallback((q: string) => {
+    setFilters((f) => ({ ...f, search: q, page: 1 }));
+  }, 400);
+
+  // --- Bootstrap employees
   useEffect(() => {
-    // Fetch all employees when the component mounts
-    const fetchEmployees = async () => {
-      const response = await axios.get("/api/employee/getAllEmployee");
-      setEmployeeOptions(response.data); // Assuming the API returns a list of employees
+    let active = true;
+    (async () => {
+      try {
+        const res = await axios.get<Employee[]>("/api/employee/getAllEmployee");
+        if (!active) return;
+        setEmployeeOptions(res.data ?? []);
+      } catch {
+        // soft-fail; UI still usable
+        setEmployeeOptions([]);
+      }
+    })();
+    return () => {
+      active = false;
     };
-
-    fetchEmployees();
   }, []);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-  const filteredEmployees = employeeOptions.filter((employee) => {
-    const fullName = (
-      employee.first_name +
-      " " +
-      employee.last_name
-    ).toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
-  });
-  const handleEmployeeSelect = (employeeId: string) => {
-    setSelectedEmployeeIds((prev) => {
-      if (prev.includes(employeeId)) {
-        return prev.filter((id) => id !== employeeId); // Deselect
-      } else {
-        return [...prev, employeeId]; // Select
+  // --- Data fetch with race cancellation
+  const lastAbortRef = useRef<AbortController | null>(null);
+
+  const fetchAttendance = useCallback(
+    async (opts: {
+      employeeIds?: string[];
+      singleDate?: Date;
+      range?: { from?: Date; to?: Date };
+    }) => {
+      const { employeeIds, singleDate, range } = opts;
+
+      // build query
+      const qs = serializeParams({
+        employeeIds,
+        today: singleDate,
+        from: range?.from,
+        to: range?.to,
+      });
+
+      // cancel previous in-flight
+      lastAbortRef.current?.abort();
+      const controller = new AbortController();
+      lastAbortRef.current = controller;
+
+      setLoading(true);
+      try {
+        const res = await axios.get<{ data: AttendanceRow[] }>(
+          `/api/attendance/getAllAttendance${qs}`,
+          { signal: controller.signal }
+        );
+        setRows(res.data?.data ?? []);
+      } catch (e: any) {
+        if (axios.isCancel(e)) return; // cancelled—no UX noise
+        // Targeted messaging
+        const status = e?.response?.status;
+        if (status === 404) {
+          setRows([]);
+        } else {
+          // Keep calm and proceed—avoid blocking UX
+          setRows([]);
+        }
+      } finally {
+        setLoading(false);
       }
+    },
+    []
+  );
+
+  // --- Fetch on filter changes (single source of truth)
+  useEffect(() => {
+    const { selectedEmployeeIds, singleDate, range } = filters;
+    // Coerce empty range to undefined
+    const cleanRange =
+      range?.from || range?.to ? { from: range.from, to: range.to } : undefined;
+
+    fetchAttendance({
+      employeeIds: selectedEmployeeIds,
+      singleDate,
+      range: cleanRange,
     });
-  };
+  }, [filters.selectedEmployeeIds, filters.singleDate, filters.range, attendanceRefresh, fetchAttendance]);
 
-  const [sorting, setSorting] = useState<SortState>(null);
-  const [activePreset, setActivePreset] = useState<Preset | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange>(undefined);
-  const [openSingle, setOpenSingle] = useState<boolean>(false);
-  const [openRange, setOpenRange] = useState<boolean>(false);
-  const [date, setDate] = useState<Date | undefined>(undefined);
-  const [query, setQuery] = useState<string>("");
-  const [page, setPage] = useState<number>(1);
+  // --- Derived datasets
+  const filteredAndSorted = useMemo(() => {
+    const q = filters.search.trim();
+    const qLower = toLowerSafe(q);
+    const qSquash = squash(q);
+    const qMins = parseTimeToMinutes(q);
 
-  const [loading, setLoading] = useState(false);
+    let data = rows;
 
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const handleGetAllEmployeeData = async (
-    employeeIds?: string[],
-    today?: string,
-    from?: Date,
-    to?: Date
-  ) => {
-    try {
-      console.log(from, to, "all the adte ");
-      let response;
-      const queryParams: string[] = [];
-
-      // Handle employeeIds
-      if (employeeIds && employeeIds.length > 0) {
-        queryParams.push(`employeeIds=${employeeIds.join(",")}`);
-      }
-
-      // Handle the `today` parameter
-      if (today || date) {
-        queryParams.push(`today=${today || date}`);
-      }
-
-      // Handle `from` and `to` dates
-      if (from && to) {
-        // Ensure the dates are valid and serialized correctly
-        queryParams.push(
-          `from=${from ? from.toISOString() : ""}&to=${
-            to ? to.toISOString() : ""
-          }`
-        );
-      }
-      if (from && !to) {
-        queryParams.push(
-          `from=${from ? from.toISOString() : ""}`
-        );
-      }
-
-      // Build the query string
-      const queryString = queryParams.length ? `?${queryParams.join("&")}` : "";
-
-      // Make the API request
-      response = await axios.get(
-        `/api/attendance/getAllAttendance${queryString}`
-      );
-
-      setEmployeeData(response.data.data); // Setting the data to the state
-    } catch (error: any) {
-      if (error.response?.status) {
-        alert("No data found for the given filter.");
-        setDate(undefined);
-      } else {
-        alert("Something went wrong.");
-      }
-    }
-  };
-
-  const debouncedSearch = useDebouncedCallback((query) => {
-    setQuery(query);
-  }, 500); // 500ms debounce delay
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDebouncedQuery(e.target.value);
-    debouncedSearch(e.target.value);
-  };
-
-  const filteredAndSortedData = useMemo(() => {
-    let currentData = [...allEmployeeData];
-
-    if (query.trim()) {
-      const q = toLowerSafe(query);
-      const qSquash = squash(query);
-      const qMins = parseTimeToMinutes(query);
-
-      currentData = currentData.filter((item) => {
-        const dateStr = format(
-          parseISO(item.attendanceDate),
-          "PPPP"
-        ).toLowerCase();
-        const cin = toLowerSafe(item.clockIn);
-        const cout = toLowerSafe(item.clockOut);
-
-        const cinSquash = squash(item.clockIn);
-        const coutSquash = squash(item.clockOut);
-
-        const cinMins = parseTimeToMinutes(item.clockIn);
-        const coutMins = parseTimeToMinutes(item.clockOut);
-
+    if (q) {
+      data = data.filter((item) => {
+        const dateStr = format(parseISO(item.attendanceDate), "PPPP").toLowerCase();
+        const cin = toLowerSafe(item.clockIn ?? "");
+        const cout = toLowerSafe(item.clockOut ?? "");
+        const cinSquash = squash(item.clockIn ?? "");
+        const coutSquash = squash(item.clockOut ?? "");
+        const cinMins = parseTimeToMinutes(item.clockIn ?? "");
+        const coutMins = parseTimeToMinutes(item.clockOut ?? "");
         const status = toLowerSafe(item.status);
 
         const textHit =
-          dateStr.includes(q) ||
-          status.includes(q) ||
-          cin.includes(q) ||
-          cout.includes(q) ||
+          dateStr.includes(qLower) ||
+          status.includes(qLower) ||
+          cin.includes(qLower) ||
+          cout.includes(qLower) ||
           cinSquash.includes(qSquash) ||
           coutSquash.includes(qSquash);
 
-        const timeHit =
-          qMins !== null && (cinMins === qMins || coutMins === qMins);
-
+        const timeHit = qMins !== null && (cinMins === qMins || coutMins === qMins);
         return textHit || timeHit;
       });
     }
 
-    // sorting
-    if (sorting?.id === "attendanceDate") {
-      currentData.sort((a, b) => {
+    if (filters.sort?.id === "attendanceDate") {
+      const desc = !!filters.sort.desc;
+      data = [...data].sort((a, b) => {
         const A = parseISO(a.attendanceDate).getTime();
         const B = parseISO(b.attendanceDate).getTime();
-        return sorting.desc ? B - A : A - B;
+        return desc ? B - A : A - B;
       });
     }
 
-    return currentData;
-  }, [date, dateRange, query, sorting, allEmployeeData, attendanceRefresh]);
+    return data;
+  }, [rows, filters.search, filters.sort]);
 
-  // Monthly aggregates
+  // --- KPIs for the dashboard
   useEffect(() => {
-    const today = new Date();
-    const currentMonthData = allEmployeeData.filter((item) => {
-      const itemDate = parseISO(item.attendanceDate);
-      return (
-        itemDate.getMonth() === today.getMonth() &&
-        itemDate.getFullYear() === today.getFullYear()
-      );
+    // Month rollups
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    const thisMonth = rows.filter((r) => {
+      const d = parseISO(r.attendanceDate);
+      return d.getMonth() === month && d.getFullYear() === year;
     });
 
-    setMonthlyPresents(
-      currentMonthData.filter((i) => i.status === "Present").length
-    );
-    setMonthlyAbsents(
-      currentMonthData.filter((i) => i.status === "Absent").length
-    );
-  }, [allEmployeeData, attendanceRefresh]);
+    setMonthlyPresents(thisMonth.filter((i) => i.status === "Present").length);
+    setMonthlyAbsents(thisMonth.filter((i) => i.status === "Absent").length);
+  }, [rows, setMonthlyAbsents, setMonthlyPresents]);
 
-  // Reset page when filters change
-  //   useEffect(() => {
-  //     setPage(1);
-  //   }, [date, dateRange, query, sorting]);
-
-  const filteredAttendanceSummary = useMemo(() => {
-    const presents = filteredAndSortedData.filter(
-      (i) => i.status === "Present"
-    ).length;
-    const absents = filteredAndSortedData.filter(
-      (i) => i.status === "Absent"
-    ).length;
+  // --- Current view rollup
+  useEffect(() => {
+    const presents = filteredAndSorted.filter((i) => i.status === "Present").length;
+    const absents = filteredAndSorted.filter((i) => i.status === "Absent").length;
     setCurrentViewAbsent(absents);
     setcurrentViewPresent(presents);
-    return { presents, absents };
-  }, [filteredAndSortedData]);
+  }, [filteredAndSorted, setCurrentViewAbsent, setcurrentViewPresent]);
 
-  const total = filteredAndSortedData.length;
-  const totalPages = Math.max(1, Math.ceil(total / 10));
-  const paged = filteredAndSortedData.slice((page - 1) * 10, page * 10);
+  // --- Pagination slices (accurate math)
+  const total = filteredAndSorted.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(filters.page, totalPages);
+  const sliceStart = (page - 1) * PAGE_SIZE;
+  const sliceEnd = Math.min(sliceStart + PAGE_SIZE, total);
+  const paged = filteredAndSorted.slice(sliceStart, sliceEnd);
 
+  // --- UI handlers
   const handleSort = (columnId: "attendanceDate") => {
-    setSorting((prev) => {
-      if (prev && prev.id === columnId)
-        return { id: columnId, desc: !prev.desc };
-      return { id: columnId, desc: true };
+    setFilters((f) => {
+      if (f.sort?.id === columnId) {
+        return { ...f, sort: { id: columnId, desc: !f.sort.desc }, page: 1 };
+      }
+      return { ...f, sort: { id: columnId, desc: true }, page: 1 };
     });
   };
 
   const applyPreset = (preset: Preset) => {
     const now = new Date();
-    setActivePreset(preset === "clear" ? null : preset);
-
     if (preset === "today") {
-      setDate(now);
-      setDateRange(undefined);
-      handleGetAllEmployeeData([""], now.toISOString(), undefined, undefined);
+      setFilters((f) => ({
+        ...f,
+        preset,
+        singleDate: now,
+        range: undefined,
+        page: 1,
+      }));
     } else if (preset === "week") {
-      setDate(undefined);
-      setDateRange({
-        from: startOfWeek(now, { weekStartsOn: 1 }),
-        to: endOfWeek(now, { weekStartsOn: 1 }),
-      });
-      handleGetAllEmployeeData(
-        [""],
-        undefined,
-        startOfWeek(now),
-        endOfWeek(now)
-      );
+      setFilters((f) => ({
+        ...f,
+        preset,
+        singleDate: undefined,
+        range: {
+          from: startOfWeek(now, { weekStartsOn: 1 }),
+          to: endOfWeek(now, { weekStartsOn: 1 }),
+        },
+        page: 1,
+      }));
     } else if (preset === "month") {
-      setDate(undefined);
-      setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
-      handleGetAllEmployeeData(
-        [""],
-        undefined,
-        startOfMonth(now),
-        endOfMonth(now)
-      );
+      setFilters((f) => ({
+        ...f,
+        preset,
+        singleDate: undefined,
+        range: { from: startOfMonth(now), to: endOfMonth(now) },
+        page: 1,
+      }));
     } else {
-      setDate(undefined);
-      setDateRange(undefined);
-      handleGetAllEmployeeData();
+      setFilters((f) => ({
+        ...f,
+        preset: null,
+        singleDate: undefined,
+        range: undefined,
+        page: 1,
+      }));
     }
   };
 
-  useEffect(() => {
-    if (dateRange) {
-      const { from, to } = dateRange;
-      console.log(dateRange);
+  const filteredEmployees = useMemo(() => {
+    const q = employeeSearch.trim().toLowerCase();
+    if (!q) return employeeOptions;
+    return employeeOptions.filter((e) =>
+      `${e.first_name} ${e.last_name}`.toLowerCase().includes(q)
+    );
+  }, [employeeOptions, employeeSearch]);
 
-      // Ensure that at least one of `from` or `to` is present
-      if (!from && !to) {
-        alert("At least one date (from or to) must be selected.");
-        return; // Exit if both are missing
-      }
-
-      // If `from` date is greater than `to`, swap them
-      if (from && to && new Date(from) > new Date(to)) {
-        // Swap the `from` and `to` without directly modifying the state object
-        setDateRange((prevState) => ({
-          ...prevState,
-          from: to,
-          to: from,
-        }));
-        return; // Exit to prevent further API calls with invalid range
-      }
-
-      // Call the API with valid `from` and `to` dates
-      handleGetAllEmployeeData(
-        [selectedEmployeeIds.join(",")],
-        undefined,
-        from,
-        to
-      );
-    } else {
-      handleGetAllEmployeeData([selectedEmployeeIds.join(",")]);
-    }
-  }, [dateRange, selectedEmployeeIds]);
-
-  const handleCloseDropdown = () => {
-    setDropdownOpen(false);
+  const toggleEmployee = (employeeId: string) => {
+    setFilters((f) => {
+      const exists = f.selectedEmployeeIds.includes(employeeId);
+      const nextIds = exists
+        ? f.selectedEmployeeIds.filter((id) => id !== employeeId)
+        : [...f.selectedEmployeeIds, employeeId];
+      return { ...f, selectedEmployeeIds: nextIds, page: 1 };
+    });
   };
+
+  // --- Render
   return (
     <>
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
@@ -356,41 +427,36 @@ const EmployeeTable: React.FC<any> = ({
                 aria-label="Search attendance"
                 placeholder="Search date, status, or time…"
                 className="w-[260px] pr-10"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                defaultValue={filters.search}
+                onChange={(e) => setSearchDebounced(e.target.value)}
               />
               <span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">
-                <Search className=" w-4 h-4" />
+                <Search className="w-4 h-4" />
               </span>
             </div>
 
+            {/* Single date */}
             <Popover open={openSingle} onOpenChange={setOpenSingle}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-44 justify-between">
                   <span className="truncate">
-                    {date ? format(date, "PP") : "Select date"}
+                    {filters.singleDate ? format(filters.singleDate, "PP") : "Select date"}
                   </span>
                   <ChevronDownIcon className="h-4 w-4 opacity-70" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent
-                className="w-auto overflow-hidden p-0"
-                align="start"
-              >
+              <PopoverContent className="w-auto overflow-hidden p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={date}
+                  selected={filters.singleDate}
                   onSelect={(d?: Date) => {
-                    setDate(d);
-                    if (d) {
-                      handleGetAllEmployeeData(
-                        [""],
-                        d.toISOString(),
-                        undefined,
-                        undefined
-                      );
-                    }
-                    if (d) setDateRange && setDateRange(undefined);
+                    setFilters((f) => ({
+                      ...f,
+                      singleDate: d,
+                      range: undefined,
+                      preset: d ? "today" : null,
+                      page: 1,
+                    }));
                     setOpenSingle(false);
                   }}
                 />
@@ -400,19 +466,16 @@ const EmployeeTable: React.FC<any> = ({
             {/* Range date */}
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-[280px] justify-start text-left"
-                >
+                <Button variant="outline" className="w-[280px] justify-start text-left">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
+                  {filters.range?.from ? (
+                    filters.range.to ? (
                       <>
-                        {format(dateRange.from, "LLL dd, y")} –{" "}
-                        {format(dateRange.to, "LLL dd, y")}
+                        {format(filters.range.from, "LLL dd, y")} –{" "}
+                        {format(filters.range.to, "LLL dd, y")}
                       </>
                     ) : (
-                      format(dateRange.from, "LLL dd, y")
+                      format(filters.range.from, "LLL dd, y")
                     )
                   ) : (
                     <span className="text-slate-500">Pick a date range</span>
@@ -421,19 +484,32 @@ const EmployeeTable: React.FC<any> = ({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <CustomDatePicker
-                  selected={dateRange}
+                  selected={filters.range}
                   onSelect={(r: DateRange) => {
-                    setDateRange && setDateRange(r);
-                    if (r?.from || r?.to) setDate(undefined);
+                    // auto-heal reversed ranges
+                    const from = r?.from && r?.to && r.from > r.to ? r.to : r?.from;
+                    const to = r?.from && r?.to && r.from > r.to ? r.from : r?.to;
+
+                    setFilters((f) => ({
+                      ...f,
+                      range: r ? { from, to } : undefined,
+                      singleDate: undefined,
+                      preset: r ? (from && to ? "week" : null) : null, // heuristic
+                      page: 1,
+                    }));
                   }}
                   footer={
                     <div className="flex w-full items-center justify-between p-2">
-                      <div className="text-xs text-slate-500">
-                        Tip: drag to select a range
-                      </div>
+                      <div className="text-xs text-slate-500">Tip: drag to select a range</div>
                       <Button
                         variant="ghost"
-                        onClick={() => setDateRange && setDateRange(undefined)}
+                        onClick={() =>
+                          setFilters((f) => ({
+                            ...f,
+                            range: undefined,
+                            page: 1,
+                          }))
+                        }
                         className="text-sm"
                       >
                         Clear
@@ -444,96 +520,103 @@ const EmployeeTable: React.FC<any> = ({
               </PopoverContent>
             </Popover>
 
+            {/* Employee filter */}
             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">Filter By Employees</Button>
+                <Button variant="outline">
+                  Filter By Employees
+                  {filters.selectedEmployeeIds.length > 0 ? (
+                    <span className="ml-2 text-xs text-slate-500">
+                      ({filters.selectedEmployeeIds.length})
+                    </span>
+                  ) : null}
+                </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
+              <DropdownMenuContent className="w-64">
                 <DropdownMenuLabel>Filter By Employees</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
-                {/* Search Input */}
                 <Input
                   placeholder="Search employees..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
+                  value={employeeSearch}
+                  onChange={(e) => setEmployeeSearch(e.target.value)}
                   className="mb-2 p-2"
                 />
-
-                {/* Employee List */}
                 {filteredEmployees.length > 0 ? (
-                  filteredEmployees.map((employee) => (
-                    <DropdownMenuCheckboxItem
-                      key={employee.employee_id}
-                      checked={selectedEmployeeIds.includes(
-                        employee.employee_id
-                      )}
-                      onCheckedChange={() =>
-                        handleEmployeeSelect(employee.employee_id)
-                      }
-                      className="!text-black"
-                    >
-                      {employee.first_name} {employee.last_name}
-                    </DropdownMenuCheckboxItem>
-                  ))
+                  filteredEmployees.map((emp) => {
+                    const checked = filters.selectedEmployeeIds.includes(emp.employee_id);
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={emp.employee_id}
+                        checked={checked}
+                        onCheckedChange={() => toggleEmployee(emp.employee_id)}
+                        className="!text-black"
+                      >
+                        {emp.first_name} {emp.last_name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })
                 ) : (
                   <DropdownMenuCheckboxItem disabled className="!text-gray-400">
                     No employees found
                   </DropdownMenuCheckboxItem>
                 )}
-
-                {/* Close Button */}
-                <div className="mt-2">
+                <div className="mt-2 flex gap-2">
                   <Button
                     variant="ghost"
-                    onClick={handleCloseDropdown}
                     className="w-full"
+                    onClick={() => setDropdownOpen(false)}
                   >
                     Close
                   </Button>
+                  {filters.selectedEmployeeIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() =>
+                        setFilters((f) => ({ ...f, selectedEmployeeIds: [], page: 1 }))
+                      }
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Presets */}
             <div className="flex items-center gap-1">
               <Button
-                variant={activePreset === "today" ? "outline" : "ghost"}
+                variant={filters.preset === "today" ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("today")}
-                className={
-                  activePreset === "today" ? "!hidden sm:inline-flex" : ""
-                }
+                className={filters.preset === "today" ? "!hidden sm:inline-flex" : ""}
               >
                 Today
               </Button>
               <Button
-                variant={activePreset === "week" ? "outline" : "ghost"}
+                variant={filters.preset === "week" ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("week")}
-                className={
-                  activePreset === "week" ? "!hidden sm:inline-flex" : ""
-                }
+                className={filters.preset === "week" ? "!hidden sm:inline-flex" : ""}
               >
                 This week
               </Button>
               <Button
-                variant={activePreset === "month" ? "outline" : "ghost"}
+                variant={filters.preset === "month" ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("month")}
-                className={
-                  activePreset === "month" ? "!hidden sm:inline-flex" : ""
-                }
+                className={filters.preset === "month" ? "!hidden sm:inline-flex" : ""}
               >
                 This month
               </Button>
               <Button
-                variant={activePreset === null ? "outline" : "ghost"}
+                variant={filters.preset === null ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => applyPreset("clear")}
               >
                 Clear
               </Button>
-              <div className="flex ">
+              <div className="flex">
                 <Button variant="destructive" className="!bg-red-500" size="sm">
                   + Mark Absentees
                 </Button>
@@ -550,80 +633,74 @@ const EmployeeTable: React.FC<any> = ({
         className="rounded-xl border bg-white shadow-sm"
       >
         <div className="overflow-auto pr-12">
-          <Table className="min-w-full text-sm ">
+          <Table className="min-w-full text-sm">
             <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
               <TableRow>
                 <TableHead className="whitespace-nowrap">
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleSort("attendanceDate")}
-                  >
+                  <Button variant="ghost" onClick={() => handleSort("attendanceDate")}>
                     Date{" "}
-                    {sorting?.id === "attendanceDate"
-                      ? sorting.desc
+                    {filters.sort?.id === "attendanceDate"
+                      ? filters.sort.desc
                         ? "🔽"
                         : "🔼"
                       : ""}
                   </Button>
                 </TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Employee Name
-                </TableHead>
+                <TableHead className="whitespace-nowrap">Employee Name</TableHead>
                 <TableHead className="whitespace-nowrap">Department</TableHead>
                 <TableHead className="whitespace-nowrap">Clock In</TableHead>
                 <TableHead className="whitespace-nowrap">Clock Out</TableHead>
-                <TableHead className="whitespace-nowrap">
-                  Total Hours Worked
-                </TableHead>
+                <TableHead className="whitespace-nowrap">Total Hours Worked</TableHead>
                 <TableHead className="whitespace-nowrap">OT</TableHead>
                 <TableHead className="whitespace-nowrap">Late</TableHead>
                 <TableHead className="whitespace-nowrap">Status</TableHead>
                 <TableHead className="whitespace-nowrap">Created By</TableHead>
                 <TableHead className="whitespace-nowrap">Created On</TableHead>
                 <TableHead className="whitespace-nowrap">Edited By</TableHead>
-                <TableHead className="whitespace-nowrap">Edited on</TableHead>
+                <TableHead className="whitespace-nowrap">Edited On</TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {paged.length > 0 ? (
-                paged.map((row: any) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={13} className="h-40 text-center">
+                    Loading…
+                  </TableCell>
+                </TableRow>
+              ) : paged.length > 0 ? (
+                paged.map((row) => (
                   <TableRow
                     key={row.id}
                     className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
                   >
                     <TableCell className="font-medium">
-                      {format(parseISO(row.attendanceDate), "PPP")}
+                      {fmtDay(row.attendanceDate)}
                     </TableCell>
-                    <TableCell>{row.employeeName || "—"}</TableCell>
-                    <TableCell>{row.employeeDepartment || "—"}</TableCell>
-                    <TableCell>{row.clockIn || "—"}</TableCell>
-                    <TableCell>{row.clockOut || "—"}</TableCell>
-                    <TableCell>{row.worked || "—"}</TableCell>
-                    <TableCell>{row.ot || "—"}</TableCell>
-                    <TableCell>{row.late || "—"}</TableCell>
+                    <TableCell>{row.employeeName ?? "—"}</TableCell>
+                    <TableCell>{row.employeeDepartment ?? "—"}</TableCell>
+                    <TableCell>{row.clockIn ?? "—"}</TableCell>
+                    <TableCell>{row.clockOut ?? "—"}</TableCell>
+                    <TableCell>{row.worked ?? "—"}</TableCell>
+                    <TableCell>{row.ot ?? "—"}</TableCell>
+                    <TableCell>{row.late ?? "—"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={
-                          row.status === "Present" ? "default" : "destructive"
-                        }
+                        variant={row.status === "Present" ? "default" : "destructive"}
                         className="uppercase tracking-wide"
                       >
                         {row.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{row.createdBy?.name || "—"}</TableCell>
-                    <TableCell>{row.createdAt || "—"}</TableCell>
-                    <TableCell>{row.editedBy?.name || "—"}</TableCell>
-                    <TableCell>{row.editedAt || "—"}</TableCell>
+                    <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
+                    <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
+                    <TableCell>{row.editedBy?.name ?? "—"}</TableCell>
+                    <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="h-56 text-center align-middle"
-                  >
+                  <TableCell colSpan={13} className="h-56 text-center align-middle">
                     <div className="mx-auto max-w-sm">
                       <div className="mb-2 text-5xl">🗓️</div>
                       <div className="text-lg font-semibold text-slate-900">
@@ -643,34 +720,30 @@ const EmployeeTable: React.FC<any> = ({
         {/* Pagination */}
         <div className="flex flex-col items-center justify-between gap-3 border-t p-3 sm:flex-row">
           <div className="text-xs text-slate-600">
-            Showing <span className="font-medium">{(page - 1) * 10 + 1}</span>{" "}
-            to{" "}
-            <span className="font-medium">
-              {Math.min(page * 10, paged.length)}
-            </span>{" "}
-            of <span className="font-medium">{paged.length}</span> entries
+            Showing{" "}
+            <span className="font-medium">{total === 0 ? 0 : sliceStart + 1}</span>{" "}
+            to <span className="font-medium">{sliceEnd}</span> of{" "}
+            <span className="font-medium">{total}</span> entries
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p: number) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, page - 1) }))}
+              disabled={page <= 1}
             >
               Previous
             </Button>
             <div className="text-xs text-slate-600">
-              Page <span className="font-medium">{page}</span>
+              Page <span className="font-medium">{page}</span> / {totalPages}
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() =>
-                setPage((p: number) =>
-                  Math.min(Math.ceil(allEmployeeData.length / 10), p + 1)
-                )
+                setFilters((f) => ({ ...f, page: Math.min(totalPages, page + 1) }))
               }
-              disabled={page === Math.ceil(allEmployeeData.length / 10)}
+              disabled={page >= totalPages}
             >
               Next
             </Button>
