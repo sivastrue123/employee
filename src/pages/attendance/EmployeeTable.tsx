@@ -57,10 +57,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DropdownMenuCheckboxItemProps } from "@radix-ui/react-dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import makeAnimated from "react-select/animated";
+import Select from "react-select";
 
 type Checked = DropdownMenuCheckboxItemProps["checked"];
 const PAGE_SIZE = 10;
-
+type Option = { value: string; label: string };
 type Employee = {
   employee_id: string;
   first_name: string;
@@ -184,8 +195,9 @@ const EmployeeTable: React.FC<{
   setCurrentViewAbsent,
   setcurrentViewPresent,
 }) => {
-  const { attendanceRefresh } = useAuth();
+  const { attendanceRefresh, user } = useAuth();
 
+  const animatedComponents = makeAnimated();
   // --- Local state
   const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
   const [filters, setFilters] = useState<Filters>({
@@ -204,11 +216,81 @@ const EmployeeTable: React.FC<{
   const [openSingle, setOpenSingle] = useState(false);
   const [openRange, setOpenRange] = useState(false);
 
+  const [open, setOpen] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState<Option[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<Option | null>(null);
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const employeeSelectOptions: Option[] = useMemo(
+    () =>
+      employeeOptions.map((emp) => ({
+        value: emp.employee_id,
+        label: `${emp.first_name} ${emp.last_name}`,
+      })),
+    [employeeOptions]
+  );
+
+  const attendanceStatus = [
+    {
+      value: "Present",
+      label: "Present",
+    },
+    { value: "Absent", label: "Absent" },
+    { value: "On Leave", label: "OnLeave" },
+    { value: "Permission", label: "Permission" },
+  ];
+
   // --- Debounced search (table-wide search)
   const setSearchDebounced = useDebouncedCallback((q: string) => {
     setFilters((f) => ({ ...f, search: q, page: 1 }));
   }, 400);
+  const addAttendance = async (payload: {
+    employeeIds: string[];
+    status: string | null;
+    reason: string | null;
+    date: Date | string | null;
+  }) => {
+    // Example fetch pattern; replace URL and shape as needed.
+    const res = await axios.post(
+      `/api/attendance/MoreActions/${user?.userId}`,
+      { payload }
+    );
 
+    console.log(res);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const payload = {
+      employeeIds: selectedEmployees.map((o) => o.value),
+      status: selectedStatus?.value ?? null,
+      reason: reason.trim() || null,
+      date: new Date().toISOString().split("T")[0],
+    };
+    console.log("Submitting attendance payload:", payload);
+
+    try {
+      const result = await addAttendance(payload);
+      console.log("API success:", result);
+      // Only close the Sheet on successful API resolution
+      setOpen(false);
+      // Optional: clear form after success
+      setSelectedEmployees([]);
+      setSelectedStatus(null);
+      setReason("");
+    } catch (err) {
+      console.error("API error:", err);
+      // Keep the Sheet open for remediation
+      // Optionally surface a toast/error UI here
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // --- Render
   // --- Bootstrap employees
   useEffect(() => {
     let active = true;
@@ -697,9 +779,75 @@ const EmployeeTable: React.FC<{
                 Clear
               </Button>
               <div className="flex">
-                <Button variant="destructive" className="!bg-red-500" size="sm">
-                  + Mark Absentees
-                </Button>
+                <Sheet open={open} onOpenChange={setOpen}>
+                  <SheetTrigger className="!border-transaparent !p-0">
+                    <Button
+                      variant="destructive"
+                      className="!bg-red-500"
+                      size="sm"
+                      onClick={() => setOpen(true)}
+                    >
+                      + More
+                    </Button>
+                  </SheetTrigger>
+
+                  <SheetContent>
+                    <SheetHeader>
+                      <SheetTitle>More Option</SheetTitle>
+                    </SheetHeader>
+
+                    {/* Form wrapper to orchestrate controlled submission */}
+                    <form onSubmit={handleSubmit}>
+                      <div className="p-2 space-y-4">
+                        <Label>Employees</Label>
+                        <Select<Option, true>
+                          closeMenuOnSelect={false}
+                          components={animatedComponents}
+                          placeholder="Select Employees"
+                          isMulti
+                          options={employeeSelectOptions}
+                          value={selectedEmployees}
+                          onChange={(selected) => {
+                            setSelectedEmployees(selected ? [...selected] : []);
+                            console.log("Employees selected:", selected);
+                          }}
+                        />
+
+                        <Label>Attendance Status</Label>
+                        <Select<Option, false>
+                          closeMenuOnSelect
+                          components={animatedComponents}
+                          placeholder="Select Status"
+                          options={attendanceStatus}
+                          value={selectedStatus}
+                          onChange={(selected) => {
+                            setSelectedStatus(selected);
+                            console.log("Status selected:", selected);
+                          }}
+                          isMulti={false}
+                        />
+
+                        <Label>Reason</Label>
+                        {/* Note: maxLength limits CHARACTERS; if you truly want 200 words, add a custom validator */}
+                        <textarea
+                          className="w-full"
+                          maxLength={200}
+                          placeholder="Max 200 characters allowed"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                        />
+
+                        <Button
+                          className="!bg-sky-500 !text-white !w-full"
+                          type="submit"
+                          disabled={submitting}
+                        >
+                          {submitting ? "Submitting..." : "Submit"}
+                        </Button>
+                      </div>
+                    </form>
+                  </SheetContent>
+                </Sheet>
               </div>
             </div>
           </div>
@@ -766,8 +914,10 @@ const EmployeeTable: React.FC<{
                     </TableCell>
                     <TableCell>{row.employeeName ?? "—"}</TableCell>
                     <TableCell>{row.employeeDepartment ?? "—"}</TableCell>
-                    <TableCell>{row.clockIn ?? "—"}</TableCell>
-                    <TableCell>{row.clockOut ?? "—"}</TableCell>
+                    <TableCell>
+                      {row.clockIn == "" ? "—" : row.clockIn}
+                    </TableCell>
+                    <TableCell>{row.clockOut ==""? "—":row.clockOut}</TableCell>
                     <TableCell>{row.worked ?? "—"}</TableCell>
                     <TableCell>{row.ot ?? "—"}</TableCell>
                     <TableCell>{row.late ?? "—"}</TableCell>
@@ -783,7 +933,7 @@ const EmployeeTable: React.FC<{
                     </TableCell>
                     <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
                     <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
-                    <TableCell>{row.editedBy?.name ?? "—"}</TableCell>
+                    <TableCell>{row.editedBy?.name ==" "||!row.editedBy?.name? "—":row.editedBy?.name}</TableCell>
                     <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
                   </TableRow>
                 ))
