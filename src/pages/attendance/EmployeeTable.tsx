@@ -433,6 +433,9 @@ const EmployeeTable: React.FC<{
         const cinMins = parseTimeToMinutes(item.clockIn ?? "");
         const coutMins = parseTimeToMinutes(item.clockOut ?? "");
         const status = toLowerSafe(item.status);
+        const name = toLowerSafe(item.employeeName ?? "");
+        const createdName = toLowerSafe(item.createdBy?.name ?? "");
+        const editedName = toLowerSafe(item.editedBy?.name ?? "");
 
         const textHit =
           dateStr.includes(qLower) ||
@@ -440,7 +443,10 @@ const EmployeeTable: React.FC<{
           cin.includes(qLower) ||
           cout.includes(qLower) ||
           cinSquash.includes(qSquash) ||
-          coutSquash.includes(qSquash);
+          coutSquash.includes(qSquash) ||
+          name.includes(qLower)||
+          createdName.includes(qLower)
+          editedName.includes(qLower);
 
         const timeHit =
           qMins !== null && (cinMins === qMins || coutMins === qMins);
