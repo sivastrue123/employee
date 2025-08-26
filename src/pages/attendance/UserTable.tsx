@@ -46,6 +46,7 @@ import {
   toLowerSafe,
 } from "@/helpers/attendanceDateHelper";
 import { SortState, AttendanceRecord } from "@/types/attendanceTypes";
+import { useToast } from "@/toast/ToastProvider"; // ✅ bring in your custom toast
 
 const UserTable: React.FC<any> = ({
   pageSize,
@@ -68,10 +69,11 @@ const UserTable: React.FC<any> = ({
   const [loading, setLoading] = useState(false);
 
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const toast = useToast(); // ✅ instantiate toast
 
   const debouncedSearch = useDebouncedCallback((query) => {
     setQuery(query);
-  }, 500); // 500ms debounce delay
+  }, 500);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDebouncedQuery(e.target.value);
@@ -87,10 +89,17 @@ const UserTable: React.FC<any> = ({
       setAttendanceData(response.data.data);
     } catch (error) {
       console.error("Error fetching attendance data:", error);
-      setAttendanceData([]);
-      alert(
-        "Something went wrong while fetching attendance data. Please try again."
+
+      toast.error(
+        "We couldn’t fetch your attendance records at this moment. Please try again shortly.",
+        {
+          title: "Attendance fetch failed",
+          durationMs: 5000,
+          position: "top-center",
+        }
       );
+
+      setAttendanceData([]);
     } finally {
       setLoading(false);
     }
@@ -346,7 +355,7 @@ const UserTable: React.FC<any> = ({
                 />
               </PopoverContent>
             </Popover>
-             
+
             {/* Presets */}
             <div className="flex items-center gap-1">
               <Button

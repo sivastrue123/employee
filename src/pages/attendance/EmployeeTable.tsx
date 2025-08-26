@@ -73,7 +73,7 @@ import { useToast } from "@/toast/ToastProvider";
 
 // ---------------- constants ----------------
 const PAGE_SIZE = 10;
-const TRIGGER_INDEX_IN_PAGE = 8; // 0-based → "9th row"
+const TRIGGER_INDEX_IN_PAGE = 8; 
 
 // ---------------- types ----------------
 type Checked = DropdownMenuCheckboxItemProps["checked"];
@@ -708,7 +708,7 @@ const EmployeeTable: React.FC<{
     }
   };
 
-  // ---------------- render ----------------
+
   return (
     <>
       {/* Filters + actions shell (unchanged) */}
@@ -1269,13 +1269,12 @@ const EmployeeTable: React.FC<{
                 </TableRow>
               )}
 
-              {/* Load-more status row */}
-              {loadingMore && rows.length > 0 && (
+         
+              {loadingMore && rows.length > 9 && hasMore&&(
                 <TableRow>
                   <TableCell
                     colSpan={13}
-                    className="py-4 text-center text-slate-500"
-                  >
+                    className="py-4 text-center text-slate-500"                  >
                     Loading more…
                   </TableCell>
                 </TableRow>
