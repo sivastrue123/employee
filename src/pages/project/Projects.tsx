@@ -2,7 +2,21 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { format, isAfter, parseISO } from "date-fns";
-import { ArrowUpDown, CalendarIcon, Search, TagIcon, User2 } from "lucide-react";
+import {
+  ArrowUpDown,
+  CalendarIcon,
+  Search,
+  TagIcon,
+  User2,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  PlusCircle,
+  Trash2,
+  CheckSquare,
+  Edit3,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,12 +32,47 @@ import {
 } from "@/components/ui/table";
 
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+
+import {
   projectData,
   type Project,
   type ProjectStatus,
 } from "../../../utils/projectData";
+import axios from "axios";
 
-// --- small helper for KPI cards to match your Attendance page vibe ---
+// react-select
+import ReactSelect, { MultiValue } from "react-select";
+import makeAnimated from "react-select/animated";
+
+/* ---------- KPI styles ---------- */
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
   title: "text-sm font-medium text-slate-500",
@@ -31,11 +80,48 @@ const kpiCard = {
   sub: "text-xs text-slate-500",
 } as const;
 
+/* ---------- Local Types ---------- */
 type SortId = "name" | "owner" | "dueDate" | "progress";
 type SortState = { id: SortId; desc: boolean } | null;
 
-const pageSize = 10;
+type Employee = {
+  _id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  employee_id: string;
+  department?: string;
+  position?: string;
+  status?: string;
+  profile_image?: string;
+};
 
+type ChecklistItem = { id: string; text: string; done: boolean };
+type TaskPriority = "Low" | "Medium" | "High" | "Critical";
+type TaskStatus = "Not Started" | "In Progress" | "Completed";
+
+type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  priority: TaskPriority;
+  status: TaskStatus; // NEW
+  startDate?: string; // ISO
+  dueDate?: string; // ISO
+  actualEndDate?: string; // ISO
+  estimatedHours?: number;
+  assigneeEmployeeIds: string[]; // employee_id values
+  checklist: ChecklistItem[];
+};
+
+type ProjectWithTasks = Project & { tasks: Task[] };
+
+type Option = { value: string; label: string };
+
+const pageSize = 10;
+const animatedComponents = makeAnimated();
+
+/* ---------- Helpers ---------- */
 const statusVariant = (
   s: ProjectStatus
 ): "default" | "secondary" | "destructive" => {
@@ -48,7 +134,378 @@ const statusVariant = (
       return "destructive";
   }
 };
+const genId = (prefix: string) =>
+  `${prefix}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+const toISOFromDateInput = (val: string) =>
+  val ? new Date(val + "T00:00:00").toISOString() : undefined;
+const dateInputFromISO = (iso?: string) =>
+  iso ? new Date(iso).toISOString().slice(0, 10) : ""; // yyyy-mm-dd
+const employeeFullName = (e: Employee) =>
+  `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim();
+const isOverdue = (dueISO?: string, actualISO?: string) => {
+  if (!dueISO) return false;
+  const due = parseISO(dueISO);
+  if (actualISO) {
+    const actual = parseISO(actualISO);
+    return actual.getTime() > due.getTime();
+  }
+  const now = new Date();
+  return now.getTime() > due.getTime();
+};
+const formatMaybe = (iso?: string) =>
+  iso ? format(parseISO(iso), "PPP") : "—";
 
+// color classes for task status badge
+const taskStatusClass = (s: TaskStatus) =>
+  ({
+    "Not Started": "border-slate-300 text-slate-700 bg-slate-50",
+    "In Progress": "border-blue-300 text-blue-700 bg-blue-50",
+    Completed: "border-green-300 text-green-700 bg-green-50",
+  }[s]!);
+
+/* =======================================================
+   Reusable Task Dialog (Create + Edit)
+======================================================= */
+type TaskDialogProps = {
+  mode: "create" | "edit";
+  open: boolean;
+  onClose: () => void;
+  onSave: (payload: Omit<Task, "id"> & { id?: string }) => void;
+  employees: Employee[];
+  employeeOptions: Option[];
+  initial?: Task | null;
+};
+const TaskDialog: React.FC<TaskDialogProps> = ({
+  mode,
+  open,
+  onClose,
+  onSave,
+  employees,
+  employeeOptions,
+  initial,
+}) => {
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [priority, setPriority] = useState<TaskPriority>(
+    initial?.priority ?? "Medium"
+  );
+  const [status, setStatus] = useState<TaskStatus>(
+    initial?.status ?? "Not Started"
+  ); // NEW
+  const [start, setStart] = useState<string>(
+    dateInputFromISO(initial?.startDate)
+  );
+  const [due, setDue] = useState<string>(dateInputFromISO(initial?.dueDate));
+  const [actualEnd, setActualEnd] = useState<string>(
+    dateInputFromISO(initial?.actualEndDate)
+  );
+  const [estHrs, setEstHrs] = useState<number | "">(
+    initial?.estimatedHours ?? ""
+  );
+  const [assignees, setAssignees] = useState<Option[]>(
+    initial?.assigneeEmployeeIds
+      ? (initial.assigneeEmployeeIds
+          .map((eid) => {
+            const emp = employees.find((e) => e.employee_id === eid);
+            return emp
+              ? {
+                  value: emp.employee_id,
+                  label:
+                    `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
+                }
+              : null;
+          })
+          .filter(Boolean) as Option[])
+      : []
+  );
+  const [draftChecklist, setDraftChecklist] = useState<string>("");
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(
+    initial?.checklist ?? []
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    // sync when opening with new initial
+    setTitle(initial?.title ?? "");
+    setDescription(initial?.description ?? "");
+    setPriority(initial?.priority ?? "Medium");
+    setStatus(initial?.status ?? "Not Started");
+    setStart(dateInputFromISO(initial?.startDate));
+    setDue(dateInputFromISO(initial?.dueDate));
+    setActualEnd(dateInputFromISO(initial?.actualEndDate));
+    setEstHrs(initial?.estimatedHours ?? "");
+    setAssignees(
+      initial?.assigneeEmployeeIds
+        ? (initial.assigneeEmployeeIds
+            .map((eid) => {
+              const emp = employees.find((e) => e.employee_id === eid);
+              return emp
+                ? {
+                    value: emp.employee_id,
+                    label:
+                      `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
+                  }
+                : null;
+            })
+            .filter(Boolean) as Option[])
+        : []
+    );
+    setChecklist(initial?.checklist ?? []);
+  }, [open, initial, employees]);
+
+  const addChecklistItem = () => {
+    const t = draftChecklist.trim();
+    if (!t) return;
+    setChecklist((cur) => [...cur, { id: genId("chk"), text: t, done: false }]);
+    setDraftChecklist("");
+  };
+  const removeChecklistItem = (id: string) =>
+    setChecklist((cur) => cur.filter((c) => c.id !== id));
+  const toggleChecklistItemLocal = (id: string) =>
+    setChecklist((cur) =>
+      cur.map((c) => (c.id === id ? { ...c, done: !c.done } : c))
+    );
+
+  const handleSave = () => {
+    if (!title.trim()) return;
+    onSave({
+      ...(initial?.id ? { id: initial.id } : {}),
+      title: title.trim(),
+      description: description.trim() || undefined,
+      priority,
+      status, // NEW
+      startDate: toISOFromDateInput(start),
+      dueDate: toISOFromDateInput(due),
+      actualEndDate: toISOFromDateInput(actualEnd),
+      estimatedHours: typeof estHrs === "number" ? estHrs : undefined,
+      assigneeEmployeeIds: assignees.map((a) => a.value),
+      checklist,
+    });
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "create" ? "Add Task" : "Edit Task"}
+          </DialogTitle>
+          <DialogDescription>
+            Right-size scope, assign the A-team, and lock the dates.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="t-title">Task Title</Label>
+            <Input
+              id="t-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="t-desc">Description</Label>
+            <Textarea
+              id="t-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="t-priority">Priority</Label>
+              <Select
+                value={priority}
+                onValueChange={(v: TaskPriority) => setPriority(v)}
+              >
+                <SelectTrigger id="t-priority">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* NEW: Status */}
+            <div className="grid gap-2">
+              <Label htmlFor="t-status">Status</Label>
+              <Select
+                value={status}
+                onValueChange={(v: TaskStatus) => setStatus(v)}
+              >
+                <SelectTrigger id="t-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Not Started">Not Started</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="t-start">Start Date</Label>
+              <Input
+                id="t-start"
+                type="date"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="t-due">Due Date</Label>
+              <Input
+                id="t-due"
+                type="date"
+                value={due}
+                onChange={(e) => setDue(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="t-actual">Actual End</Label>
+              <Input
+                id="t-actual"
+                type="date"
+                value={actualEnd}
+                onChange={(e) => setActualEnd(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="t-est">Estimated Hours</Label>
+            <Input
+              id="t-est"
+              type="number"
+              min={0}
+              value={estHrs}
+              onChange={(e) => {
+                const v = e.target.value;
+                setEstHrs(v === "" ? "" : Math.max(0, Number(v) || 0));
+              }}
+              placeholder="e.g., 8"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Assignees</Label>
+            <ReactSelect
+              components={animatedComponents}
+              placeholder="Select Employees"
+              isMulti
+              options={employeeOptions}
+              value={assignees}
+              onChange={(selected) =>
+                setAssignees(
+                  selected ? [...(selected as MultiValue<Option>)] : []
+                )
+              }
+              classNamePrefix="rs"
+            />
+            {assignees.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {assignees.map((opt) => (
+                  <Badge
+                    key={opt.value}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
+                    {opt.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Checklist</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add checklist item"
+                value={draftChecklist}
+                onChange={(e) => setDraftChecklist(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addChecklistItem();
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="!bg-black !text-white"
+                onClick={addChecklistItem}
+              >
+                Add
+              </Button>
+            </div>
+            {checklist.length > 0 && (
+              <div className="mt-2 grid gap-2">
+                {checklist.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between rounded border bg-white p-2 text-sm"
+                  >
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={c.done}
+                        onChange={() => toggleChecklistItemLocal(c.id)}
+                      />
+                      <span
+                        className={c.done ? "line-through text-slate-500" : ""}
+                      >
+                        {c.text}
+                      </span>
+                    </label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeChecklistItem(c.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-slate-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            className="!bg-blue-500"
+            disabled={!title.trim()}
+          >
+            {mode === "create" ? "Create Task" : "Save Changes"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/* =======================================================
+   Page
+======================================================= */
 const Projects: React.FC = () => {
   const [query, setQuery] = useState("");
   const [sorting, setSorting] = useState<SortState>({
@@ -57,30 +514,57 @@ const Projects: React.FC = () => {
   });
   const [page, setPage] = useState(1);
 
-  // derived KPI: due soon (next 14 days), at risk/blocked, total
+  // employees
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const getAllEmployees = async () => {
+    const response = await axios.get("/api/employee/getAllEmployee");
+    setEmployees(response?.data ?? []);
+  };
+  useEffect(() => {
+    getAllEmployees();
+  }, []);
+
+  // react-select options
+  const employeeSelectOptions: Option[] = useMemo(
+    () =>
+      employees.map((emp) => ({
+        value: emp.employee_id,
+        label: `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
+      })),
+    [employees]
+  );
+  const employeesByEmployeeId = useMemo(() => {
+    const m = new Map<string, Employee>();
+    employees.forEach((e) => m.set(e.employee_id, e));
+    return m;
+  }, [employees]);
+
+  // projects
+  const [projects, setProjects] = useState<ProjectWithTasks[]>(() =>
+    projectData.map((p) => ({ ...p, tasks: [] }))
+  );
+
+  // KPIs
   const [dueSoon, setDueSoon] = useState(0);
   const [riskCount, setRiskCount] = useState(0);
-
   useEffect(() => {
     const now = new Date();
     const in14 = new Date(now);
     in14.setDate(now.getDate() + 14);
-
     let dueSoonC = 0;
     let riskC = 0;
-    for (const p of projectData) {
+    for (const p of projects) {
       const d = parseISO(p.dueDate);
       if (!isAfter(d, in14)) dueSoonC += 1;
       if (p.status === "At Risk" || p.status === "Blocked") riskC += 1;
     }
     setDueSoon(dueSoonC);
     setRiskCount(riskC);
-  }, []);
+  }, [projects]);
 
-  const filteredAndSorted: Project[] = useMemo(() => {
-    let current = [...projectData];
-
-    // search across name, owner, team, tags, status
+  // search + sort
+  const filteredAndSorted: ProjectWithTasks[] = useMemo(() => {
+    let current = [...projects];
     if (query.trim()) {
       const q = query.toLowerCase();
       current = current.filter((p) => {
@@ -97,33 +581,27 @@ const Projects: React.FC = () => {
         return hay.includes(q);
       });
     }
-
     if (sorting) {
       current.sort((a, b) => {
-        if (sorting.id === "name") {
+        if (sorting.id === "name")
           return sorting.desc
             ? b.name.localeCompare(a.name)
             : a.name.localeCompare(b.name);
-        }
-        if (sorting.id === "owner") {
+        if (sorting.id === "owner")
           return sorting.desc
             ? b.owner.localeCompare(a.owner)
             : a.owner.localeCompare(b.owner);
-        }
-        if (sorting.id === "progress") {
+        if (sorting.id === "progress")
           return sorting.desc
             ? b.progress - a.progress
             : a.progress - b.progress;
-        }
-        // dueDate default
         const A = parseISO(a.dueDate).getTime();
         const B = parseISO(b.dueDate).getTime();
         return sorting.desc ? B - A : A - B;
       });
     }
-
     return current;
-  }, [query, sorting]);
+  }, [projects, query, sorting]);
 
   // pagination
   useEffect(() => setPage(1), [query, sorting]);
@@ -136,24 +614,263 @@ const Projects: React.FC = () => {
       prev && prev.id === id ? { id, desc: !prev.desc } : { id, desc: false }
     );
 
+  // row expansion
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const toggleExpand = (id: string) =>
+    setExpandedId((cur) => (cur === id ? null : id));
+
+  // add project
+  const [addOpen, setAddOpen] = useState(false);
+  const [npName, setNpName] = useState("");
+  const [npOwner, setNpOwner] = useState("");
+  const [npTeam, setNpTeam] = useState("");
+  const [npTags, setNpTags] = useState("");
+  const [npProgress, setNpProgress] = useState<number>(0);
+  const [npStatus, setNpStatus] = useState<ProjectStatus>("On Track");
+  const [npDue, setNpDue] = useState<string>("");
+
+  const resetNewProject = () => {
+    setNpName("");
+    setNpOwner("");
+    setNpTeam("");
+    setNpTags("");
+    setNpProgress(0);
+    setNpStatus("On Track");
+    setNpDue("");
+  };
+  const createProject = () => {
+    if (!npName.trim()) return;
+    const newProject: ProjectWithTasks = {
+      id: genId("proj"),
+      name: npName.trim(),
+      owner: npOwner.trim() || "—",
+      team: npTeam.trim() || undefined,
+      tags: npTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      progress: Math.max(0, Math.min(100, Number(npProgress) || 0)),
+      status: npStatus,
+      dueDate: toISOFromDateInput(npDue) ?? new Date().toISOString(),
+      tasks: [],
+    };
+    setProjects((cur) => [newProject, ...cur]);
+    resetNewProject();
+    setAddOpen(false);
+  };
+
+  // Task dialog state (create/edit)
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [taskDialogMode, setTaskDialogMode] = useState<"create" | "edit">(
+    "create"
+  );
+  const [taskDialogProjectId, setTaskDialogProjectId] = useState<string | null>(
+    null
+  );
+  const [taskDialogInitial, setTaskDialogInitial] = useState<Task | null>(null);
+
+  const openCreateTask = (projectId: string) => {
+    setTaskDialogProjectId(projectId);
+    setTaskDialogMode("create");
+    setTaskDialogInitial(null);
+    setTaskDialogOpen(true);
+  };
+  const openEditTask = (projectId: string, task: Task) => {
+    setTaskDialogProjectId(projectId);
+    setTaskDialogMode("edit");
+    setTaskDialogInitial(task);
+    setTaskDialogOpen(true);
+  };
+
+  const saveTaskFromDialog = (payload: Omit<Task, "id"> & { id?: string }) => {
+    if (!taskDialogProjectId) return;
+    if (taskDialogMode === "create") {
+      const newTask: Task = {
+        id: genId("task"),
+        ...payload,
+      };
+      setProjects((cur) =>
+        cur.map((p) =>
+          p.id === taskDialogProjectId
+            ? { ...p, tasks: [newTask, ...p.tasks] }
+            : p
+        )
+      );
+    } else {
+      // edit
+      setProjects((cur) =>
+        cur.map((p) =>
+          p.id !== taskDialogProjectId
+            ? p
+            : {
+                ...p,
+                tasks: p.tasks.map((t) =>
+                  t.id === payload.id ? { ...t, ...payload, id: t.id } : t
+                ),
+              }
+        )
+      );
+    }
+  };
+
+  // checklist toggle & remove
+  const toggleChecklistItem = (
+    projectId: string,
+    taskId: string,
+    itemId: string
+  ) => {
+    setProjects((cur) =>
+      cur.map((p) => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          tasks: (p.tasks ?? []).map((t) =>
+            t.id !== taskId
+              ? t
+              : {
+                  ...t,
+                  checklist: t.checklist.map((c) =>
+                    c.id === itemId ? { ...c, done: !c.done } : c
+                  ),
+                }
+          ),
+        };
+      })
+    );
+  };
+  const removeTask = (projectId: string, taskId: string) => {
+    setProjects((cur) =>
+      cur.map((p) =>
+        p.id === projectId
+          ? { ...p, tasks: p.tasks.filter((t) => t.id !== taskId) }
+          : p
+      )
+    );
+  };
+
+  /* =======================================================
+     Render
+  ======================================================= */
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pb-16">
       {/* Page header */}
-      <div className="mb-6">
-        <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-          Projects
-        </p>
-        <p className="mt-1 text-slate-600">
-          Track current clients, managers, status, and deadlines — at a
-          glance.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
+            Clients
+          </p>
+          <p className="mt-1 text-slate-600">
+            Track current clients, managers, status, and deadlines — at a
+            glance.
+          </p>
+        </div>
+
+        {/* Add Project CTA */}
+        <Sheet open={addOpen} onOpenChange={setAddOpen}>
+          <SheetTrigger asChild>
+            <Button className="gap-2 !bg-sky-500">
+              <Plus className="h-4 w-4" />
+              Add Client
+            </Button>
+          </SheetTrigger>
+          <SheetContent className="w-full sm:max-w-xl  !p-4 !overflow-auto">
+            <SheetHeader>
+              <SheetTitle>Create Client</SheetTitle>
+              <SheetDescription>
+                Stand up a net-new initiative. You can re-platform the data
+                model later when the API lands.
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="mt-6 grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="np-name">Client Name</Label>
+                <Input
+                  id="np-name"
+                  value={npName}
+                  onChange={(e) => setNpName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="np-owner">Manager</Label>
+                <Input
+                  id="np-owner"
+                  value={npOwner}
+                  onChange={(e) => setNpOwner(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="np-team">Team</Label>
+                <Input
+                  id="np-team"
+                  value={npTeam}
+                  onChange={(e) => setNpTeam(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="np-tags">Tags (comma separated)</Label>
+                <Input
+                  id="np-tags"
+                  value={npTags}
+                  onChange={(e) => setNpTags(e.target.value)}
+                  placeholder="api, design, billing"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="np-progress">Progress (%)</Label>
+                <Input
+                  id="np-progress"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={npProgress}
+                  onChange={(e) => setNpProgress(Number(e.target.value))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Status</Label>
+                <Select
+                  value={npStatus}
+                  onValueChange={(v: ProjectStatus) => setNpStatus(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="On Track">On Track</SelectItem>
+                    <SelectItem value="At Risk">At Risk</SelectItem>
+                    <SelectItem value="Blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="np-due">Due Date</Label>
+                <Input
+                  id="np-due"
+                  type="date"
+                  value={npDue}
+                  onChange={(e) => setNpDue(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <SheetFooter className="mt-6 ">
+              <SheetClose asChild>
+                <Button variant="ghost">Cancel</Button>
+              </SheetClose>
+              <Button onClick={createProject} className="!bg-sky-500">
+                Create Client
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* KPI row */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className={kpiCard.base}>
           <div className={kpiCard.title}>Total Clients</div>
-          <div className={kpiCard.value}>{projectData.length}</div>
+          <div className={kpiCard.value}>{projects.length}</div>
           <div className={kpiCard.sub}>Currently active</div>
         </div>
         <div className={kpiCard.base}>
@@ -180,7 +897,7 @@ const Projects: React.FC = () => {
             <div className="relative">
               <Input
                 aria-label="Search projects"
-                placeholder="Search projects, owners, team, tags…"
+                placeholder="Search clients, owners, team, tags…"
                 className="w-[300px] pr-10"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -241,6 +958,7 @@ const Projects: React.FC = () => {
                     Due <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
                   </Button>
                 </TableHead>
+                <TableHead className="whitespace-nowrap">Details</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -248,66 +966,324 @@ const Projects: React.FC = () => {
               {paged.length > 0 ? (
                 paged.map((p) => {
                   const due = parseISO(p.dueDate);
+                  const isOpen = expandedId === p.id;
                   return (
-                    <TableRow
-                      key={p.id}
-                      className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors"
-                    >
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1">
-                          <User2 className="h-4 w-4 opacity-60" />
-                          {p.owner}
-                        </span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {p.team ?? "—"}
-                      </TableCell>
-                      <TableCell className="max-w-[260px]">
-                        <div className="flex flex-wrap items-center gap-1">
-                          {p.tags?.length
-                            ? p.tags.map((t:any) => (
-                                <Badge
-                                  key={t}
-                                  variant="outline"
-                                  className="gap-1"
-                                >
-                                  <TagIcon className="h-3 w-3" />
-                                  {t}
-                                </Badge>
-                              ))
-                            : "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell className="min-w-[160px]">
-                        <div className="flex items-center gap-2">
-                          <Progress value={p.progress} className="h-2 w-28" />
-                          <span className="tabular-nums text-xs text-slate-600">
-                            {p.progress}%
+                    <React.Fragment key={p.id}>
+                      <TableRow
+                        className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors cursor-pointer"
+                        onClick={() => toggleExpand(p.id as string)}
+                      >
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1">
+                            <User2 className="h-4 w-4 opacity-60" />
+                            {p.owner}
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={statusVariant(p.status)}
-                          className="uppercase tracking-wide"
-                        >
-                          {p.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarIcon className="h-4 w-4 opacity-60" />
-                          {format(due, "PPP")}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {p.team ?? "—"}
+                        </TableCell>
+                        <TableCell className="max-w-[260px]">
+                          <div className="flex flex-wrap items-center gap-1">
+                            {p.tags?.length
+                              ? p.tags.map((t: any) => (
+                                  <Badge
+                                    key={t}
+                                    variant="outline"
+                                    className="gap-1"
+                                  >
+                                    <TagIcon className="h-3 w-3" />
+                                    {t}
+                                  </Badge>
+                                ))
+                              : "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="min-w-[160px]">
+                          <div className="flex items-center gap-2">
+                            <Progress value={p.progress} className="h-2 w-28" />
+                            <span className="tabular-nums text-xs text-slate-600">
+                              {p.progress}%
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={statusVariant(p.status)}
+                            className="uppercase tracking-wide"
+                          >
+                            {p.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarIcon className="h-4 w-4 opacity-60" />
+                            {format(due, "PPP")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpand(p.id as string);
+                            }}
+                          >
+                            {isOpen ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                            {isOpen ? "Hide" : "View"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Expanded row: Tasks Panel */}
+                      {isOpen && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="bg-slate-50/60">
+                            <div className="px-2 py-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-slate-900 font-medium">
+                                  <CheckSquare className="h-4 w-4" />
+                                  Tasks for {p.name}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  className="gap-2 !bg-yellow-500"
+                                  onClick={() => openCreateTask(p.id as string)}
+                                >
+                                  <PlusCircle className="h-4 w-4" /> Add Task
+                                </Button>
+                              </div>
+
+                              <Separator className="my-3" />
+
+                              {p.tasks.length === 0 ? (
+                                <div className="text-sm text-slate-600">
+                                  No tasks yet. Lean in and create the first
+                                  one.
+                                </div>
+                              ) : (
+                                <div className="grid gap-3">
+                                  {p.tasks.map((t) => {
+                                    const total = t.checklist.length;
+                                    const done = t.checklist.filter(
+                                      (c) => c.done
+                                    ).length;
+                                    const pct = total
+                                      ? Math.round((done / total) * 100)
+                                      : 0;
+
+                                    return (
+                                      <div
+                                        key={t.id}
+                                        className="rounded-lg border bg-white p-4 hover:shadow-sm transition-shadow"
+                                      >
+                                        {/* Header row */}
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-semibold text-slate-900">
+                                              {t.title}
+                                            </span>
+                                            <Badge
+                                              variant={
+                                                t.priority === "Critical"
+                                                  ? "destructive"
+                                                  : t.priority === "High"
+                                                  ? "default"
+                                                  : "secondary"
+                                              }
+                                            >
+                                              {t.priority}
+                                            </Badge>
+                                            {/* NEW: Status badge */}
+                                            <Badge
+                                              variant="outline"
+                                              className={taskStatusClass(
+                                                t.status
+                                              )}
+                                            >
+                                              {t.status}
+                                            </Badge>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="gap-1"
+                                              onClick={() =>
+                                                openEditTask(p.id as string, t)
+                                              }
+                                            >
+                                              <Edit3 className="h-4 w-4" /> Edit
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() =>
+                                                removeTask(p.id as string, t.id)
+                                              }
+                                            >
+                                              <Trash2 className="h-4 w-4 text-slate-500" />
+                                            </Button>
+                                          </div>
+                                        </div>
+
+                                        {/* Meta grid */}
+                                        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-700">
+                                          <div className="flex items-center gap-2">
+                                            <CalendarIcon className="h-3.5 w-3.5" />
+                                            <div className="space-y-0.5">
+                                              <div>
+                                                <span className="text-slate-500">
+                                                  Start:
+                                                </span>{" "}
+                                                {formatMaybe(t.startDate)}
+                                              </div>
+                                              <div>
+                                                <span className="text-slate-500">
+                                                  Due:
+                                                </span>{" "}
+                                                {formatMaybe(t.dueDate)}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <CalendarIcon className="h-3.5 w-3.5" />
+                                            <div>
+                                              <span className="text-slate-500">
+                                                Actual:
+                                              </span>{" "}
+                                              {formatMaybe(t.actualEndDate)}
+                                            </div>
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <Users className="h-3.5 w-3.5" />
+                                            <div className="flex flex-wrap gap-1">
+                                              {t.assigneeEmployeeIds.length ===
+                                              0 ? (
+                                                <span className="text-slate-500">
+                                                  Unassigned
+                                                </span>
+                                              ) : (
+                                                t.assigneeEmployeeIds
+                                                  .map((eid) =>
+                                                    employeesByEmployeeId.get(
+                                                      eid
+                                                    )
+                                                  )
+                                                  .filter(Boolean)
+                                                  .map((e) => (
+                                                    <Badge
+                                                      key={
+                                                        (e as Employee)
+                                                          .employee_id
+                                                      }
+                                                      variant="outline"
+                                                    >
+                                                      {employeeFullName(
+                                                        e as Employee
+                                                      )}
+                                                    </Badge>
+                                                  ))
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Description */}
+                                        {t.description && (
+                                          <div className="mt-3 text-sm text-slate-700">
+                                            {t.description}
+                                          </div>
+                                        )}
+
+                                        {/* Status row */}
+                                        <div className="mt-3 flex flex-wrap items-center gap-4">
+                                          <div className="flex items-center gap-2">
+                                            <Progress
+                                              value={pct}
+                                              className="h-2 w-32"
+                                            />
+                                            <span className="text-xs text-slate-600 tabular-nums">
+                                              {pct}%
+                                            </span>
+                                          </div>
+                                          {typeof t.estimatedHours ===
+                                            "number" && (
+                                            <span className="text-xs text-slate-600">
+                                              ⏱ {t.estimatedHours}h est.
+                                            </span>
+                                          )}
+                                          <span>
+                                            {isOverdue(
+                                              t.dueDate,
+                                              t.actualEndDate
+                                            ) ? (
+                                              <Badge variant="destructive">
+                                                Overdue
+                                              </Badge>
+                                            ) : (
+                                              <Badge variant="secondary">
+                                                On time
+                                              </Badge>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        {/* Checklist */}
+                                        {t.checklist.length > 0 && (
+                                          <div className="mt-3 grid gap-2">
+                                            {t.checklist.map((c) => (
+                                              <label
+                                                key={c.id}
+                                                className="flex items-center gap-2 text-sm"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                  checked={c.done}
+                                                  onChange={() =>
+                                                    toggleChecklistItem(
+                                                      p.id as string,
+                                                      t.id,
+                                                      c.id
+                                                    )
+                                                  }
+                                                />
+                                                <span
+                                                  className={
+                                                    c.done
+                                                      ? "line-through text-slate-500"
+                                                      : ""
+                                                  }
+                                                >
+                                                  {c.text}
+                                                </span>
+                                              </label>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   );
                 })
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="h-56 text-center align-middle"
                   >
                     <div className="mx-auto max-w-sm">
@@ -368,6 +1344,17 @@ const Projects: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Task Dialog (Create/Edit) */}
+      <TaskDialog
+        mode={taskDialogMode}
+        open={taskDialogOpen}
+        onClose={() => setTaskDialogOpen(false)}
+        onSave={saveTaskFromDialog}
+        employees={employees}
+        employeeOptions={employeeSelectOptions}
+        initial={taskDialogInitial}
+      />
     </div>
   );
 };
