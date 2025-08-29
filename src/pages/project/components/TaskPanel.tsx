@@ -7,14 +7,22 @@ import {
   Edit3,
   CalendarIcon,
   Users,
-  TagIcon,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"; // <-- add this import
 
 import {
   employeeFullName,
@@ -23,22 +31,16 @@ import {
   taskStatusClass,
 } from "../../../../utils/projectUtils.js";
 
-import { Employee, Option, ProjectWithTasks, Task } from "@/types/projectTypes";
-
-// ⬇️ Adjust this import path to wherever your TaskDialog lives
-import { TaskDialog, animatedComponents } from "./TaskDialog.js";
+import { Employee, Option, Task } from "@/types/projectTypes";
+import { TaskDialog } from "./TaskDialog.js";
 
 type Mode = "create" | "edit";
 
 interface TaskPanelProps {
   tasks: any;
-
-  // Employees
   employeesById: Map<string, Employee>;
   employees: Employee[];
   employeeOptions: Option[];
-
-  // Ops from parent (hook/useClients or equivalent)
   onCreateTask: (projectId: string, payload: Omit<Task, "id">) => void;
   onUpdateTask: (projectId: string, payload: Task) => void;
   onRemoveTask: (projectId: string, taskId: string) => void;
@@ -63,10 +65,14 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   clientId,
   clientName,
 }) => {
-  // Local dialog state
+  // Dialog state (create/edit)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("create");
   const [initial, setInitial] = useState<Task | null>(null);
+
+  // NEW: central delete confirmation state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [taskPendingDelete, setTaskPendingDelete] = useState<Task | null>(null);
 
   const openCreate = () => {
     setMode("create");
@@ -80,13 +86,24 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setDialogOpen(true);
   };
 
+  const requestDelete = (task: Task) => {
+    setTaskPendingDelete(task);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (taskPendingDelete?._id) {
+      onRemoveTask(clientId, taskPendingDelete._id);
+    }
+    setConfirmOpen(false);
+    setTaskPendingDelete(null);
+  };
+
   const handleSave = (payload: Omit<Task, "_id"> & { _id?: string }) => {
     if (mode === "create") {
-      // id will be created upstream
       const { _id: _omit, ...rest } = payload;
       onCreateTask(clientId, rest as any);
     } else {
-      // edit expects a full Task with id
       onUpdateTask(clientId, payload as Task);
     }
   };
@@ -118,7 +135,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
             return (
               <div
-                key={t.id}
+                key={t._id || t.id} // <-- prefer _id; fallback maintained for safety
                 className="rounded-lg border bg-white p-4 hover:shadow-sm transition-shadow"
               >
                 {/* Header row */}
@@ -157,13 +174,41 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     >
                       <Edit3 className="h-4 w-4" /> Edit
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onRemoveTask(clientId as string, t._id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-slate-500" />
-                    </Button>
+
+                    {/* Delete - now launches confirmation */}
+                    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => requestDelete(t)}
+                          aria-label={`Delete task ${t.title}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-slate-500" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Delete “{taskPendingDelete?.title}”?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This is a destructive operation. Once deleted, this
+                            task and its checklist will be permanently removed.
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={confirmDelete}
+                            className="!bg-red-600 !hover:bg-red-700"
+                          >
+                            Delete Task
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
 
@@ -247,7 +292,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   <div className="mt-3 grid gap-2">
                     {t.checklist.map((c: any) => (
                       <label
-                        key={c.id}
+                        key={c._id || c.id} // <-- prefer _id
                         className="flex items-center gap-2 text-sm"
                       >
                         <input
@@ -255,18 +300,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           checked={c.done}
                           onChange={() =>
-                            onToggleChecklistItem(
-                              clientId as string,
-                              t._id,
-                              c._id
-                            )
+                            onToggleChecklistItem(clientId as string, t._id, c._id)
                           }
                         />
-                        <span
-                          className={
-                            c.done ? "line-through text-slate-500" : ""
-                          }
-                        >
+                        <span className={c.done ? "line-through text-slate-500" : ""}>
                           {c.text}
                         </span>
                       </label>

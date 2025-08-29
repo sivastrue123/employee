@@ -12,6 +12,7 @@ import {
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext.js";
 import { Console } from "console";
+import { ta } from "date-fns/locale";
 
 export function useClients() {
   const { user } = useAuth();
@@ -156,14 +157,18 @@ export function useClients() {
     handleEditTask(projectId, payload);
   };
 
-  const removeTask = (projectId: string, taskId: string) => {
-    setProjects((cur) =>
-      cur.map((p) =>
-        p.id === projectId
-          ? { ...p, tasks: p.tasks.filter((t) => t._id !== taskId) }
-          : p
-      )
+  const handleDeleteTask = async (clientId: string, taskId: string) => {
+    const response = await axios.delete(
+      `/api/client/${clientId}/task/${taskId}/deleteTask?userId=${user?.employee_id}`
     );
+
+    if (response?.status == 200) {
+      handleGetAllTasks(clientId);
+    }
+  };
+
+  const removeTask = (projectId: string, taskId: string) => {
+    handleDeleteTask(projectId, taskId);
   };
 
   const toggleChecklistItem = (
