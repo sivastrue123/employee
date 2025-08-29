@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useMemo, useState, useEffect } from "react";
 import { format, isAfter, parseISO } from "date-fns";
 import {
@@ -42,16 +40,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectTrigger,
@@ -63,16 +52,21 @@ import { Separator } from "@/components/ui/separator";
 
 import {
   projectData,
-  type Project,
   type ProjectStatus,
 } from "../../../utils/projectData";
 import axios from "axios";
 
-// react-select
-import ReactSelect, { MultiValue } from "react-select";
-import makeAnimated from "react-select/animated";
+import {
+  Employee,
+  SortState,
+  TaskStatus,
+  Option,
+  ProjectWithTasks,
+  SortId,
+  Task,
+} from "@/types/projectTypes";
+import { TaskDialog } from "./components/TaskDialog";
 
-/* ---------- KPI styles ---------- */
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
   title: "text-sm font-medium text-slate-500",
@@ -80,48 +74,8 @@ const kpiCard = {
   sub: "text-xs text-slate-500",
 } as const;
 
-/* ---------- Local Types ---------- */
-type SortId = "name" | "owner" | "dueDate" | "progress";
-type SortState = { id: SortId; desc: boolean } | null;
-
-type Employee = {
-  _id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  employee_id: string;
-  department?: string;
-  position?: string;
-  status?: string;
-  profile_image?: string;
-};
-
-type ChecklistItem = { id: string; text: string; done: boolean };
-type TaskPriority = "Low" | "Medium" | "High" | "Critical";
-type TaskStatus = "Not Started" | "In Progress" | "Completed";
-
-type Task = {
-  id: string;
-  title: string;
-  description?: string;
-  priority: TaskPriority;
-  status: TaskStatus; // NEW
-  startDate?: string; // ISO
-  dueDate?: string; // ISO
-  actualEndDate?: string; // ISO
-  estimatedHours?: number;
-  assigneeEmployeeIds: string[]; // employee_id values
-  checklist: ChecklistItem[];
-};
-
-type ProjectWithTasks = Project & { tasks: Task[] };
-
-type Option = { value: string; label: string };
-
 const pageSize = 10;
-const animatedComponents = makeAnimated();
 
-/* ---------- Helpers ---------- */
 const statusVariant = (
   s: ProjectStatus
 ): "default" | "secondary" | "destructive" => {
@@ -138,8 +92,7 @@ const genId = (prefix: string) =>
   `${prefix}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
 const toISOFromDateInput = (val: string) =>
   val ? new Date(val + "T00:00:00").toISOString() : undefined;
-const dateInputFromISO = (iso?: string) =>
-  iso ? new Date(iso).toISOString().slice(0, 10) : ""; // yyyy-mm-dd
+
 const employeeFullName = (e: Employee) =>
   `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim();
 const isOverdue = (dueISO?: string, actualISO?: string) => {
@@ -163,349 +116,6 @@ const taskStatusClass = (s: TaskStatus) =>
     Completed: "border-green-300 text-green-700 bg-green-50",
   }[s]!);
 
-/* =======================================================
-   Reusable Task Dialog (Create + Edit)
-======================================================= */
-type TaskDialogProps = {
-  mode: "create" | "edit";
-  open: boolean;
-  onClose: () => void;
-  onSave: (payload: Omit<Task, "id"> & { id?: string }) => void;
-  employees: Employee[];
-  employeeOptions: Option[];
-  initial?: Task | null;
-};
-const TaskDialog: React.FC<TaskDialogProps> = ({
-  mode,
-  open,
-  onClose,
-  onSave,
-  employees,
-  employeeOptions,
-  initial,
-}) => {
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [priority, setPriority] = useState<TaskPriority>(
-    initial?.priority ?? "Medium"
-  );
-  const [status, setStatus] = useState<TaskStatus>(
-    initial?.status ?? "Not Started"
-  ); // NEW
-  const [start, setStart] = useState<string>(
-    dateInputFromISO(initial?.startDate)
-  );
-  const [due, setDue] = useState<string>(dateInputFromISO(initial?.dueDate));
-  const [actualEnd, setActualEnd] = useState<string>(
-    dateInputFromISO(initial?.actualEndDate)
-  );
-  const [estHrs, setEstHrs] = useState<number | "">(
-    initial?.estimatedHours ?? ""
-  );
-  const [assignees, setAssignees] = useState<Option[]>(
-    initial?.assigneeEmployeeIds
-      ? (initial.assigneeEmployeeIds
-          .map((eid) => {
-            const emp = employees.find((e) => e.employee_id === eid);
-            return emp
-              ? {
-                  value: emp.employee_id,
-                  label:
-                    `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
-                }
-              : null;
-          })
-          .filter(Boolean) as Option[])
-      : []
-  );
-  const [draftChecklist, setDraftChecklist] = useState<string>("");
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(
-    initial?.checklist ?? []
-  );
-
-  useEffect(() => {
-    if (!open) return;
-    // sync when opening with new initial
-    setTitle(initial?.title ?? "");
-    setDescription(initial?.description ?? "");
-    setPriority(initial?.priority ?? "Medium");
-    setStatus(initial?.status ?? "Not Started");
-    setStart(dateInputFromISO(initial?.startDate));
-    setDue(dateInputFromISO(initial?.dueDate));
-    setActualEnd(dateInputFromISO(initial?.actualEndDate));
-    setEstHrs(initial?.estimatedHours ?? "");
-    setAssignees(
-      initial?.assigneeEmployeeIds
-        ? (initial.assigneeEmployeeIds
-            .map((eid) => {
-              const emp = employees.find((e) => e.employee_id === eid);
-              return emp
-                ? {
-                    value: emp.employee_id,
-                    label:
-                      `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
-                  }
-                : null;
-            })
-            .filter(Boolean) as Option[])
-        : []
-    );
-    setChecklist(initial?.checklist ?? []);
-  }, [open, initial, employees]);
-
-  const addChecklistItem = () => {
-    const t = draftChecklist.trim();
-    if (!t) return;
-    setChecklist((cur) => [...cur, { id: genId("chk"), text: t, done: false }]);
-    setDraftChecklist("");
-  };
-  const removeChecklistItem = (id: string) =>
-    setChecklist((cur) => cur.filter((c) => c.id !== id));
-  const toggleChecklistItemLocal = (id: string) =>
-    setChecklist((cur) =>
-      cur.map((c) => (c.id === id ? { ...c, done: !c.done } : c))
-    );
-
-  const handleSave = () => {
-    if (!title.trim()) return;
-    onSave({
-      ...(initial?.id ? { id: initial.id } : {}),
-      title: title.trim(),
-      description: description.trim() || undefined,
-      priority,
-      status, // NEW
-      startDate: toISOFromDateInput(start),
-      dueDate: toISOFromDateInput(due),
-      actualEndDate: toISOFromDateInput(actualEnd),
-      estimatedHours: typeof estHrs === "number" ? estHrs : undefined,
-      assigneeEmployeeIds: assignees.map((a) => a.value),
-      checklist,
-    });
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "create" ? "Add Task" : "Edit Task"}
-          </DialogTitle>
-          <DialogDescription>
-            Right-size scope, assign the A-team, and lock the dates.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="t-title">Task Title</Label>
-            <Input
-              id="t-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="t-desc">Description</Label>
-            <Textarea
-              id="t-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="t-priority">Priority</Label>
-              <Select
-                value={priority}
-                onValueChange={(v: TaskPriority) => setPriority(v)}
-              >
-                <SelectTrigger id="t-priority">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* NEW: Status */}
-            <div className="grid gap-2">
-              <Label htmlFor="t-status">Status</Label>
-              <Select
-                value={status}
-                onValueChange={(v: TaskStatus) => setStatus(v)}
-              >
-                <SelectTrigger id="t-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Not Started">Not Started</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="t-start">Start Date</Label>
-              <Input
-                id="t-start"
-                type="date"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="t-due">Due Date</Label>
-              <Input
-                id="t-due"
-                type="date"
-                value={due}
-                onChange={(e) => setDue(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="t-actual">Actual End</Label>
-              <Input
-                id="t-actual"
-                type="date"
-                value={actualEnd}
-                onChange={(e) => setActualEnd(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="t-est">Estimated Hours</Label>
-            <Input
-              id="t-est"
-              type="number"
-              min={0}
-              value={estHrs}
-              onChange={(e) => {
-                const v = e.target.value;
-                setEstHrs(v === "" ? "" : Math.max(0, Number(v) || 0));
-              }}
-              placeholder="e.g., 8"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Assignees</Label>
-            <ReactSelect
-              components={animatedComponents}
-              placeholder="Select Employees"
-              isMulti
-              options={employeeOptions}
-              value={assignees}
-              onChange={(selected) =>
-                setAssignees(
-                  selected ? [...(selected as MultiValue<Option>)] : []
-                )
-              }
-              classNamePrefix="rs"
-            />
-            {assignees.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {assignees.map((opt) => (
-                  <Badge
-                    key={opt.value}
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    {opt.label}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Checklist</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add checklist item"
-                value={draftChecklist}
-                onChange={(e) => setDraftChecklist(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addChecklistItem();
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="!bg-black !text-white"
-                onClick={addChecklistItem}
-              >
-                Add
-              </Button>
-            </div>
-            {checklist.length > 0 && (
-              <div className="mt-2 grid gap-2">
-                {checklist.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between rounded border bg-white p-2 text-sm"
-                  >
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={c.done}
-                        onChange={() => toggleChecklistItemLocal(c.id)}
-                      />
-                      <span
-                        className={c.done ? "line-through text-slate-500" : ""}
-                      >
-                        {c.text}
-                      </span>
-                    </label>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeChecklistItem(c.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-slate-500" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            className="!bg-blue-500"
-            disabled={!title.trim()}
-          >
-            {mode === "create" ? "Create Task" : "Save Changes"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-/* =======================================================
-   Page
-======================================================= */
 const Projects: React.FC = () => {
   const [query, setQuery] = useState("");
   const [sorting, setSorting] = useState<SortState>({
