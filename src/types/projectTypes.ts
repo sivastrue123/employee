@@ -15,12 +15,12 @@ export type Employee = {
   profile_image?: string;
 };
 
-export type ChecklistItem = { id: string; text: string; done: boolean };
+export type ChecklistItem = { _id?: string; text: string; done: boolean };
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
 export type TaskStatus = "Not Started" | "In Progress" | "Completed";
 
 export type Task = {
-  id: string;
+  _id: string;
   title: string;
   description?: string;
   priority: TaskPriority;

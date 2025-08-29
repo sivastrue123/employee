@@ -80,11 +80,11 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setDialogOpen(true);
   };
 
-  const handleSave = (payload: Omit<Task, "id"> & { id?: string }) => {
+  const handleSave = (payload: Omit<Task, "_id"> & { _id?: string }) => {
     if (mode === "create") {
       // id will be created upstream
-      const { id: _omit, ...rest } = payload;
-      onCreateTask(clientId, rest);
+      const { _id: _omit, ...rest } = payload;
+      onCreateTask(clientId, rest as any);
     } else {
       // edit expects a full Task with id
       onUpdateTask(clientId, payload as Task);

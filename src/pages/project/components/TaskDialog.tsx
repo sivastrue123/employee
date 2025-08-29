@@ -46,7 +46,7 @@ type TaskDialogProps = {
   mode: "create" | "edit";
   open: boolean;
   onClose: () => void;
-  onSave: (payload: Omit<Task, "id"> & { id?: string }) => void;
+  onSave: (payload: Omit<Task, "_id"> & { _id?: string }) => void;
   employees: Employee[];
   employeeOptions: Option[];
   initial?: Task | null;
@@ -216,14 +216,14 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
   const addChecklistItem = () => {
     const t = draftChecklist.trim();
     if (!t) return;
-    setChecklist((cur) => [...cur, { id: genId("chk"), text: t, done: false }]);
+    setChecklist((cur) => [...cur, {  text: t, done: false }]);
     setDraftChecklist("");
   };
   const removeChecklistItem = (id: string) =>
-    setChecklist((cur) => cur.filter((c) => c.id !== id));
+    setChecklist((cur) => cur.filter((c) => c._id !== id));
   const toggleChecklistItemLocal = (id: string) =>
     setChecklist((cur) =>
-      cur.map((c) => (c.id === id ? { ...c, done: !c.done } : c))
+      cur.map((c) => (c._id === id ? { ...c, done: !c.done } : c))
     );
 
   // ----- Save flow -----
@@ -233,7 +233,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
     if (Object.keys(next).length > 0) return;
 
     onSave({
-      ...(initial?.id ? { id: initial.id } : {}),
+      ...(initial?._id ? { _id: initial._id } : {}),
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
@@ -488,7 +488,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
             <div className="mt-3 grid gap-2">
               {checklist.map((c) => (
                 <div
-                  key={c.id}
+                  key={c._id}
                   className="flex items-center justify-between rounded border bg-white p-2 text-sm"
                 >
                   <label className="flex items-center gap-2">
@@ -496,7 +496,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                       type="checkbox"
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       checked={c.done}
-                      onChange={() => toggleChecklistItemLocal(c.id)}
+                      onChange={() => toggleChecklistItemLocal(c._id as string)}
                     />
                     <span
                       className={c.done ? "line-through text-slate-500" : ""}
@@ -507,7 +507,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeChecklistItem(c.id)}
+                    onClick={() => removeChecklistItem(c._id as string)}
                   >
                     <Trash2 className="h-4 w-4 text-slate-500" />
                   </Button>

@@ -11,6 +11,7 @@ import {
 } from "@/types/projectTypes";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext.js";
+import { Console } from "console";
 
 export function useClients() {
   const { user } = useAuth();
@@ -135,24 +136,31 @@ export function useClients() {
     handleCreateTask(projectId, payload);
   };
 
-  const updateTask = (projectId: string, payload: Task) => {
-    setProjects((cur) =>
-      cur.map((p) =>
-        p.id !== projectId
-          ? p
-          : {
-              ...p,
-              tasks: p.tasks.map((t) => (t.id === payload.id ? payload : t)),
-            }
-      )
+  const handleEditTask = async (
+    clientId: string,
+    // taskId: string,
+    data: any
+  ) => {
+    const response = await axios.patch(
+      `/api/client/${clientId}/task/${data?._id}/updateTask?userId=${user?.employee_id}`,
+      data
     );
+
+    console.log(response?.data, response?.status);
+    if (response?.status == 200) {
+      await handleGetAllTasks(clientId);
+    }
+  };
+  const updateTask = (projectId: string, payload: Task) => {
+    console.log(payload);
+    handleEditTask(projectId, payload);
   };
 
   const removeTask = (projectId: string, taskId: string) => {
     setProjects((cur) =>
       cur.map((p) =>
         p.id === projectId
-          ? { ...p, tasks: p.tasks.filter((t) => t.id !== taskId) }
+          ? { ...p, tasks: p.tasks.filter((t) => t._id !== taskId) }
           : p
       )
     );
@@ -176,6 +184,20 @@ export function useClients() {
           };
         })
       );
+    const data: any = tasks.filter((task: any) => task._id == taskId);
+    let payload;
+    if (data) {
+      const checkListItem = data[0]?.checklist;
+      payload = {
+        ...data[0],
+        checklist: checkListItem.map((c: any) =>
+          c._id === itemId ? { ...c, done: !c.done } : c
+        ),
+      };
+      handleEditTask(projectId, payload);
+    }
+
+    // console.log(data, payload);
   };
 
   return {
