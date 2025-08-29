@@ -1,4 +1,3 @@
-
 import { format, parseISO, isAfter } from "date-fns";
 import { Employee, TaskStatus } from "@/types/projectTypes";
 import { type ProjectStatus } from "./projectData.js";
@@ -30,14 +29,16 @@ export const formatMaybe = (iso?: string) =>
 // Map your status tokens to badge variants (adjust to your design tokens)
 export const statusVariant = (
   s: ProjectStatus
-): "default" | "secondary" | "destructive" => {
+): "default" | "secondary" | "destructive" | "outline" => {
   switch (s) {
-    case "On Track":
+    case "NOT STARTED":
       return "default";
-    case "At Risk":
+    case "IN PROGRESS":
       return "secondary";
-    case "Blocked":
+    case "BLOCKED":
       return "destructive";
+    default:
+      return "default";
   }
 };
 

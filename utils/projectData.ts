@@ -2853,7 +2853,7 @@
 
 // Dummy JSON-like data for current projects
 
-export type ProjectStatus = "On Track" | "At Risk" | "Blocked";
+export type ProjectStatus = "NOT STARTED" | "At Risk" | "BLOCKED"|"IN PROGRESS";
 
 export interface Project {
   id?: string | number;
@@ -2865,109 +2865,3 @@ export interface Project {
   status: ProjectStatus;
   dueDate: string;          // ISO date string
 }
-
-export const projectData: Project[] = [
-  {
-    id: "PJT-1001",
-    name: "Marketing Website Revamp",
-    owner: "Aisha Khan",
-    team: "Design",
-    tags: ["web", "brand"],
-    progress: 72,
-    status: "On Track",
-    dueDate: "2025-09-05",
-  },
-  {
-    id: "PJT-1002",
-    name: "Payments v2",
-    owner: "Ravi Patel",
-    team: "Platform",
-    tags: ["billing", "api"],
-    progress: 41,
-    status: "At Risk",
-    dueDate: "2025-08-28",
-  },
-  {
-    id: "PJT-1003",
-    name: "Mobile App Onboarding",
-    owner: "Meera Singh",
-    team: "Product",
-    tags: ["growth", "mobile"],
-    progress: 93,
-    status: "On Track",
-    dueDate: "2025-09-30",
-  },
-  {
-    id: "PJT-1004",
-    name: "Data Warehouse Migration",
-    owner: "Chen Wei",
-    team: "Data",
-    tags: ["etl", "infra"],
-    progress: 18,
-    status: "Blocked",
-    dueDate: "2025-10-15",
-  },
-  {
-    id: "PJT-1005",
-    name: "Customer Portal",
-    owner: "Olivia Martins",
-    team: "Frontend",
-    tags: ["react", "portal"],
-    progress: 57,
-    status: "At Risk",
-    dueDate: "2025-09-12",
-  },
-  {
-    id: "PJT-1006",
-    name: "Alerting & Monitoring",
-    owner: "Diego Lopez",
-    team: "SRE",
-    tags: ["observability"],
-    progress: 64,
-    status: "On Track",
-    dueDate: "2025-09-22",
-  },
-  {
-    id: "PJT-1007",
-    name: "AI Assist POC",
-    owner: "Zara Ahmed",
-    team: "Research",
-    tags: ["ml", "poc"],
-    progress: 33,
-    status: "On Track",
-    dueDate: "2025-10-02",
-  },
-  {
-    id: "PJT-1008",
-    name: "Compliance Audits",
-    owner: "Liam O’Connor",
-    team: "Security",
-    tags: ["iso27001"],
-    progress: 25,
-    status: "Blocked",
-    dueDate: "2025-08-29",
-  },
-  {
-    id: "PJT-1009",
-    name: "Checkout UX Polish",
-    owner: "Noah Brown",
-    team: "Growth",
-    tags: ["a/b-test", "ux"],
-    progress: 80,
-    status: "On Track",
-    dueDate: "2025-09-08",
-  },
-  {
-    id: "PJT-1010",
-    name: "Partner API",
-    owner: "Priya Nair",
-    team: "Platform",
-    tags: ["api", "partners"],
-    progress: 46,
-    status: "At Risk",
-    dueDate: "2025-09-25",
-  },
-];
-
-
-

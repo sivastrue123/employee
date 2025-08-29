@@ -1,7 +1,7 @@
 // hooks/useClients.ts
 import { useEffect, useMemo, useState } from "react";
 import { format, isAfter, parseISO } from "date-fns";
-import { projectData, type ProjectStatus } from "../../utils/projectData.js";
+// import {  type ProjectStatus } from "../../utils/projectData.js";
 import { pageSize, genId } from "../../utils/projectUtils.js";
 import {
   ProjectWithTasks,
@@ -40,7 +40,7 @@ export function useClients() {
     for (const p of projects) {
       const d = parseISO(p.dueDate);
       if (!isAfter(d, in14)) dueSoonC += 1;
-      if (p.status === "At Risk" || p.status === "Blocked") riskC += 1;
+      if (p.status === "At Risk" || p.status === "BLOCKED") riskC += 1;
     }
   }, [projects]);
 
