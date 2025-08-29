@@ -33,7 +33,7 @@ import {
   ChecklistItem,
 } from "@/types/projectTypes";
 
-const animatedComponents = makeAnimated();
+export const animatedComponents = makeAnimated();
 
 const genId = (prefix: string) =>
   `${prefix}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
@@ -559,7 +559,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
   );
 };
 
-// ---------- Local Section Component ----------
+
 const Section: React.FC<{
   title: string;
   subtitle?: string;

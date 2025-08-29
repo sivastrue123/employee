@@ -50,10 +50,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
-import {
-  projectData,
-  type ProjectStatus,
-} from "../../../utils/projectData";
+import { projectData, type ProjectStatus } from "../../../utils/projectData";
 import axios from "axios";
 
 import {
@@ -65,7 +62,10 @@ import {
   SortId,
   Task,
 } from "@/types/projectTypes";
-import { TaskDialog } from "./components/TaskDialog";
+import { animatedComponents, TaskDialog } from "./components/TaskDialog";
+import { createClinet } from "@/api/createClient";
+import ReactSelect from "react-select";
+import { useAuth } from "@/context/AuthContext";
 
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
@@ -117,6 +117,7 @@ const taskStatusClass = (s: TaskStatus) =>
   }[s]!);
 
 const Projects: React.FC = () => {
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [sorting, setSorting] = useState<SortState>({
     id: "dueDate",
@@ -232,7 +233,8 @@ const Projects: React.FC = () => {
   // add project
   const [addOpen, setAddOpen] = useState(false);
   const [npName, setNpName] = useState("");
-  const [npOwner, setNpOwner] = useState("");
+  const [npOwner, setNpOwner] = useState<any>();
+
   const [npTeam, setNpTeam] = useState("");
   const [npTags, setNpTags] = useState("");
   const [npProgress, setNpProgress] = useState<number>(0);
@@ -248,12 +250,12 @@ const Projects: React.FC = () => {
     setNpStatus("On Track");
     setNpDue("");
   };
-  const createProject = () => {
+  const createProject = async () => {
     if (!npName.trim()) return;
     const newProject: ProjectWithTasks = {
-      id: genId("proj"),
+      // id: genId("proj"),
       name: npName.trim(),
-      owner: npOwner.trim() || "—",
+      owner: npOwner?.value || "—",
       team: npTeam.trim() || undefined,
       tags: npTags
         .split(",")
@@ -264,7 +266,9 @@ const Projects: React.FC = () => {
       dueDate: toISOFromDateInput(npDue) ?? new Date().toISOString(),
       tasks: [],
     };
-    setProjects((cur) => [newProject, ...cur]);
+    const response = await createClinet(newProject, user?.employee_id);
+    console.log(response);
+    // setProjects((cur) => [newProject, ...cur]);
     resetNewProject();
     setAddOpen(false);
   };
@@ -358,9 +362,6 @@ const Projects: React.FC = () => {
     );
   };
 
-  /* =======================================================
-     Render
-  ======================================================= */
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pb-16">
       {/* Page header */}
@@ -402,11 +403,21 @@ const Projects: React.FC = () => {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="np-owner">Manager</Label>
-                <Input
+                <Label htmlFor="np-owner">Lead</Label>
+                {/* <Input
                   id="np-owner"
                   value={npOwner}
                   onChange={(e) => setNpOwner(e.target.value)}
+                /> */}
+                <ReactSelect
+                  components={animatedComponents}
+                  placeholder="Select Lead"
+                  // isMulti
+                  options={employeeSelectOptions}
+                  value={npOwner}
+                  onChange={(selected: any) =>
+                    setNpOwner(selected ? selected : "")
+                  }
                 />
               </div>
               <div className="grid gap-2">
@@ -444,12 +455,13 @@ const Projects: React.FC = () => {
                   onValueChange={(v: ProjectStatus) => setNpStatus(v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder="Select Status"></SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="On Track">On Track</SelectItem>
-                    <SelectItem value="At Risk">At Risk</SelectItem>
-                    <SelectItem value="Blocked">Blocked</SelectItem>
+                    <SelectItem value="NOT STARTED">Not Started </SelectItem>
+                    <SelectItem value="IN PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="BLOCKED">Blocked</SelectItem>
+                    <SelectItem value="COMPLETED">Blocked</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

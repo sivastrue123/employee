@@ -2856,7 +2856,7 @@
 export type ProjectStatus = "On Track" | "At Risk" | "Blocked";
 
 export interface Project {
-  id: string | number;
+  id?: string | number;
   name: string;
   owner: string;            // display name or email
   team?: string;            // optional (e.g., "Design", "Platform")
