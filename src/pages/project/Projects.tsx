@@ -28,6 +28,7 @@ import {
   User2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { TaskPanel } from "./components/TaskPanel";
 
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
@@ -56,6 +57,11 @@ const Projects: React.FC = () => {
     toggleSort,
     handleProjects,
     activeProjects,
+    addTask,
+    removeTask,
+    updateTask,
+    toggleChecklistItem,
+    tasks,
   } = useClients();
 
   return (
@@ -255,15 +261,18 @@ const Projects: React.FC = () => {
                       {isOpen && (
                         <TableRow>
                           <TableCell colSpan={8} className="bg-slate-50/60">
-                            {/* Drop in your existing expanded Task panel here or refactor into <TaskPanel /> */}
-                            {/* Keep your current TaskDialog integration as-is. */}
-                            <div className="px-2 py-4 text-sm text-slate-600">
-                              {/* For brevity, not reproducing your entire Task panel here.
-                                  You can move your existing expanded block into a new <TaskPanel />
-                                  and wire callbacks from useClients (addTask, updateTask, etc.). */}
-                              Expand panel content goes here (migrate from your
-                              existing component).
-                            </div>
+                            <TaskPanel
+                              tasks={tasks}
+                              employeesById={employeesById}
+                              employees={employees}
+                              employeeOptions={employeeSelectOptions}
+                              onCreateTask={addTask}
+                              onUpdateTask={updateTask}
+                              onRemoveTask={removeTask}
+                              onToggleChecklistItem={toggleChecklistItem}
+                              clientId={p?._id}
+                              clientName={p?.name}
+                            />
                           </TableCell>
                         </TableRow>
                       )}

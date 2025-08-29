@@ -559,7 +559,6 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
   );
 };
 
-
 const Section: React.FC<{
   title: string;
   subtitle?: string;

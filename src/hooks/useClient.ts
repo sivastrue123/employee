@@ -10,10 +10,12 @@ import {
   Task,
 } from "@/types/projectTypes";
 import axios from "axios";
+import { useAuth } from "@/context/AuthContext.js";
 
 export function useClients() {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<ProjectWithTasks[]>([]);
-
+  const [tasks, setTasks] = useState([]);
   // KPIs
   const [dueSoon, setDueSoon] = useState(0);
   const [riskCount, setRiskCount] = useState(0);
@@ -105,17 +107,32 @@ export function useClients() {
 
   // row expansion
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const toggleExpand = (id: string) =>
+  const handleGetAllTasks = async (clientId: string) => {
+    const response = await axios.get(`/api/client/${clientId}/getAllTasks`);
+    console.log(response?.data);
+    setTasks(response?.data?.items);
+  };
+  const toggleExpand = (id: string) => {
+    handleGetAllTasks(id);
     setExpandedId((cur) => (cur === id ? null : id));
+  };
 
   // task CRUD
+  const handleCreateTask = async (clientId: string, data: any) => {
+    try {
+      const response = await axios.post(
+        `/api/client/${clientId}/createTask?userId=${user?.employee_id}`,
+        data
+      );
+
+      if (response.status == 201) {
+        alert("Task created Successfully");
+        await handleGetAllTasks(clientId);
+      }
+    } catch (error) {}
+  };
   const addTask = (projectId: string, payload: Omit<Task, "id">) => {
-    const newTask: Task = { id: genId("task"), ...payload };
-    setProjects((cur) =>
-      cur.map((p) =>
-        p.id === projectId ? { ...p, tasks: [newTask, ...p.tasks] } : p
-      )
-    );
+    handleCreateTask(projectId, payload);
   };
 
   const updateTask = (projectId: string, payload: Task) => {
@@ -186,7 +203,7 @@ export function useClients() {
     paged,
     total,
     totalPages,
-    // ops
+    tasks,
     toggleSort,
     addTask,
     updateTask,
