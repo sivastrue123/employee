@@ -175,12 +175,12 @@ const Projects: React.FC = () => {
               {paged.length > 0 ? (
                 paged.map((p) => {
                   const due = parseISO(p.dueDate);
-                  const isOpen = expandedId === p.id;
+                  const isOpen = expandedId === p._id;
                   return (
                     <React.Fragment key={p.id}>
                       <TableRow
                         className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors cursor-pointer"
-                        onClick={() => toggleExpand(p.id as string)}
+                        onClick={() => toggleExpand(p._id as string)}
                       >
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="whitespace-nowrap ">
@@ -238,7 +238,7 @@ const Projects: React.FC = () => {
                             className="gap-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleExpand(p.id as string);
+                              toggleExpand(p._id as string);
                             }}
                           >
                             {isOpen ? (
