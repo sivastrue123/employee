@@ -30,7 +30,7 @@ import { createClinet } from "@/api/createClient"; // assuming your API spelling
 import { useAuth } from "@/context/AuthContext";
 
 // normalizing to your site's canonical status
-type CanonicalProjectStatus = "On Track" | "At Risk" | "Blocked";
+// type any = "On Track" | "At Risk" | "Blocked";
 
 interface AddClientSheetProps {
   onCreated?: (project: ProjectWithTasks) => void;
@@ -48,7 +48,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
   const [team, setTeam] = useState("");
   const [tags, setTags] = useState("");
   const [progress, setProgress] = useState<number>(0);
-  const [status, setStatus] = useState<CanonicalProjectStatus>("On Track");
+  const [status, setStatus] = useState<any>("NOT STARTED");
   const [due, setDue] = useState<string>("");
 
   const reset = () => {
@@ -57,7 +57,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
     setTeam("");
     setTags("");
     setProgress(0);
-    setStatus("On Track");
+    setStatus("NOT STARTED");
     setDue("");
   };
 
@@ -65,7 +65,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
     if (!name.trim()) return;
     const newProject: ProjectWithTasks = {
       name: name.trim(),
-      owner: ownerOpt?.label ?? "—",
+      owner: ownerOpt?.value ?? "—",
       team: team.trim() || undefined,
       tags: tags
         .split(",")
@@ -79,7 +79,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
 
     // Persist to backend
     const response = await createClinet(newProject, user?.employee_id);
-    // console.log(response);
+    console.log(response);
 
     onCreated?.(newProject); // let parent hydrate UI
     reset();
@@ -158,17 +158,15 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
 
           <div className="grid gap-2">
             <Label>Status</Label>
-            <Select
-              value={status}
-              onValueChange={(v: CanonicalProjectStatus) => setStatus(v)}
-            >
+            <Select value={status} onValueChange={(v) => setStatus(v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Status"></SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="On Track">On Track</SelectItem>
-                <SelectItem value="At Risk">At Risk</SelectItem>
-                <SelectItem value="Blocked">Blocked</SelectItem>
+                <SelectItem value="NOT STARTED">Not Started </SelectItem>
+                <SelectItem value="IN PROGRESS">In Progress</SelectItem>
+                <SelectItem value="BLOCKED">Blocked</SelectItem>
+                <SelectItem value="COMPLETED">Blocked</SelectItem>
               </SelectContent>
             </Select>
           </div>
