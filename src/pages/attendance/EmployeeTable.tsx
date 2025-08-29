@@ -68,12 +68,13 @@ import { Label } from "@/components/ui/label";
 import makeAnimated from "react-select/animated";
 import Select from "react-select";
 
-// ✅ Toast: your in-house provider
 import { useToast } from "@/toast/ToastProvider";
+import * as XLSX from "xlsx";
+import { Download } from "lucide-react";
 
 // ---------------- constants ----------------
 const PAGE_SIZE = 10;
-const TRIGGER_INDEX_IN_PAGE = 8; 
+const TRIGGER_INDEX_IN_PAGE = 8;
 
 // ---------------- types ----------------
 type Checked = DropdownMenuCheckboxItemProps["checked"];
@@ -485,6 +486,107 @@ const EmployeeTable: React.FC<{
     return data;
   }, [rows, filters.search, filters.sort]);
 
+  // --- Export helpers (current filtered + sorted view) ---
+  const buildExportRows = (data: AttendanceRow[]) =>
+    data.map((row) => ({
+      Date: fmtDay(row.attendanceDate),
+      "Employee Name": row.employeeName ?? "—",
+      Department: row.employeeDepartment ?? "—",
+      "Clock In": row.clockIn ? row.clockIn : "—",
+      "Clock Out": row.clockOut ? row.clockOut : "—",
+      "Total Hours Worked": row.worked ?? "—",
+      OT: row.ot ?? "—",
+      Late: row.late ?? "—",
+      Status: row.status,
+      "Created By": row.createdBy?.name ?? "—",
+      "Created On": fmtDateTime(row.createdAt),
+      "Edited By": row.editedBy?.name?.trim() ? row.editedBy!.name : "—",
+      "Edited On": fmtDateTime(row.editedAt),
+    }));
+
+  const handleExportExcel = () => {
+    if (!filteredAndSorted.length) {
+      toast.info("No rows to export for the current view.", {
+        title: "Nothing to export",
+        durationMs: 2000,
+        position: "top-center",
+      });
+      return;
+    }
+    const loadingId = toast.info("Packaging Excel…", {
+      durationMs: 0,
+      position: "top-center",
+      dismissible: true,
+    });
+
+    try {
+      const data = buildExportRows(filteredAndSorted);
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `attendance_${stamp}.xlsx`);
+      toast.remove(loadingId);
+      toast.success("Excel exported successfully.", {
+        durationMs: 1800,
+        position: "top-center",
+      });
+    } catch (e: any) {
+      toast.remove(loadingId);
+      toast.error("We couldn’t export Excel. Please retry.", {
+        title: "Export failed",
+        durationMs: 3500,
+        position: "top-center",
+      });
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!filteredAndSorted.length) {
+      toast.info("No rows to export for the current view.", {
+        title: "Nothing to export",
+        durationMs: 2000,
+        position: "top-center",
+      });
+      return;
+    }
+    const loadingId = toast.info("Generating CSV…", {
+      durationMs: 0,
+      position: "top-center",
+      dismissible: true,
+    });
+
+    try {
+      const data = buildExportRows(filteredAndSorted);
+      const ws = XLSX.utils.json_to_sheet(data);
+      const csv = XLSX.utils.sheet_to_csv(ws);
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `attendance_${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.remove(loadingId);
+      toast.success("CSV exported successfully.", {
+        durationMs: 1800,
+        position: "top-center",
+      });
+    } catch (e: any) {
+      toast.remove(loadingId);
+      toast.error("We couldn’t export CSV. Please retry.", {
+        title: "Export failed",
+        durationMs: 3500,
+        position: "top-center",
+      });
+    }
+  };
+
   // ------------ KPI rollups ------------
   useEffect(() => {
     const now = new Date();
@@ -707,7 +809,6 @@ const EmployeeTable: React.FC<{
       setSubmitting(false);
     }
   };
-
 
   return (
     <>
@@ -1009,6 +1110,39 @@ const EmployeeTable: React.FC<{
               >
                 Clear
               </Button>
+              {/* Export actions */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCSV}
+                  disabled={!filteredAndSorted.length}
+                  title={
+                    !filteredAndSorted.length
+                      ? "No data in current view"
+                      : "Export CSV"
+                  }
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  CSV
+                </Button>
+
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="!bg-emerald-600"
+                  onClick={handleExportExcel}
+                  disabled={!filteredAndSorted.length}
+                  title={
+                    !filteredAndSorted.length
+                      ? "No data in current view"
+                      : "Export Excel"
+                  }
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Excel
+                </Button>
+              </div>
 
               {/* More actions sheet */}
               <div className="flex">
@@ -1269,12 +1403,12 @@ const EmployeeTable: React.FC<{
                 </TableRow>
               )}
 
-         
-              {loadingMore && rows.length > 9 && hasMore&&(
+              {loadingMore && rows.length > 9 && hasMore && (
                 <TableRow>
                   <TableCell
                     colSpan={13}
-                    className="py-4 text-center text-slate-500"                  >
+                    className="py-4 text-center text-slate-500"
+                  >
                     Loading more…
                   </TableCell>
                 </TableRow>
