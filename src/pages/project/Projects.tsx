@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useEmployees } from "@/hooks/useEmployee";
 import { useClients } from "@/hooks/useClient";
 import { AddClient } from "./components/AddClient";
-import { pageSize, statusVariant } from "../../../utils/projectUtils.js"
+import { pageSize, statusVariant } from "../../../utils/projectUtils.js";
 import {
   ArrowUpDown,
   CalendarIcon,
@@ -54,11 +54,12 @@ const Projects: React.FC = () => {
     total,
     totalPages,
     toggleSort,
+    handleProjects,
+    activeProjects,
   } = useClients();
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pb-16">
-      {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
@@ -70,7 +71,7 @@ const Projects: React.FC = () => {
         </div>
         <AddClient
           employeeOptions={employeeSelectOptions}
-          onCreated={(p) => setProjects((cur) => [p, ...cur])}
+          onCreated={handleProjects}
         />
       </div>
 
@@ -78,7 +79,7 @@ const Projects: React.FC = () => {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className={kpiCard.base}>
           <div className={kpiCard.title}>Total Clients</div>
-          <div className={kpiCard.value}>{projects.length}</div>
+          <div className={kpiCard.value}>{activeProjects}</div>
           <div className={kpiCard.sub}>Currently active</div>
         </div>
         <div className={kpiCard.base}>
@@ -182,10 +183,11 @@ const Projects: React.FC = () => {
                         onClick={() => toggleExpand(p.id as string)}
                       >
                         <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap ">
                           <span className="inline-flex items-center gap-1">
                             <User2 className="h-4 w-4 opacity-60" />
-                            {p.owner}
+                            {p.ownerDetails?.first_name}{" "}
+                            {p.ownerDetails?.last_name}
                           </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -194,7 +196,7 @@ const Projects: React.FC = () => {
                         <TableCell className="max-w-[260px]">
                           <div className="flex flex-wrap items-center gap-1">
                             {p.tags?.length
-                              ? p.tags.map((t) => (
+                              ? p.tags.map((t: any) => (
                                   <Badge
                                     key={t}
                                     variant="outline"

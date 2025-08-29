@@ -33,7 +33,7 @@ import { useAuth } from "@/context/AuthContext";
 // type any = "On Track" | "At Risk" | "Blocked";
 
 interface AddClientSheetProps {
-  onCreated?: (project: ProjectWithTasks) => void;
+  onCreated?: () => void;
   employeeOptions: Option[];
 }
 
@@ -81,7 +81,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
     const response = await createClinet(newProject, user?.employee_id);
     console.log(response);
 
-    onCreated?.(newProject); // let parent hydrate UI
+    onCreated?.(); // let parent hydrate UI
     reset();
     setOpen(false);
   };

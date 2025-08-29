@@ -9,16 +9,27 @@ import {
   SortState,
   Task,
 } from "@/types/projectTypes";
+import axios from "axios";
 
 export function useClients() {
-  const [projects, setProjects] = useState<ProjectWithTasks[]>(() =>
-    projectData.map((p) => ({ ...p, tasks: [] }))
-  );
+  const [projects, setProjects] = useState<ProjectWithTasks[]>([]);
 
   // KPIs
   const [dueSoon, setDueSoon] = useState(0);
   const [riskCount, setRiskCount] = useState(0);
+  const [activeProjects, setActiveProject] = useState(0);
+  const handleProjects = async () => {
+    const response = await axios.get("api/client/getAllClient");
 
+    console.log(response?.data?.metrics);
+    setProjects(response?.data?.items);
+    setRiskCount(response?.data?.metrics?.atRiskClients);
+    setDueSoon(response?.data?.metrics?.dueIn14Days);
+    setActiveProject(response?.data?.metrics?.totalClients);
+  };
+  useEffect(() => {
+    handleProjects();
+  }, []);
   useEffect(() => {
     const now = new Date();
     const in14 = new Date(now);
@@ -31,8 +42,6 @@ export function useClients() {
       if (!isAfter(d, in14)) dueSoonC += 1;
       if (p.status === "At Risk" || p.status === "Blocked") riskC += 1;
     }
-    setDueSoon(dueSoonC);
-    setRiskCount(riskC);
   }, [projects]);
 
   // search + sort + pagination
@@ -43,7 +52,7 @@ export function useClients() {
   });
   const [page, setPage] = useState(1);
 
-  const filteredAndSorted: ProjectWithTasks[] = useMemo(() => {
+  const filteredAndSorted: any[] = useMemo(() => {
     let current = [...projects];
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -169,7 +178,9 @@ export function useClients() {
     setPage,
     expandedId,
     toggleExpand,
+    handleProjects,
     // computed
+    activeProjects,
     dueSoon,
     riskCount,
     paged,
