@@ -163,24 +163,19 @@ export function useClients() {
     taskId: string,
     itemId: string
   ) => {
-    setProjects((cur) =>
-      cur.map((p) => {
-        if (p.id !== projectId) return p;
-        return {
-          ...p,
-          tasks: p.tasks.map((t) =>
-            t.id !== taskId
-              ? t
-              : {
-                  ...t,
-                  checklist: t.checklist.map((c) =>
-                    c.id === itemId ? { ...c, done: !c.done } : c
-                  ),
-                }
-          ),
-        };
-      })
-    );
+    tasks &&
+      setTasks((cur: any) =>
+        cur.map((p: any) => {
+          if (p._id !== taskId) return p;
+          return {
+            ...p,
+
+            checklist: p.checklist.map((c: any) =>
+              c._id === itemId ? { ...c, done: !c.done } : c
+            ),
+          };
+        })
+      );
   };
 
   return {

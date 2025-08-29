@@ -257,8 +257,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                           onChange={() =>
                             onToggleChecklistItem(
                               clientId as string,
-                              t.id,
-                              c.id
+                              t._id,
+                              c._id
                             )
                           }
                         />
