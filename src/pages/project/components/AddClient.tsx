@@ -226,7 +226,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
             />
           </div>
 
-          <div className="grid gap-2">
+          {/* <div className="grid gap-2">
             <Label htmlFor="np-progress">Progress (%)</Label>
             <Input
               id="np-progress"
@@ -236,7 +236,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
               value={progress}
               onChange={(e) => setProgress(Number(e.target.value))}
             />
-          </div>
+          </div> */}
 
           <div className="grid gap-2">
             <Label>Status</Label>

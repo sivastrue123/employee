@@ -118,12 +118,12 @@ export function useClients() {
       }
 
       setProjects(response?.data?.items ?? []);
-      setRiskCount(response?.data?.metrics?.atRiskClients ?? 0);
       setDueSoon(response?.data?.metrics?.dueIn14Days ?? 0);
       setActiveProject(response?.data?.metrics?.totalClients ?? 0);
+      setRiskCount(response?.data?.metrics?.atRiskClients ?? 0);
 
       toast.remove(loadingId);
-      toast.success("Client portfolio synced successfully.", {
+      toast.success("Client data synced successfully.", {
         title: "Sync complete",
         durationMs: 1800,
         position: "bottom-center",
@@ -144,22 +144,7 @@ export function useClients() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // Recompute KPIs locally if you want them reactive post-load
-    const now = new Date();
-    const in14 = new Date(now);
-    in14.setDate(now.getDate() + 14);
-
-    let dueSoonC = 0;
-    let riskC = 0;
-    for (const p of projects) {
-      const d = parseISO(p.dueDate);
-      if (!isAfter(d, in14)) dueSoonC += 1;
-      if (p.status === "At Risk" || p.status === "BLOCKED") riskC += 1;
-    }
-    setDueSoon(dueSoonC);
-    setRiskCount(riskC);
-  }, [projects]);
+ 
 
   // search + sort + pagination
   const [query, setQuery] = useState("");

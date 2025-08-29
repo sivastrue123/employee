@@ -154,7 +154,7 @@ const Projects: React.FC = () => {
                 </TableHead>
                 <TableHead className="whitespace-nowrap">Team</TableHead>
                 <TableHead className="whitespace-nowrap">Tags</TableHead>
-                <TableHead className="whitespace-nowrap">
+                {/* <TableHead className="whitespace-nowrap">
                   <Button
                     variant="ghost"
                     onClick={() => toggleSort("progress")}
@@ -162,7 +162,7 @@ const Projects: React.FC = () => {
                   >
                     Progress <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
                   </Button>
-                </TableHead>
+                </TableHead> */}
                 <TableHead className="whitespace-nowrap">Status</TableHead>
                 <TableHead className="whitespace-nowrap">
                   <Button
@@ -197,7 +197,7 @@ const Projects: React.FC = () => {
                           </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {p.team ?? "—"}
+                          {p.team ? p.team :  "—"}
                         </TableCell>
                         <TableCell className="max-w-[260px]">
                           <div className="flex flex-wrap items-center gap-1">
@@ -215,14 +215,14 @@ const Projects: React.FC = () => {
                               : "—"}
                           </div>
                         </TableCell>
-                        <TableCell className="min-w-[160px]">
+                        {/* <TableCell className="min-w-[160px]">
                           <div className="flex items-center gap-2">
                             <Progress value={p.progress} className="h-2 w-28" />
                             <span className="tabular-nums text-xs text-slate-600">
                               {p.progress}%
                             </span>
                           </div>
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell>
                           <Badge
                             variant={statusVariant(p.status)}
@@ -343,9 +343,6 @@ const Projects: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Keep your TaskDialog instance mounted wherever you handle create/edit */}
-      {/* <TaskDialog ... /> */}
     </div>
   );
 };
