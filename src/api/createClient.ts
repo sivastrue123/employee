@@ -6,7 +6,7 @@ export const createClinet = async (payload: any, userId: string) => {
       `/api/client/createClient?userId=${userId}`,
       payload
     );
-    return response.data;
+    return { data: response.data, status: response.status };
   } catch (error: any) {
     if (error.response) {
       throw new Error(
