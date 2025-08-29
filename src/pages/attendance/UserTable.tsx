@@ -95,7 +95,7 @@ const UserTable: React.FC<any> = ({
         {
           title: "Attendance fetch failed",
           durationMs: 5000,
-          position: "top-center",
+          position: "bottom-center",
         }
       );
 

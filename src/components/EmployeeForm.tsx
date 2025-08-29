@@ -74,7 +74,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
       toast.warning("Please complete all required fields marked with *.", {
         title: "Missing information",
         durationMs: 3500,
-        position: "top-center",
+        position: "bottom-center",
       });
       return;
     }
@@ -82,7 +82,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
       toast.warning("That doesn’t look like a valid email address.", {
         title: "Check email",
         durationMs: 3000,
-        position: "top-center",
+        position: "bottom-center",
       });
       return;
     }
@@ -90,7 +90,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
       toast.warning("Phone number must be exactly 10 digits.", {
         title: "Check phone",
         durationMs: 3000,
-        position: "top-center",
+        position: "bottom-center",
       });
       return;
     }
@@ -98,7 +98,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
       toast.warning("Hourly rate cannot be negative.", {
         title: "Check compensation",
         durationMs: 3000,
-        position: "top-center",
+        position: "bottom-center",
       });
       return;
     }
@@ -107,7 +107,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
     setIsSubmitting(true);
     const loadingId = toast.info(
       employee ? "Updating employee record…" : "Creating new employee…",
-      { durationMs: 0, position: "top-center", dismissible: true }
+      { durationMs: 0, position: "bottom-center", dismissible: true }
     );
 
     try {
@@ -146,7 +146,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
         {
           title: "Save failed",
           durationMs: 5000,
-          position: "top-center",
+          position: "bottom-center",
         }
       );
     } finally {

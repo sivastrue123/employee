@@ -88,14 +88,14 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
       toast.error(`${missing} ${missing.includes(" and ") ? "are" : "is"} required.`, {
         title: "Missing required fields",
         durationMs: 4000,
-        position: "top-center",
+        position: "bottom-center",
       });
       return;
     }
 
     const loadingId = toast.info("Standing up the client record…", {
       durationMs: 0,
-      position: "top-center",
+      position: "bottom-center",
       dismissible: true,
     });
 
@@ -122,7 +122,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
         toast.success("Client created successfully.", {
           title: "All set",
           durationMs: 2000,
-          position: "top-center",
+          position: "bottom-center",
         });
         onCreated?.();
         reset();
@@ -131,7 +131,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
         toast.warning?.("The server responded unexpectedly.", {
           title: `Status ${response?.status ?? "—"}`,
           durationMs: 3000,
-          position: "top-center",
+          position: "bottom-center",
         });
       }
     } catch (err: any) {
@@ -143,7 +143,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
       toast.error(msg, {
         title: "Create failed",
         durationMs: 4500,
-        position: "top-center",
+        position: "bottom-center",
       });
     }
   };

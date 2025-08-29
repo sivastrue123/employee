@@ -81,7 +81,7 @@ export default function Employees() {
       toast.warning("You don’t have access to Employee Management.", {
         title: "Access limited",
         durationMs: 3500,
-        position: "top-center",
+        position: "bottom-center",
       });
       navigate("/Dashboard", { replace: true });
     }
@@ -108,7 +108,7 @@ export default function Employees() {
     // sticky loader toast while we fetch
     const loadingId = toast.info("Fetching team roster…", {
       durationMs: 0,
-      position: "top-center",
+      position: "bottom-center",
       dismissible: true,
     });
 
@@ -125,7 +125,7 @@ export default function Employees() {
         toast.remove(loadingId);
         // toast.success("Roster refreshed.", {
         //   durationMs: 1800,
-        //   position: "top-center",
+        //   position: "bottom-center",
         // });
       }
     } catch (err: any) {
@@ -140,7 +140,7 @@ export default function Employees() {
           isNetwork
             ? "Network hiccup while loading employees. Please check your connection and retry."
             : "We couldn’t load employees right now. Please try again.",
-          { title: "Load failed", durationMs: 4500, position: "top-center" }
+          { title: "Load failed", durationMs: 4500, position: "bottom-center" }
         );
       }
     } finally {
@@ -221,7 +221,7 @@ export default function Employees() {
     toast.info("Add a new team member.", {
       title: "Create employee",
       durationMs: 2200,
-      position: "top-center",
+      position: "bottom-center",
     });
   }, [location.search, navigate, toast]);
 
@@ -242,7 +242,7 @@ export default function Employees() {
       setShowForm(true);
       toast.info(`Editing ${employee.first_name} ${employee.last_name}.`, {
         durationMs: 2000,
-        position: "top-center",
+        position: "bottom-center",
       });
     },
     [toast]
@@ -253,7 +253,7 @@ export default function Employees() {
     toast.success("Employee details saved.", {
       title: "Changes applied",
       durationMs: 2200,
-      position: "top-center",
+      position: "bottom-center",
     });
     loadEmployees(); // refresh and close
     closeForm();

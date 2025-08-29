@@ -16,7 +16,7 @@ type ToastPosition =
   | "top-left"
   | "bottom-right"
   | "bottom-left"
-  | "top-center"
+  | "bottom-center"
   | "bottom-center";
 
 export type ToastOptions = {
@@ -66,7 +66,7 @@ const positions: ToastPosition[] = [
   "top-left",
   "bottom-right",
   "bottom-left",
-  "top-center",
+  "bottom-center",
   "bottom-center",
 ];
 
@@ -286,7 +286,7 @@ const ToastViewport: React.FC<{
     zIndex: 9999,
     margin: "1rem",
     display: "flex",
-    flexDirection: ["top-left", "top-right", "top-center"].includes(position)
+    flexDirection: ["top-left", "top-right", "bottom-center"].includes(position)
       ? "column"
       : "column-reverse",
     gap: "0.5rem",

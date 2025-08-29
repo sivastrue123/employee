@@ -40,7 +40,7 @@ export default function App() {
     // Anchor a sticky “loading” toast; we’ll clear it on outcome
     const loadingId = toast.info("Authenticating with Google…", {
       durationMs: 0, // sticky
-      position: "top-center",
+      position: "bottom-center",
       dismissible: true,
     });
 
@@ -53,7 +53,7 @@ export default function App() {
         toast.remove(loadingId);
         toast.error("We couldn’t read your Google email. Please try again.", {
           durationMs: 5000,
-          position: "top-center",
+          position: "bottom-center",
           title: "Sign-in issue",
         });
         return;
@@ -63,7 +63,7 @@ export default function App() {
       toast.remove(loadingId);
       const validatingId = toast.info("Validating your access…", {
         durationMs: 0,
-        position: "top-center",
+        position: "bottom-center",
         dismissible: true,
       });
 
@@ -82,14 +82,14 @@ export default function App() {
         toast.success(`Welcome back${decoded?.name ? `, ${decoded.name}` : ""}! You’re in.`, {
           title: "Signed in",
           durationMs: 2500,
-          position: "top-center",
+          position: "bottom-center",
         });
       } else {
         toast.remove(validatingId);
         toast.error("We couldn’t confirm your access right now. Please try again shortly.", {
           title: "Access not confirmed",
           durationMs: 5000,
-          position: "top-center",
+          position: "bottom-center",
         });
       }
     } catch (error: any) {
@@ -105,7 +105,7 @@ export default function App() {
       toast.error(msg, {
         title: "Authentication failed",
         durationMs: 5000,
-        position: "top-center",
+        position: "bottom-center",
       });
     }
   };
@@ -115,7 +115,7 @@ export default function App() {
     toast.error("Google sign-in was canceled or failed. Please try again.", {
       title: "Sign-in failed",
       durationMs: 4000,
-      position: "top-center",
+      position: "bottom-center",
     });
   };
 
