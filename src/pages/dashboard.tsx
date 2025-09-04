@@ -221,7 +221,7 @@ export default function Dashboard() {
           value={stats.todayAttendance}
           icon={Clock}
           gradient="from-green-500 to-green-600"
-          change=""
+          change="20%"
           isLoading={isLoading}
         />
         <StatsCards
@@ -238,11 +238,11 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-6">
           <AttendanceOverview isLoading={isLoading} />
           {/* NOTE: Import path says ProjectProcess; component used here is ProjectProgress */}
-          <ProjectProgress isLoading={isLoading} />
+          {/* <ProjectProgress isLoading={isLoading} /> */}
         </div>
 
         <div className="space-y-6">
-          <RecentActivity activities={recentActivities} isLoading={isLoading} />
+          {/* <RecentActivity activities={recentActivities} isLoading={isLoading} /> */}
 
           <Card className="border-0 shadow-lg bg-gradient-to-br from-slate-800 to-slate-900 text-white">
             <CardHeader>
