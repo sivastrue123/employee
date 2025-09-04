@@ -23,6 +23,7 @@ import RecentActivity from "../components/RecentActivity";
 import AttendanceOverview from "../components/AttendanceOverview";
 import ProjectProgress from "../components/ProjectProcess";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "@/toast/ToastProvider";
 
 // ===== Types =====
 type StatBlock = {
@@ -102,7 +103,7 @@ function useDashboardData() {
   const [recentActivities, setRecentActivities] =
     useState<ActivityItem[]>(DEMO_ACTIVITIES);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<unknown|any>(null);
+  const [error, setError] = useState<unknown | any>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -148,6 +149,7 @@ function useDashboardData() {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
 
   const { stats, recentActivities, isLoading, error } = useDashboardData();
 
@@ -158,6 +160,18 @@ export default function Dashboard() {
   const greetingName = useMemo(() => {
     // Fallback to a friendly generic if user or name missing
     return user?.name || user?.displayName || "there";
+  }, [user]);
+
+  useEffect(() => {
+    if (user && user.role !== "admin") {
+      toast.warning("You don’t have access to Dashboard.", {
+        title: "Access limited",
+        durationMs: 3500,
+        position: "bottom-center",
+      });
+      navigate("/Attendance", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   return (
@@ -175,8 +189,7 @@ export default function Dashboard() {
         </p>
       </motion.div>
 
-     
-      {error  && (
+      {error && (
         <div
           role="alert"
           className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"

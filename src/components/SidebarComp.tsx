@@ -357,7 +357,10 @@ export default function SidebarComp({ children }: any) {
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-1">
                   {navigationItems.map((item, index) => {
-                    if (item.title === "Employees" && user?.role !== "admin") {
+                    if (
+                      (item.title === "Employees" && user?.role !== "admin") ||
+                      (item.title === "Dashboard" && user?.role !== "admin")
+                    ) {
                       return null;
                     }
 

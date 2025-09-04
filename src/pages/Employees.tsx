@@ -84,7 +84,7 @@ export default function Employees() {
         durationMs: 3500,
         position: "bottom-center",
       });
-      navigate("/Dashboard", { replace: true });
+      navigate("/Attendance", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
