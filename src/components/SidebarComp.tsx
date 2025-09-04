@@ -233,10 +233,7 @@ export default function SidebarComp({ children }: any) {
         createdBy: user?.userId,
       };
 
-      const response = await api.post(
-        "/api/attendance/createAttendance",
-        data
-      );
+      const response = await api.post("/api/attendance/createAttendance", data);
 
       if (!response?.data?.data?.totalWorkedTime) {
         console.log("Clock-in response:", response.data);
@@ -288,7 +285,7 @@ export default function SidebarComp({ children }: any) {
       console.error("No attendance record found for clock-out.");
       return;
     }
-    axios
+    api
       .put(
         `/api/attendance/editAttendance/${attendanceId}?userId=${user?.userId}${
           isLoggedOut ? "&LoggedOut=true" : ""
