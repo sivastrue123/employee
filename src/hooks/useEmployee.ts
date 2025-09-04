@@ -2,12 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Employee, Option } from "@/types/projectTypes";
+import { api } from "@/lib/axios";
 
 export function useEmployees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   useEffect(() => {
     (async () => {
-      const response = await axios.get("/api/employee/getAllEmployee");
+      const response = await api.get("/api/employee/getAllEmployee");
       setEmployees(response?.data ?? []);
     })();
   }, []);

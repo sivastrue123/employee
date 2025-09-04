@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import axios, { AxiosError } from "axios";
+import { api } from "@/lib/axios";
 
 const parseWorkedTime = (timeString: string) => {
   const parts = timeString.split(" ");
@@ -144,7 +145,7 @@ export default function SidebarComp({ children }: any) {
       // }
 
       try {
-        const response = await axios.get(
+        const response = await api.get(
           "/api/attendance/getUserAttendanceByDate",
           {
             params: {
@@ -232,7 +233,7 @@ export default function SidebarComp({ children }: any) {
         createdBy: user?.userId,
       };
 
-      const response = await axios.post(
+      const response = await api.post(
         "/api/attendance/createAttendance",
         data
       );

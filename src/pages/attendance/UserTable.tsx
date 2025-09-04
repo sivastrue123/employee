@@ -47,6 +47,7 @@ import {
 } from "@/helpers/attendanceDateHelper";
 import { SortState, AttendanceRecord } from "@/types/attendanceTypes";
 import { useToast } from "@/toast/ToastProvider"; // ✅ bring in your custom toast
+import { api } from "@/lib/axios";
 
 const UserTable: React.FC<any> = ({
   pageSize,
@@ -83,7 +84,7 @@ const UserTable: React.FC<any> = ({
   const handleGetAttendanceData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
       );
       setAttendanceData(response.data.data);

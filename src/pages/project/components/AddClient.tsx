@@ -1,5 +1,5 @@
 // components/clients/AddClientSheet.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import ReactSelect from "react-select";
 import { Plus } from "lucide-react";
 
@@ -28,27 +28,59 @@ import {
 import { Option, ProjectWithTasks } from "@/types/projectTypes";
 import { toISOFromDateInput } from "../../../../utils/projectUtils.js";
 import { createClinet } from "@/api/createClient"; // keeping your API name
+import { updateClient } from "@/api/updateClient"; 
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/toast/ToastProvider"; // ✅ your in-house toast
 
+type PartialClient = Partial<ProjectWithTasks> & { id?: string | number };
+
 interface AddClientSheetProps {
-  onCreated?: () => void;
   employeeOptions: Option[];
+
+  /** If provided, the sheet hydrates and becomes “Edit Client”. */
+  client?: any;
+
+  /** Back-compat: still fires on successful CREATE */
+  onCreated?: () => void;
+
+  /** New: fires on successful SAVE (create or update) */
+  onSaved?: () => void;
+
+  /** Optional custom trigger (e.g., an Edit icon button) */
+  trigger?: React.ReactNode;
+
+  /** Optionally control initial open state */
+  defaultOpen?: boolean;
 }
 
+const toDateInputValue = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  // yyyy-mm-dd
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+};
+
 export const AddClient: React.FC<AddClientSheetProps> = ({
-  onCreated,
   employeeOptions,
+  client,
+  onCreated,
+  onSaved,
+  trigger,
+  defaultOpen = false,
 }) => {
+  const isEdit = Boolean(client?._id);
   const { user } = useAuth();
   const toast = useToast();
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
+
   const [name, setName] = useState("");
   const [ownerOpt, setOwnerOpt] = useState<Option | undefined>();
   const [team, setTeam] = useState("");
   const [tags, setTags] = useState("");
-  const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<any>("NOT STARTED");
   const [due, setDue] = useState<string>("");
 
@@ -64,18 +96,64 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
 
   const isValid = Object.keys(errors).length === 0;
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setName("");
     setOwnerOpt(undefined);
     setTeam("");
     setTags("");
-    setProgress(0);
     setStatus("NOT STARTED");
     setDue("");
     setTouched({});
+  }, []);
+
+  const hydrateFromClient = useCallback(
+    (c: any) => {
+      console.log(c.name)
+      setName(c.name ?c.name: "");
+      // map owner id -> select option
+      const opt = c.owner
+        ? employeeOptions.find((o) => o.value === c.owner) ?? undefined
+        : undefined;
+      setOwnerOpt(opt);
+      setTeam(c.team ?? "");
+      const tagString = Array.isArray(c.tags) ? c.tags.join(", ") : (c as any).tags ?? "";
+      setTags(tagString);
+      setStatus(c.status ?? "NOT STARTED");
+      setDue(toDateInputValue((c as any).dueDate));
+      setTouched({});
+    },
+    [employeeOptions]
+  );
+
+  // Re-hydrate on open with a client payload
+  useEffect(() => {
+    if (open && isEdit && client) {
+      hydrateFromClient(client);
+    }
+    if (open && !isEdit) {
+      // create mode: start clean
+      reset();
+    }
+  }, [open, isEdit, client, hydrateFromClient, reset]);
+
+  const buildPayload = (): ProjectWithTasks => {
+    return {
+      name: name.trim(),
+      owner: ownerOpt?.value as string, // required
+      team: team.trim() || undefined,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      // you had progress previously, but it's commented out in the UI; default to 0
+      progress: 0,
+      status,
+      dueDate: toISOFromDateInput(due) ?? new Date().toISOString(),
+      tasks: Array.isArray((client as any)?.tasks) ? ((client as any).tasks as any[]) : [],
+    };
   };
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!isValid) {
       // reveal errors + toast
       setTouched({ name: true, owner: true });
@@ -93,40 +171,50 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
       return;
     }
 
-    const loadingId = toast.info("Standing up the client record…", {
+    const verb = isEdit ? "Updating" : "Standing up";
+    const loadingId = toast.info(`${verb} the client record…`, {
       durationMs: 0,
       position: "bottom-center",
       dismissible: true,
     });
 
     try {
-      const newProject: ProjectWithTasks = {
-        name: name.trim(),
-        owner: ownerOpt?.value as string, // required
-        team: team.trim() || undefined,
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        progress: Math.max(0, Math.min(100, Number(progress) || 0)),
-        status,
-        dueDate: toISOFromDateInput(due) ?? new Date().toISOString(),
-        tasks: [],
-      };
+      const payload = buildPayload();
+      let response: any;
 
-      const response = await createClinet(newProject, user?.employee_id);
+      if (isEdit && client?._id != null) {
+        /**
+         * 🔧 Adjust this call signature to your API:
+         * Common patterns:
+         *   updateClient(clientId, payload, employeeId)
+         *   updateClient(payload, clientId, employeeId)
+         *   updateClient({ id: clientId, ...payload }, employeeId)
+         */
+        response = await updateClient(client._id as string, payload, user?.employee_id);
+      } else {
+        response = await createClinet(payload, user?.employee_id);
+      }
 
       toast.remove(loadingId);
-      // console.log(response)
-      if (response?.status === 201 || response?.status === 200) {
-        toast.success("Client created successfully.", {
-          title: "All set",
-          durationMs: 2000,
-          position: "bottom-center",
-        });
-        onCreated?.();
-        reset();
-        setOpen(false);
+
+      if (response?.status === 200 || response?.status === 201) {
+        toast.success(
+          isEdit ? "Client updated successfully." : "Client created successfully.",
+          {
+            title: isEdit ? "Refreshed" : "All set",
+            durationMs: 2000,
+            position: "bottom-center",
+          }
+        );
+        if (!isEdit) onCreated?.();
+        onSaved?.();
+        if (isEdit) {
+          // keep sheet open but clear touched, or close—choose your adventure:
+          setOpen(false);
+        } else {
+          reset();
+          setOpen(false);
+        }
       } else {
         toast.warning?.("The server responded unexpectedly.", {
           title: `Status ${response?.status ?? "—"}`,
@@ -139,29 +227,41 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
       const msg =
         err?.response?.data?.error ||
         err?.message ||
-        "We couldn’t create the client right now.";
+        (isEdit
+          ? "We couldn’t update the client right now."
+          : "We couldn’t create the client right now.");
       toast.error(msg, {
-        title: "Create failed",
+        title: isEdit ? "Update failed" : "Create failed",
         durationMs: 4500,
         position: "bottom-center",
       });
     }
   };
 
+  const defaultTrigger = (
+    <Button className="gap-2 !bg-sky-500">
+      <Plus className="h-4 w-4" />
+      Add Client
+    </Button>
+  );
+
   return (
-    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
-      <SheetTrigger asChild>
-        <Button className="gap-2 !bg-sky-500">
-          <Plus className="h-4 w-4" />
-          Add Client
-        </Button>
-      </SheetTrigger>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
+      <SheetTrigger asChild>{trigger ?? defaultTrigger}</SheetTrigger>
 
       <SheetContent className="w-full sm:max-w-xl !p-4 !overflow-auto">
         <SheetHeader>
-          <SheetTitle>Create Client</SheetTitle>
+          <SheetTitle>{isEdit ? "Edit Client" : "Create Client"}</SheetTitle>
           <SheetDescription>
-            Spin up a net-new client artifact. You can recalibrate fields post-MVP.
+            {isEdit
+              ? "Right-size the client artifact. Iterate safely; changes are reversible in future sprints."
+              : "Spin up a net-new client artifact. You can recalibrate fields post-MVP."}
           </SheetDescription>
         </SheetHeader>
 
@@ -226,18 +326,6 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
             />
           </div>
 
-          {/* <div className="grid gap-2">
-            <Label htmlFor="np-progress">Progress (%)</Label>
-            <Input
-              id="np-progress"
-              type="number"
-              min={0}
-              max={100}
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
-            />
-          </div> */}
-
           <div className="grid gap-2">
             <Label>Status</Label>
             <Select value={status} onValueChange={(v) => setStatus(v)}>
@@ -248,7 +336,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
                 <SelectItem value="NOT STARTED">Not Started</SelectItem>
                 <SelectItem value="IN PROGRESS">In Progress</SelectItem>
                 <SelectItem value="BLOCKED">Blocked</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem> {/* fixed label */}
+                <SelectItem value="COMPLETED">Completed</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -269,13 +357,13 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
             <Button variant="ghost">Cancel</Button>
           </SheetClose>
           <Button
-            onClick={handleCreate}
+            onClick={handleSave}
             className="!bg-sky-500"
             disabled={!isValid}
             aria-disabled={!isValid}
             title={!isValid ? "Fill required fields to proceed" : undefined}
           >
-            Create Client
+            {isEdit ? "Update Client" : "Create Client"}
           </Button>
         </SheetFooter>
       </SheetContent>

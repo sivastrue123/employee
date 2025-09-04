@@ -1,10 +1,14 @@
 import { api } from "@/lib/axios";
 import axios from "axios";
 
-export const createClinet = async (payload: any, userId: string) => {
+export const updateClient = async (
+  clientId: string,
+  payload: any,
+  userId: string
+) => {
   try {
-    const response = await api.post(
-      `/api/client/createClient?userId=${userId}`,
+    const response = await api.patch(
+      `/api/client/${clientId}/updateClient?userId=${userId}`,
       payload
     );
     return { data: response.data, status: response.status };

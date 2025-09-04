@@ -30,6 +30,7 @@ import { useAuth } from "@/context/AuthContext";
 
 // ✅ bring in your first-party toast system
 import { useToast } from "@/toast/ToastProvider";
+import { api } from "@/lib/axios";
 
 // ---------- Types ----------
 type ViewMode = "grid" | "table";
@@ -113,7 +114,7 @@ export default function Employees() {
     });
 
     try {
-      const res = await axios.get<ApiEmployee[]>(
+      const res = await api.get<ApiEmployee[]>(
         "/api/employee/getAllEmployee",
         {
           cancelToken: cancelSource.token,

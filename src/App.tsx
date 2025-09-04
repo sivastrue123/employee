@@ -6,6 +6,7 @@ import { jwtDecode } from "jwt-decode";
 import { RouterProvider } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import axios from "axios";
+import { api } from "./lib/axios";
 import Data_security_02 from "./assets/Data_security_02.jpg";
 
 // ✅ Use your in-house toast system
@@ -67,7 +68,7 @@ export default function App() {
         dismissible: true,
       });
 
-      const response = await axios.get(`/api/employee/checkEmail?email=${userEmail}`);
+      const response = await api.get(`/api/employee/checkEmail?email=${userEmail}`);
 
       if (response.status === 200) {
         const details = response.data?.employee_details;

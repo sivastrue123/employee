@@ -1,5 +1,5 @@
 // components/clients/Projects.tsx
-import React from "react";
+import React, { useState } from "react";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,8 @@ const Projects: React.FC = () => {
     toggleChecklistItem,
     tasks,
   } = useClients();
+
+  const [isEdit, setIsEdit] = useState<boolean>(false);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pb-16">
@@ -173,6 +175,8 @@ const Projects: React.FC = () => {
                     Due <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
                   </Button>
                 </TableHead>
+
+                <TableHead>Actions</TableHead>
                 <TableHead className="whitespace-nowrap">Details</TableHead>
               </TableRow>
             </TableHeader>
@@ -184,10 +188,7 @@ const Projects: React.FC = () => {
                   const isOpen = expandedId === p._id;
                   return (
                     <React.Fragment key={p.id}>
-                      <TableRow
-                        className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors cursor-pointer"
-                        onClick={() => toggleExpand(p._id as string)}
-                      >
+                      <TableRow className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors cursor-pointer">
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="whitespace-nowrap ">
                           <span className="inline-flex items-center gap-1">
@@ -197,7 +198,7 @@ const Projects: React.FC = () => {
                           </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {p.team ? p.team :  "—"}
+                          {p.team ? p.team : "—"}
                         </TableCell>
                         <TableCell className="max-w-[260px]">
                           <div className="flex flex-wrap items-center gap-1">
@@ -236,6 +237,18 @@ const Projects: React.FC = () => {
                             <CalendarIcon className="h-4 w-4 opacity-60" />
                             {format(due, "PPP")}
                           </span>
+                        </TableCell>
+                        <TableCell
+                          onClick={() => {
+                            setIsEdit(!isEdit);
+                          }}
+                        >
+                          <AddClient
+                          client={p}
+                          employeeOptions={employeeSelectOptions}
+                          trigger={<Button variant="outline">Edit</Button>}
+                          onSaved={handleProjects}
+                        />
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <Button

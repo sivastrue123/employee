@@ -71,6 +71,7 @@ import Select from "react-select";
 import { useToast } from "@/toast/ToastProvider";
 import * as XLSX from "xlsx";
 import { Download } from "lucide-react";
+import { api } from "@/lib/axios";
 
 // ---------------- constants ----------------
 const PAGE_SIZE = 10;
@@ -285,7 +286,7 @@ const EmployeeTable: React.FC<{
     let active = true;
     (async () => {
       try {
-        const res = await axios.get<Employee[]>("/api/employee/getAllEmployee");
+        const res = await api.get<Employee[]>("/api/employee/getAllEmployee");
         if (!active) return;
         setEmployeeOptions(res.data ?? []);
       } catch {
@@ -347,7 +348,7 @@ const EmployeeTable: React.FC<{
           search: filters?.search,
         });
 
-        const res = await axios.get(`/api/attendance/getAllAttendance${qs}`, {
+        const res = await api.get(`/api/attendance/getAllAttendance${qs}`, {
           signal: controller.signal,
         });
 
@@ -693,7 +694,7 @@ const EmployeeTable: React.FC<{
     clockIn?: any;
     clockOut?: any;
   }) => {
-    return axios.post(`/api/attendance/MoreActions/${user?.userId}`, {
+    return api.post(`/api/attendance/MoreActions/${user?.userId}`, {
       payload,
     });
   };

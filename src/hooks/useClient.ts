@@ -14,6 +14,7 @@ import { useAuth } from "@/context/AuthContext.js";
 
 // ✅ In-house toast system (same pattern as App.tsx)
 import { useToast } from "@/toast/ToastProvider"; // <-- adjust path if needed
+import { api } from "@/lib/axios.js";
 
 // Small helper to classify errors and humanize messages
 const parseHttpError = (error: any) => {
@@ -105,7 +106,7 @@ export function useClients() {
     });
 
     try {
-      const response = await axios.get("api/client/getAllClient", axiosOpts);
+      const response = await api.get("api/client/getAllClient", axiosOpts);
 
       if (response.status === 304) {
         toast.remove(loadingId);
@@ -214,7 +215,7 @@ export function useClients() {
     });
 
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `/api/client/${clientId}/getAllTasks`,
         axiosOpts
       );
@@ -271,7 +272,7 @@ export function useClients() {
     });
 
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/client/${clientId}/createTask?userId=${user.employee_id}`,
         data,
         axiosOpts
@@ -328,7 +329,7 @@ export function useClients() {
     });
 
     try {
-      const response = await axios.patch(
+      const response = await api.patch(
         `/api/client/${clientId}/task/${data?._id}/updateTask?userId=${user.employee_id}`,
         data,
         axiosOpts
@@ -393,7 +394,7 @@ export function useClients() {
     });
 
     try {
-      const response = await axios.delete(
+      const response = await api.delete(
         `/api/client/${clientId}/task/${taskId}/deleteTask?userId=${user.employee_id}`,
         axiosOpts
       );

@@ -16,6 +16,7 @@ import axios from "axios";
 
 // ✅ bring in your first-party toast system
 import { useToast } from "@/toast/ToastProvider";
+import { api } from "@/lib/axios";
 
 const DEPARTMENTS = ["Development", "Support", "AI", "Sales", "Management", "API"];
 const STATUS_OPTIONS = [
@@ -117,9 +118,9 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
       };
 
       if (employee) {
-        await axios.patch(`/api/employee/editEmployee/${employee._id}`, payload);
+        await api.patch(`/api/employee/editEmployee/${employee._id}`, payload);
       } else {
-        await axios.post("/api/employee/addEmployee", payload);
+        await api.post("/api/employee/addEmployee", payload);
       }
 
       // Let the parent own the success toast to avoid double messaging
