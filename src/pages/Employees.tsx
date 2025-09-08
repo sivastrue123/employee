@@ -317,7 +317,7 @@ export default function Employees() {
       )}
 
       {isLoading ? (
-        <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-12 ">
+        <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6  ">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse !w-[300px] !h-[330px]">
               <CardHeader className="!w-full ">
