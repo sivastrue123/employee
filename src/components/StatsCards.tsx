@@ -44,11 +44,11 @@ export default function StatsCards({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="rounded-[9px] shadow-lg  hover:shadow-xl transition-shadow duration-300 w-full ">
+      <Card className="rounded-[9px]  shadow-lg  hover:shadow-xl transition-shadow duration-300 w-full ">
         <CardContent className={change ? "" : "pb-4"}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 mb-1">{title}</p>
+              <p className="text-sm font-medium text-slate-600 mb-2 h-[30px]">{title}</p>
               <p className="text-3xl font-bold text-slate-900">{value}</p>
             </div>
             <div

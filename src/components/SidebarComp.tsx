@@ -263,7 +263,7 @@ export default function SidebarComp({ children }: any) {
         localStorage.setItem("isClockedIn", "true");
         localStorage.setItem("clockInTime", response.data.data.clockIn);
         localStorage.setItem("attendanceId", response.data.data._id);
-
+        setAttendanceRefresh(!attendanceRefresh);
         setIsClockedIn(true);
         setElapsedTime(elapsed);
       }
