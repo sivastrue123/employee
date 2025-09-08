@@ -23,10 +23,10 @@ export default function StatsCards({
 }: StatsCardProps) {
   if (isLoading) {
     return (
-      <Card className=" shadow-lg ">
-        <CardContent className="p-6">
+      <Card className=" shadow-lg !w-full">
+        <CardContent className="p-12">
           <div className="flex items-center justify-between ">
-            <div className="space-y-2">
+            <div className="space-y-2 h-[30px]">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-16" />
             </div>

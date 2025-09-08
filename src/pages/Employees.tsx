@@ -33,7 +33,6 @@ import { api } from "@/lib/axios";
 type ViewMode = "grid" | "table";
 type ApiEmployee = Employee;
 
-
 const ADD_EMPLOYEE_QP = "AddEmployee";
 const isAddEmployeeParam = (search: string) => {
   const params = new URLSearchParams(search);
@@ -46,7 +45,7 @@ export default function Employees() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const toast = useToast(); 
+  const toast = useToast();
 
   const [employees, setEmployees] = useState<ApiEmployee[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -72,7 +71,6 @@ export default function Employees() {
     };
   }, []);
 
-
   useEffect(() => {
     if (user && user.role !== "admin") {
       toast.warning("You don’t have access to Employee Management.", {
@@ -82,27 +80,22 @@ export default function Employees() {
       });
       navigate("/Attendance", { replace: true });
     }
- 
   }, [user]);
-
 
   useEffect(() => {
     setShowForm(isAddEmployeeParam(location.search));
   }, [location.search]);
-
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(searchInput), 250);
     return () => clearTimeout(id);
   }, [searchInput]);
 
-
   const loadEmployees = useCallback(async () => {
     let cancelSource: CancelTokenSource | null = axios.CancelToken.source();
     setIsLoading(true);
     setError(null);
 
-  
     const loadingId = toast.info("Fetching Employees...", {
       durationMs: 0,
       position: "bottom-center",
@@ -110,15 +103,12 @@ export default function Employees() {
     });
 
     try {
-      const res = await api.get<ApiEmployee[]>(
-        "/api/employee/getAllEmployee",
-        {
-          cancelToken: cancelSource.token,
-        }
-      );
+      const res = await api.get<ApiEmployee[]>("/api/employee/getAllEmployee", {
+        cancelToken: cancelSource.token,
+      });
       if (isMountedRef.current) {
         setEmployees(res.data ?? []);
-      
+
         toast.remove(loadingId);
         toast.success("Employee Data refreshed.", {
           durationMs: 1800,
@@ -271,7 +261,6 @@ export default function Employees() {
       position: "bottom-center",
     });
   };
-  
 
   return (
     <div
@@ -328,16 +317,26 @@ export default function Employees() {
       )}
 
       {isLoading ? (
-        <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-12 ">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-slate-200 rounded-full" />
-                  <div className="space-y-2">
-                    <div className="h-4 bg-slate-200 rounded w-32" />
-                    <div className="h-3 bg-slate-200 rounded w-24" />
+            <Card key={i} className="animate-pulse !w-[300px] !h-[330px]">
+              <CardHeader className="!w-full ">
+                <div className="flex ">
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="w-16 h-16 bg-slate-200 rounded-full w-full" />
+                    <div className="space-y-2 w-full">
+                      <div className="h-4 bg-slate-200 rounded w-32" />
+                      <div className="h-3 bg-slate-200 rounded w-24" />
+                    </div>
                   </div>
+                </div>
+                <div className="flex flex-col space-y-6">
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
                 </div>
               </CardHeader>
             </Card>
