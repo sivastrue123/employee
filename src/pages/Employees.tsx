@@ -27,16 +27,13 @@ import EmployeeForm from "@/components/EmployeeForm";
 import EmployeeFilters from "@/components/EmployeeFilters";
 import EmployeeTable from "@/components/EmployeeTable";
 import { useAuth } from "@/context/AuthContext";
-
-// ✅ bring in your first-party toast system
 import { useToast } from "@/toast/ToastProvider";
 import { api } from "@/lib/axios";
 
-// ---------- Types ----------
 type ViewMode = "grid" | "table";
 type ApiEmployee = Employee;
 
-// ---------- Helpers ----------
+
 const ADD_EMPLOYEE_QP = "AddEmployee";
 const isAddEmployeeParam = (search: string) => {
   const params = new URLSearchParams(search);
@@ -45,12 +42,11 @@ const isAddEmployeeParam = (search: string) => {
 
 const normalize = (v?: string) => (v ?? "").toLowerCase().trim();
 
-// ---------- Component ----------
 export default function Employees() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const toast = useToast(); // ✅
+  const toast = useToast(); 
 
   const [employees, setEmployees] = useState<ApiEmployee[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -76,7 +72,7 @@ export default function Employees() {
     };
   }, []);
 
-  // guard route (simple client check; enforce on server too)
+
   useEffect(() => {
     if (user && user.role !== "admin") {
       toast.warning("You don’t have access to Employee Management.", {
@@ -86,28 +82,28 @@ export default function Employees() {
       });
       navigate("/Attendance", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+ 
   }, [user]);
 
-  // reflect query param changes (open form if `?AddEmployee`)
+
   useEffect(() => {
     setShowForm(isAddEmployeeParam(location.search));
   }, [location.search]);
 
-  // debounced search
+
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(searchInput), 250);
     return () => clearTimeout(id);
   }, [searchInput]);
 
-  // —— data loader with cancellation + toasts ——
+
   const loadEmployees = useCallback(async () => {
     let cancelSource: CancelTokenSource | null = axios.CancelToken.source();
     setIsLoading(true);
     setError(null);
 
-    // sticky loader toast while we fetch
-    const loadingId = toast.info("Fetching team roster…", {
+  
+    const loadingId = toast.info("Fetching Employees...", {
       durationMs: 0,
       position: "bottom-center",
       dismissible: true,
@@ -122,12 +118,12 @@ export default function Employees() {
       );
       if (isMountedRef.current) {
         setEmployees(res.data ?? []);
-        // right-size success signal (quiet, time-boxed)
+      
         toast.remove(loadingId);
-        // toast.success("Roster refreshed.", {
-        //   durationMs: 1800,
-        //   position: "bottom-center",
-        // });
+        toast.success("Employee Data refreshed.", {
+          durationMs: 1800,
+          position: "bottom-center",
+        });
       }
     } catch (err: any) {
       if (!axios.isCancel(err)) {
