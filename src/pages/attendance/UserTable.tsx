@@ -469,28 +469,34 @@ const UserTable: React.FC<any> = ({
                 ))
               ) : (
                 <TableRow className="w-full">
-                  <TableCell
-                    colSpan={5}
-                    className="h-56 text-center align-middle"
-                  >
-                    <div className="mx-auto max-w-sm">
-                      <div className="mb-2 text-5xl">🗓️</div>
-                      <div className="text-lg font-semibold text-slate-900">
-                        No results in this view
+                  {loading ? (
+                    <TableCell colSpan={13} className="h-40 text-center">
+                      Loading…
+                    </TableCell>
+                  ) : (
+                    <TableCell
+                      colSpan={5}
+                      className="h-56 text-center align-middle"
+                    >
+                      <div className="mx-auto max-w-sm">
+                        <div className="mb-2 text-5xl">🗓️</div>
+                        <div className="text-lg font-semibold text-slate-900">
+                          No results in this view
+                        </div>
+                        <div className="mt-1 text-sm text-slate-600">
+                          Try widening your date range or clearing filters.
+                        </div>
+                        <div className="mt-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => applyPreset("clear")}
+                          >
+                            Reset filters
+                          </Button>
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm text-slate-600">
-                        Try widening your date range or clearing filters.
-                      </div>
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => applyPreset("clear")}
-                        >
-                          Reset filters
-                        </Button>
-                      </div>
-                    </div>
-                  </TableCell>
+                    </TableCell>
+                  )}
                 </TableRow>
               )}
             </TableBody>
