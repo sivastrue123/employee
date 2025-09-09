@@ -268,7 +268,7 @@ export default function Employees() {
         viewMode == "table" ? "lg:pl-14 lg:pr-10" : "lg:px-10"
       }  !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto`}
     >
-      <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
         <div>
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
             Team Members
