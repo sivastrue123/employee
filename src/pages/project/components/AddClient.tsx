@@ -341,7 +341,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
             </Select>
           </div>
 
-          <div className="grid gap-2">
+          {/* <div className="grid gap-2">
             <Label htmlFor="np-due">Due Date</Label>
             <Input
               id="np-due"
@@ -349,7 +349,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
               value={due}
               onChange={(e) => setDue(e.target.value)}
             />
-          </div>
+          </div> */}
         </div>
 
         <SheetFooter className="mt-6">

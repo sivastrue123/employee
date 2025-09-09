@@ -166,7 +166,7 @@ const Projects: React.FC = () => {
                   </Button>
                 </TableHead> */}
                 <TableHead className="whitespace-nowrap">Status</TableHead>
-                <TableHead className="whitespace-nowrap">
+                {/* <TableHead className="whitespace-nowrap">
                   <Button
                     variant="ghost"
                     onClick={() => toggleSort("dueDate")}
@@ -174,10 +174,10 @@ const Projects: React.FC = () => {
                   >
                     Due <ArrowUpDown className="ml-1 h-4 w-4 opacity-60" />
                   </Button>
-                </TableHead>
+                </TableHead> */}
 
                 <TableHead>Actions</TableHead>
-                <TableHead className="whitespace-nowrap">Details</TableHead>
+                <TableHead className="whitespace-nowrap">Tasks</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -232,23 +232,23 @@ const Projects: React.FC = () => {
                             {p.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        {/* <TableCell className="whitespace-nowrap">
                           <span className="inline-flex items-center gap-1">
                             <CalendarIcon className="h-4 w-4 opacity-60" />
                             {format(due, "PPP")}
                           </span>
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell
                           onClick={() => {
                             setIsEdit(!isEdit);
                           }}
                         >
                           <AddClient
-                          client={p}
-                          employeeOptions={employeeSelectOptions}
-                          trigger={<Button variant="outline">Edit</Button>}
-                          onSaved={handleProjects}
-                        />
+                            client={p}
+                            employeeOptions={employeeSelectOptions}
+                            trigger={<Button variant="outline">Edit</Button>}
+                            onSaved={handleProjects}
+                          />
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <Button
