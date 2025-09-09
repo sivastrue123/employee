@@ -260,8 +260,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
                 {/* Description */}
                 {t.description && (
-                  <div className="mt-3 text-sm text-slate-700">
-                    {t.description}
+                  <div className="mt-3 text-sm w-full text-wrap text-slate-700">
+                    <span className="font-bold">Description:</span> {t.description}
                   </div>
                 )}
 
@@ -303,7 +303,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                             onToggleChecklistItem(clientId as string, t._id, c._id)
                           }
                         />
-                        <span className={c.done ? "line-through text-slate-500" : ""}>
+                        <span className={c.done ? "line-through text-slate-500 w-full text-wrap" : ""}>
                           {c.text}
                         </span>
                       </label>

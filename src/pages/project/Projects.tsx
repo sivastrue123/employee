@@ -68,7 +68,7 @@ const Projects: React.FC = () => {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 pb-16">
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex items-center justify-between  gap-4">
         <div>
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
             Clients

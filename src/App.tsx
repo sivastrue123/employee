@@ -4,16 +4,17 @@ import router from "./router/Router.js";
 import { jwtDecode } from "jwt-decode";
 import { RouterProvider } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import axios from "axios";
 import { api } from "./lib/axios";
-
 // ✅ Use your in-house toast system
 import { useToast } from "./toast/ToastProvider"; // adjust path if needed
+import { useState } from "react";
 
 export default function App() {
   const { user, setUser } = useAuth();
   const toast = useToast();
-
+  const [status, setStatus] = useState<
+    "idle" | "pending" | "enabled" | "error"
+  >("idle");
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 
   const handleSuccess = async (credentialResponse: any) => {
@@ -107,15 +108,6 @@ export default function App() {
       position: "bottom-center",
     });
   };
-
-  const SkeletonLoader = () => (
-    <div className="min-h-screen w-screen flex items-center justify-center p-4 bg-gray-200 animate-pulse">
-      <div className="bg-gray-300 p-8 rounded-xl shadow-lg w-full max-w-md h-60 flex flex-col justify-center items-center">
-        <div className="h-8 bg-gray-400 rounded w-3/4 mb-6"></div>
-        <div className="h-12 bg-gray-400 rounded w-2/3"></div>
-      </div>
-    </div>
-  );
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>

@@ -85,7 +85,7 @@ const UserTable: React.FC<any> = ({
     setLoading(true);
     try {
       const response = await api.get(
-        `/api/attendance/getAttendanceByEmployee/employee/${user?.employee_id}`
+        `/api/attendance/getAttendanceByEmployee?employeeId=${user?.employee_id}`
       );
       setAttendanceData(response.data.data);
     } catch (error) {

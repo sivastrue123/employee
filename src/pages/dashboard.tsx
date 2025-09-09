@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+// import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -16,12 +16,16 @@ import AttendanceOverview from "../components/AttendanceOverview";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "@/toast/ToastProvider";
 import { api } from "@/lib/axios";
+import { notifyInPage, subscribeToPush } from "@/lib/notification";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, attendanceRefresh } = useAuth();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  // const [status, setStatus] = useState<
+  //   "idle" | "pending" | "enabled" | "error"
+  // >("idle");
   const [dashboardData, setdashboardData] = useState<any>();
   const handleAddEmployee = useCallback(() => {
     navigate("/Employees?AddEmployee");
@@ -31,6 +35,30 @@ export default function Dashboard() {
     return user?.name || user?.displayName || "there";
   }, [user]);
 
+  // const handleEnable = async () => {
+  //   try {
+  //     setStatus("pending");
+  //     await subscribeToPush({
+  //       vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+  //       userId: user?.employee_id,
+  //     });
+  //     setStatus("enabled");
+  //     notifyInPage({
+  //       title: "Notifications enabled",
+  //       body: "You’ll get alerts even if this tab is closed.",
+  //     });
+  //     await api.post("/api/push/send", {
+  //       userId: user?.employee_id,
+  //       title: "Hello",
+  //       body: "This is your first Web Push 🚀",
+  //       url: "/",
+  //     });
+  //   } catch (e: any) {
+  //     console.error(e);
+  //     setStatus("error");
+  //     alert(e?.message ?? "Failed to enable notifications");
+  //   }
+  // };
   const handleGetAllDashboardData = async () => {
     try {
       setIsLoading(true);
@@ -163,6 +191,10 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+      {/* <button onClick={handleEnable} disabled={status === "pending"}>
+        {status === "pending" ? "Enabling…" : "Enable Notifications"}
+      </button>
+      <p>Status: {status}</p> */}
     </div>
   );
 }
