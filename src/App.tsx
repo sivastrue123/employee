@@ -181,7 +181,7 @@ export default function App() {
                 />
                 <div className="max-w-xl">
                   <h1 className="text-3xl lg:text-4xl font-semibold tracking-tight">
-                    Employee Portal
+                    EZOFIS Team Hub
                   </h1>
                   <p className="mt-3 text-gray-600 dark:text-gray-400 text-base lg:text-lg">
                     Centralized access to your day-to-day workflows — securely
@@ -193,7 +193,7 @@ export default function App() {
                     {[
                       { k: "99.99%", v: "Uptime" },
                       { k: "SOC 2", v: "Type II" },
-                      { k: "SAML/SSO", v: "Ready" },
+                      { k: "SSO", v: "Ready" },
                     ].map((item) => (
                       <div
                         key={item.k}
