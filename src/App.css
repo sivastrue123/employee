@@ -5,6 +5,19 @@
   /* text-align: center; */
   background-color: #F8FAFC;
 }
+/* Subtle dotted grid background for large screens */
+@media (min-width: 1024px) {
+  body {
+    background-image:
+      radial-gradient(currentColor 0.5px, transparent 0.5px);
+    background-size: 16px 16px;
+    background-repeat: repeat;
+    color: rgba(0,0,0,0.85);
+  }
+  .dark body {
+    color: rgba(255,255,255,0.9);
+  }
+}
 
 /* .logo {
   height: 6em;
