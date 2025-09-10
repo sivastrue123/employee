@@ -392,7 +392,11 @@ const EmployeeTable: React.FC<{
             isNetwork
               ? "Network hiccup while loading attendance. Please retry."
               : "We couldn’t load attendance right now.",
-            { title: "Load failed", durationMs: 4000, position: "bottom-center" }
+            {
+              title: "Load failed",
+              durationMs: 4000,
+              position: "bottom-center",
+            }
           );
         }
       } finally {
@@ -785,7 +789,7 @@ const EmployeeTable: React.FC<{
         durationMs: 2200,
         position: "bottom-center",
       });
-
+      setAttendanceRefresh(!attendanceRefresh);
       setOpen(false);
       setSelectedEmployees([]);
       setSelectedStatus(null);
@@ -1161,7 +1165,7 @@ const EmployeeTable: React.FC<{
 
                   <SheetContent>
                     <SheetHeader>
-                      <SheetTitle>More Option</SheetTitle>
+                      <SheetTitle>Absence Entry</SheetTitle>
                     </SheetHeader>
 
                     <form onSubmit={handleSubmit}>
