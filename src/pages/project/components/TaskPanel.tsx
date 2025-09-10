@@ -51,6 +51,7 @@ interface TaskPanelProps {
   ) => void;
   clientId: string;
   clientName?: string;
+  isLoading?: boolean;
 }
 
 export const TaskPanel: React.FC<TaskPanelProps> = ({
@@ -64,6 +65,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   onToggleChecklistItem,
   clientId,
   clientName,
+  isLoading = false,
 }) => {
   // Dialog state (create/edit)
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -122,7 +124,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
       <Separator className="my-3" />
 
-      {tasks?.length === 0 ? (
+      {isLoading ? (
+        <div className="text-sm text-slate-600">Loading Tasks...</div>
+      ) : tasks?.length === 0 ? (
         <div className="text-sm text-slate-600">
           No tasks yet. Lean in and create the first one.
         </div>
@@ -176,7 +180,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     </Button>
 
                     {/* Delete - now launches confirmation */}
-                    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                    <AlertDialog
+                      open={confirmOpen}
+                      onOpenChange={setConfirmOpen}
+                    >
                       <AlertDialogTrigger asChild>
                         <Button
                           variant="ghost"
@@ -261,7 +268,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                 {/* Description */}
                 {t.description && (
                   <div className="mt-3 text-sm w-full text-wrap text-slate-700">
-                    <span className="font-bold">Description:</span> {t.description}
+                    <span className="font-bold">Description:</span>{" "}
+                    {t.description}
                   </div>
                 )}
 
@@ -300,10 +308,20 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           checked={c.done}
                           onChange={() =>
-                            onToggleChecklistItem(clientId as string, t._id, c._id)
+                            onToggleChecklistItem(
+                              clientId as string,
+                              t._id,
+                              c._id
+                            )
                           }
                         />
-                        <span className={c.done ? "line-through text-slate-500 w-full text-wrap" : ""}>
+                        <span
+                          className={
+                            c.done
+                              ? "line-through text-slate-500 w-full text-wrap"
+                              : ""
+                          }
+                        >
                           {c.text}
                         </span>
                       </label>

@@ -62,6 +62,7 @@ const Projects: React.FC = () => {
     updateTask,
     toggleChecklistItem,
     tasks,
+    isTaskLoading
   } = useClients();
 
   const [isEdit, setIsEdit] = useState<boolean>(false);
@@ -285,6 +286,7 @@ const Projects: React.FC = () => {
                               onToggleChecklistItem={toggleChecklistItem}
                               clientId={p?._id}
                               clientName={p?.name}
+                              isLoading={isTaskLoading}
                             />
                           </TableCell>
                         </TableRow>

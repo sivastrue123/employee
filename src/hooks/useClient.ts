@@ -26,8 +26,7 @@ const parseHttpError = (error: any) => {
   if (isNetwork) {
     return {
       title: "Network issue",
-      message:
-        "We hit a network hiccup. Verify your connection and try again.",
+      message: "We hit a network hiccup. Verify your connection and try again.",
     };
   }
 
@@ -91,7 +90,7 @@ export function useClients() {
 
   const [projects, setProjects] = useState<ProjectWithTasks[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
-
+  const [isTaskLoading, setIsTaskLoading] = useState<boolean>(false);
   // KPIs
   const [dueSoon, setDueSoon] = useState(0);
   const [riskCount, setRiskCount] = useState(0);
@@ -144,8 +143,6 @@ export function useClients() {
     handleProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
- 
 
   // search + sort + pagination
   const [query, setQuery] = useState("");
@@ -231,6 +228,7 @@ export function useClients() {
       }
 
       setTasks(response?.data?.items ?? []);
+      setIsTaskLoading(false);
       toast.remove(loadingId);
       toast.success("Tasks loaded.", {
         durationMs: 1400,
@@ -244,11 +242,14 @@ export function useClients() {
         durationMs: 4500,
         position: "bottom-center",
       });
+      setIsTaskLoading(false);
+      setTasks([]);
     }
   };
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleExpand = (id: string) => {
+    setIsTaskLoading(true);
     handleGetAllTasks(id);
     setExpandedId((cur) => (cur === id ? null : id));
   };
@@ -312,7 +313,11 @@ export function useClients() {
     void handleCreateTask(projectId, payload);
   };
 
-  const handleEditTask = async (clientId: string, data: any, opts?: { label?: string }) => {
+  const handleEditTask = async (
+    clientId: string,
+    data: any,
+    opts?: { label?: string }
+  ) => {
     if (!user?.employee_id) {
       toast.error("Your employee identity is missing.", {
         title: "Cannot update task",
@@ -510,5 +515,7 @@ export function useClients() {
     updateTask,
     removeTask,
     toggleChecklistItem,
+    isTaskLoading,
+    setIsTaskLoading,
   };
 }
