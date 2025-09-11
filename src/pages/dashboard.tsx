@@ -1,6 +1,6 @@
+// src/pages/Dashboard.tsx  (your file, edited)
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-// import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -9,56 +9,29 @@ import {
   TrendingUp,
   CheckCircle2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import StatsCards from "../components/StatsCards";
 import AttendanceOverview from "../components/AttendanceOverview";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "@/toast/ToastProvider";
 import { api } from "@/lib/axios";
-import { notifyInPage, subscribeToPush } from "@/lib/notification";
+import { QuickActionsCard } from "@/widgets/QuickActionsCard"; // ⬅️ new import
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, attendanceRefresh } = useAuth();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  // const [status, setStatus] = useState<
-  //   "idle" | "pending" | "enabled" | "error"
-  // >("idle");
   const [dashboardData, setdashboardData] = useState<any>();
+
   const handleAddEmployee = useCallback(() => {
     navigate("/Employees?AddEmployee");
   }, [navigate]);
 
-  const greetingName = useMemo(() => {
-    return user?.name || user?.displayName || "there";
-  }, [user]);
+  const greetingName = useMemo(
+    () => user?.name || user?.displayName || "there",
+    [user]
+  );
 
-  // const handleEnable = async () => {
-  //   try {
-  //     setStatus("pending");
-  //     await subscribeToPush({
-  //       vapidPublicKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-  //       userId: user?.employee_id,
-  //     });
-  //     setStatus("enabled");
-  //     notifyInPage({
-  //       title: "Notifications enabled",
-  //       body: "You’ll get alerts even if this tab is closed.",
-  //     });
-  //     await api.post("/api/push/send", {
-  //       userId: user?.employee_id,
-  //       title: "Hello",
-  //       body: "This is your first Web Push 🚀",
-  //       url: "/",
-  //     });
-  //   } catch (e: any) {
-  //     console.error(e);
-  //     setStatus("error");
-  //     alert(e?.message ?? "Failed to enable notifications");
-  //   }
-  // };
   const handleGetAllDashboardData = async () => {
     try {
       setIsLoading(true);
@@ -68,25 +41,21 @@ export default function Dashboard() {
         dismissible: true,
       });
       const response = await api.get("/api/employee/getDashboardData");
-      if (response?.status == 200) {
-        setIsLoading(false);
-        toast.remove(loadingId);
+      if (response?.status === 200) {
         setdashboardData(response?.data);
+        toast.remove(loadingId);
         toast.success("Data Fetched Successfully", {
           durationMs: 1000,
           position: "bottom-center",
-          dismissible: true,
         });
       }
-    } catch (error) {
+    } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user && user.role == "admin") {
-      handleGetAllDashboardData();
-    }
+    if (user && user.role === "admin") handleGetAllDashboardData();
   }, [attendanceRefresh]);
   useEffect(() => {
     if (user && user.role !== "admin") {
@@ -100,7 +69,7 @@ export default function Dashboard() {
   }, [user]);
 
   return (
-    <div className="flex flex-col w-full max-w-full h-auto px-4 lg:px-8 py-6 overflow-hidden box-border">
+    <div className="flex flex-col w-[100%] min-w-0 h-auto px-4 lg:px-8 py-6 box-border">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -114,7 +83,14 @@ export default function Dashboard() {
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-4 mb-8">
+      {/* KPI Grid → each card now links to its screen */}
+      <div
+        className="
+    grid gap-4 my-4 mb-8
+    grid-cols-4
+    min-w-0
+  "
+      >
         <StatsCards
           title="Total Employees"
           value={dashboardData?.totalEmployees?.count}
@@ -122,6 +98,7 @@ export default function Dashboard() {
           gradient="from-blue-500 to-blue-600"
           change={dashboardData?.totalEmployees?.diff}
           isLoading={isLoading}
+          to="Employees"
         />
         <StatsCards
           title="Active Projects"
@@ -130,6 +107,7 @@ export default function Dashboard() {
           gradient="from-purple-500 to-purple-600"
           change={dashboardData?.activeProjects?.diff}
           isLoading={isLoading}
+          to="Projects"
         />
         <StatsCards
           title="Current Month Attendance"
@@ -138,6 +116,7 @@ export default function Dashboard() {
           gradient="from-green-500 to-green-600"
           change={dashboardData?.thisMonthAttendance?.diff}
           isLoading={isLoading}
+          to="Attendance"
         />
         <StatsCards
           title="Completed Tasks"
@@ -146,55 +125,39 @@ export default function Dashboard() {
           gradient="from-orange-500 to-orange-600"
           change={dashboardData?.completedTasks?.diff}
           isLoading={isLoading}
+          to="Attendance"
         />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <AttendanceOverview
-            isLoading={isLoading as boolean}
+            isLoading={!!isLoading}
             data={dashboardData?.attendaneState}
           />
-          {/* if needed we need to use this component for displayin all the client's progress */}
-          {/* <ProjectProgress isLoading={isLoading} /> */}
         </div>
 
         <div className="space-y-6">
-          {/* there is no need for recent activity if needed create an api and use this component */}
-          {/* <RecentActivity activities={recentActivities} isLoading={isLoading} /> */}
-
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-slate-800 to-slate-900 text-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* to access this feature we need to centralized the clockin function(global state) */}
-              {/* <Button
-                variant="secondary"
-                className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
-              >
-                <Clock className="w-4 h-4 mr-2" />
-                Clock In/Out
-              </Button> */}
-              <Button
-                variant="secondary"
-                className="w-full justify-start !bg-white/10 hover:!bg-white/20 !text-white border-0"
-                onClick={handleAddEmployee}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Add New Employee
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Reusable Quick Actions widget */}
+          <QuickActionsCard
+            title={
+              <span className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" /> Quick Actions
+              </span>
+            }
+            actions={[
+              // You can add more actions here; they can navigate or call functions
+              {
+                label: "Add New Employee",
+                icon: Users,
+                onClick: handleAddEmployee,
+              },
+              // { label: "Open Attendance", icon: Clock, to: "/Attendance" },
+              // { label: "View Projects", icon: FolderOpen, to: "/Projects" },
+            ]}
+          />
         </div>
       </div>
-      {/* <button onClick={handleEnable} disabled={status === "pending"}>
-        {status === "pending" ? "Enabling…" : "Enable Notifications"}
-      </button>
-      <p>Status: {status}</p> */}
     </div>
   );
 }

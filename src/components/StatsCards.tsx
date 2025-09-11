@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LucideProps, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNavigate } from "react-router-dom";
 interface StatsCardProps {
   title: string;
   value: string | number;
@@ -12,6 +13,7 @@ interface StatsCardProps {
   gradient: string;
   change: string;
   isLoading: boolean;
+  to?: string;
 }
 export default function StatsCards({
   title,
@@ -20,7 +22,9 @@ export default function StatsCards({
   gradient,
   change,
   isLoading,
+  to,
 }: StatsCardProps) {
+  const navigate = useNavigate();
   if (isLoading) {
     return (
       <Card className=" shadow-lg !w-full">
@@ -37,18 +41,31 @@ export default function StatsCards({
       </Card>
     );
   }
-
+  const handleClick = () => {
+    navigate(`/${to}`);
+  };
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="rounded-[9px]  shadow-lg  hover:shadow-xl transition-shadow duration-300 w-full ">
+      <Card
+        className={`rounded-[9px]  shadow-lg  hover:shadow-xl transition-shadow duration-300 w-full ${
+          to && "cursor-pointer"
+        } `}
+        onClick={() => {
+          if (to) {
+            handleClick();
+          }
+        }}
+      >
         <CardContent className={change ? "" : "pb-4"}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 mb-2 h-[30px]">{title}</p>
+              <p className="text-sm font-medium text-slate-600 mb-2 h-[30px]">
+                {title}
+              </p>
               <p className="text-3xl font-bold text-slate-900">{value}</p>
             </div>
             <div
