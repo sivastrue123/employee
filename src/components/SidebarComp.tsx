@@ -9,7 +9,7 @@ import {
   FolderOpen,
   LayoutDashboard,
   LogOut,
-  NotebookPen
+  NotebookPen,
 } from "lucide-react";
 
 import {
@@ -85,7 +85,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Employees", url: "/Employees", icon: Users, roles: ["admin"] },
   { title: "Attendance", url: "/Attendance", icon: Clock },
   { title: "Projects", url: "/Projects", icon: FolderOpen },
-    { title: "Notes", url: "/AddNotes", icon: NotebookPen },
+  { title: "Notes", url: "/AddNotes", icon: NotebookPen },
 ];
 
 /* --------------------------- Component ----------------------------- */
@@ -283,11 +283,17 @@ export default function SidebarComp({
             <SidebarMenu>
               {NAV_ITEMS.filter(
                 (n) => !n.roles || n.roles.includes(String(user?.role))
-              ).map((item) => (
+              ).map((item, index) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
                     isActive={location.pathname === item.url}
+                    className={`rounded-xl transition-all duration-200 ${
+                      location.pathname === item.url ||
+                      (location.pathname === "/" && index === 0)
+                        ? "!bg-sky-500 !text-white shadow-lg"
+                        : "hover:!bg-slate-100 !text-black hover:!text-black"
+                    } `}
                   >
                     <NavLink
                       to={item.url}
@@ -309,7 +315,7 @@ export default function SidebarComp({
         <SidebarSeparator />
 
         {/* Quick Actions — hidden when collapsed */}
-        {isCollapsed=="expanded" && (
+        {isCollapsed == "expanded" && (
           <SidebarGroup>
             <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -389,7 +395,7 @@ export default function SidebarComp({
 
       {/* Footer — show only logout icon when collapsed */}
       <SidebarFooter className="border-t px-3 py-3">
-        {isCollapsed=="collapsed" ? (
+        {isCollapsed == "collapsed" ? (
           <div className="flex items-center justify-center">
             <Button
               variant="ghost"
