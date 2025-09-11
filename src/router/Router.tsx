@@ -5,7 +5,7 @@ import Employees from "@/pages/Employees";
 import Projects from "@/pages/project/Projects";
 import Attendance from "@/pages/attendance/Attendance";
 import Payroll from "@/pages/Payroll";
-
+import AddNotes from "@/pages/addnotes/AddNotes";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -24,6 +24,7 @@ const router = createBrowserRouter([
       { path: "/Projects", element: <Projects /> },
       { path: "/Payroll", element: <Payroll /> },
       { path: "/Attendance", element: <Attendance /> },
+      { path: "/AddNotes", element: <AddNotes /> },
     ],
   },
 ]);

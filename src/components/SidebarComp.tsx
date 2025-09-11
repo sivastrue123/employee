@@ -9,6 +9,7 @@ import {
   FolderOpen,
   LayoutDashboard,
   LogOut,
+  NotebookPen
 } from "lucide-react";
 
 import {
@@ -84,6 +85,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Employees", url: "/Employees", icon: Users, roles: ["admin"] },
   { title: "Attendance", url: "/Attendance", icon: Clock },
   { title: "Projects", url: "/Projects", icon: FolderOpen },
+    { title: "Notes", url: "/AddNotes", icon: NotebookPen },
 ];
 
 /* --------------------------- Component ----------------------------- */
