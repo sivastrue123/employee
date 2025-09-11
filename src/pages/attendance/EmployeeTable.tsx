@@ -297,7 +297,7 @@ const EmployeeTable: React.FC<{
           {
             title: "Filter data unavailable",
             durationMs: 3500,
-            position: "bottom-center",
+            position: "bottom-left",
           }
         );
       }
@@ -331,7 +331,7 @@ const EmployeeTable: React.FC<{
       const loaderToastId = isFirstPage
         ? toast.info("Fetching attendance…", {
             durationMs: 0,
-            position: "bottom-center",
+            position: "bottom-left",
             dismissible: true,
           })
         : null;
@@ -364,7 +364,7 @@ const EmployeeTable: React.FC<{
           toast.remove(loaderToastId);
           toast.success("Attendance refreshed.", {
             durationMs: 1500,
-            position: "bottom-center",
+            position: "bottom-left",
           });
         }
       } catch (e: any) {
@@ -382,7 +382,7 @@ const EmployeeTable: React.FC<{
           if (isFirstPage) setRows([]);
           toast.info("No records found for the selected view.", {
             durationMs: 2200,
-            position: "bottom-center",
+            position: "bottom-left",
           });
         } else {
           const isNetwork =
@@ -395,7 +395,7 @@ const EmployeeTable: React.FC<{
             {
               title: "Load failed",
               durationMs: 4000,
-              position: "bottom-center",
+              position: "bottom-left",
             }
           );
         }
@@ -514,13 +514,13 @@ const EmployeeTable: React.FC<{
       toast.info("No rows to export for the current view.", {
         title: "Nothing to export",
         durationMs: 2000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return;
     }
     const loadingId = toast.info("Packaging Excel…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -534,14 +534,14 @@ const EmployeeTable: React.FC<{
       toast.remove(loadingId);
       toast.success("Excel exported successfully.", {
         durationMs: 1800,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     } catch (e: any) {
       toast.remove(loadingId);
       toast.error("We couldn’t export Excel. Please retry.", {
         title: "Export failed",
         durationMs: 3500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     }
   };
@@ -551,13 +551,13 @@ const EmployeeTable: React.FC<{
       toast.info("No rows to export for the current view.", {
         title: "Nothing to export",
         durationMs: 2000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return;
     }
     const loadingId = toast.info("Generating CSV…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -580,14 +580,14 @@ const EmployeeTable: React.FC<{
       toast.remove(loadingId);
       toast.success("CSV exported successfully.", {
         durationMs: 1800,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     } catch (e: any) {
       toast.remove(loadingId);
       toast.error("We couldn’t export CSV. Please retry.", {
         title: "Export failed",
         durationMs: 3500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     }
   };
@@ -710,7 +710,7 @@ const EmployeeTable: React.FC<{
       toast.info("Select at least one employee to proceed.", {
         title: "Nothing to update",
         durationMs: 2500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return;
     }
@@ -718,7 +718,7 @@ const EmployeeTable: React.FC<{
       toast.warning("Pick an attendance status.", {
         title: "Missing status",
         durationMs: 2500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return;
     }
@@ -726,7 +726,7 @@ const EmployeeTable: React.FC<{
       toast.warning("Reason is capped at 200 characters.", {
         title: "Too long",
         durationMs: 2500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return;
     }
@@ -743,7 +743,7 @@ const EmployeeTable: React.FC<{
           {
             title: "Time required",
             durationMs: 2800,
-            position: "bottom-center",
+            position: "bottom-left",
           }
         );
         return;
@@ -752,7 +752,7 @@ const EmployeeTable: React.FC<{
         toast.warning("Clock In must be earlier than Clock Out.", {
           title: "Invalid time range",
           durationMs: 2800,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         return;
       }
@@ -765,7 +765,7 @@ const EmployeeTable: React.FC<{
     setSubmitting(true);
     const loadingId = toast.info("Applying attendance updates…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -787,7 +787,7 @@ const EmployeeTable: React.FC<{
       toast.success("Attendance updated successfully.", {
         title: "Done",
         durationMs: 2200,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       setAttendanceRefresh(!attendanceRefresh);
       setOpen(false);
@@ -808,7 +808,7 @@ const EmployeeTable: React.FC<{
         isNetwork
           ? "Network hiccup while saving. Check your connection and retry."
           : apiMsg || "We couldn’t apply those updates. Please try again.",
-        { title: "Update failed", durationMs: 5000, position: "bottom-center" }
+        { title: "Update failed", durationMs: 5000, position: "bottom-left" }
       );
     } finally {
       setSubmitting(false);
@@ -1037,7 +1037,7 @@ const EmployeeTable: React.FC<{
                 }));
                 toast.info("Filtered to today.", {
                   durationMs: 1200,
-                  position: "bottom-center",
+                  position: "bottom-left",
                 });
               }}
               className={
@@ -1062,7 +1062,7 @@ const EmployeeTable: React.FC<{
                 }));
                 toast.info("Filtered to this week.", {
                   durationMs: 1200,
-                  position: "bottom-center",
+                  position: "bottom-left",
                 });
               }}
               className={
@@ -1084,7 +1084,7 @@ const EmployeeTable: React.FC<{
                 }));
                 toast.info("Filtered to this month.", {
                   durationMs: 1200,
-                  position: "bottom-center",
+                  position: "bottom-left",
                 });
               }}
               className={
@@ -1109,7 +1109,7 @@ const EmployeeTable: React.FC<{
                 }));
                 toast.info("Cleared filters.", {
                   durationMs: 1200,
-                  position: "bottom-center",
+                  position: "bottom-left",
                 });
               }}
             >

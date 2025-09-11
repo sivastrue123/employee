@@ -38,7 +38,7 @@ const {state}=useSidebar()
       setIsLoading(true);
       const loadingId = toast.info("Fetching Dashboard Data...", {
         durationMs: 1000,
-        position: "bottom-center",
+        position: "bottom-left",
         dismissible: true,
       });
       const response = await api.get("/api/employee/getDashboardData");
@@ -47,7 +47,7 @@ const {state}=useSidebar()
         toast.remove(loadingId);
         toast.success("Data Fetched Successfully", {
           durationMs: 1000,
-          position: "bottom-center",
+          position: "bottom-left",
         });
       }
     } finally {
@@ -63,7 +63,7 @@ const {state}=useSidebar()
       toast.warning("You don’t have access to Dashboard.", {
         title: "Access limited",
         durationMs: 3500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       navigate("/Attendance", { replace: true });
     }

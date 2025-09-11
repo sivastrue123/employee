@@ -100,7 +100,7 @@ export function useClients() {
   const handleProjects = async () => {
     const loadingId = toast.info("Syncing clients…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -112,7 +112,7 @@ export function useClients() {
         toast.info("Clients are already up to date.", {
           title: "No change",
           durationMs: 2000,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         return;
       }
@@ -126,7 +126,7 @@ export function useClients() {
       toast.success("Client data synced successfully.", {
         title: "Sync complete",
         durationMs: 1800,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     } catch (error: any) {
       toast.remove(loadingId);
@@ -134,7 +134,7 @@ export function useClients() {
       toast.error(message, {
         title,
         durationMs: 4500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     }
   };
@@ -207,7 +207,7 @@ export function useClients() {
   const handleGetAllTasks = async (clientId: string) => {
     const loadingId = toast.info("Loading task inventory…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -222,7 +222,7 @@ export function useClients() {
         toast.info("Tasks are already current.", {
           title: "No change",
           durationMs: 1800,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         return;
       }
@@ -232,7 +232,7 @@ export function useClients() {
       toast.remove(loadingId);
       toast.success("Tasks loaded.", {
         durationMs: 1400,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     } catch (error: any) {
       toast.remove(loadingId);
@@ -240,7 +240,7 @@ export function useClients() {
       toast.error(message, {
         title,
         durationMs: 4500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       setIsTaskLoading(false);
       setTasks([]);
@@ -261,14 +261,14 @@ export function useClients() {
       toast.error("Your employee identity is missing.", {
         title: "Cannot create task",
         durationMs: 4000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     }
 
     const loadingId = toast.info("Creating task…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -284,7 +284,7 @@ export function useClients() {
         toast.success("Task created successfully.", {
           title: "Done",
           durationMs: 2000,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         await handleGetAllTasks(clientId);
         return true;
@@ -295,7 +295,7 @@ export function useClients() {
       toast.warning?.("The server responded unexpectedly.", {
         title: `Status ${response.status}`,
         durationMs: 3000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     } catch (error: any) {
@@ -304,7 +304,7 @@ export function useClients() {
       toast.error(message, {
         title,
         durationMs: 5000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     }
@@ -322,14 +322,14 @@ export function useClients() {
       toast.error("Your employee identity is missing.", {
         title: "Cannot update task",
         durationMs: 4000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     }
 
     const loadingId = toast.info(opts?.label ?? "Updating task…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -344,7 +344,7 @@ export function useClients() {
         toast.remove(loadingId);
         toast.success("Task updated.", {
           durationMs: 1600,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         await handleGetAllTasks(clientId);
         return true;
@@ -355,7 +355,7 @@ export function useClients() {
         toast.info("No changes detected.", {
           title: "Not modified",
           durationMs: 1600,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         return true; // noop but not an error
       }
@@ -364,7 +364,7 @@ export function useClients() {
       toast.warning?.("Unexpected server response.", {
         title: `Status ${response.status}`,
         durationMs: 3000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     } catch (error: any) {
@@ -373,7 +373,7 @@ export function useClients() {
       toast.error(message, {
         title,
         durationMs: 5000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     }
@@ -387,14 +387,14 @@ export function useClients() {
       toast.error("Your employee identity is missing.", {
         title: "Cannot delete task",
         durationMs: 4000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     }
 
     const loadingId = toast.info("Deleting task…", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -408,7 +408,7 @@ export function useClients() {
         toast.remove(loadingId);
         toast.success("Task deleted.", {
           durationMs: 1600,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         await handleGetAllTasks(clientId);
         return true;
@@ -419,7 +419,7 @@ export function useClients() {
         toast.info("Task state unchanged.", {
           title: "Not modified",
           durationMs: 1600,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         return true;
       }
@@ -428,7 +428,7 @@ export function useClients() {
       toast.warning?.("Unexpected server response.", {
         title: `Status ${response.status}`,
         durationMs: 3000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     } catch (error: any) {
@@ -437,7 +437,7 @@ export function useClients() {
       toast.error(message, {
         title,
         durationMs: 5000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return false;
     }
@@ -476,7 +476,7 @@ export function useClients() {
     if (ok) {
       toast.success("Checklist updated.", {
         durationMs: 1200,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     } else {
       // Roll back
@@ -484,7 +484,7 @@ export function useClients() {
       toast.error("We couldn’t update that checklist item. Changes reverted.", {
         title: "Update failed",
         durationMs: 4000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     }
   };

@@ -166,7 +166,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
       toast.error(`${missing} ${missing.includes(" and ") ? "are" : "is"} required.`, {
         title: "Missing required fields",
         durationMs: 4000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       return;
     }
@@ -174,7 +174,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
     const verb = isEdit ? "Updating" : "Standing up";
     const loadingId = toast.info(`${verb} the client record…`, {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -203,7 +203,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
           {
             title: isEdit ? "Refreshed" : "All set",
             durationMs: 2000,
-            position: "bottom-center",
+            position: "bottom-left",
           }
         );
         if (!isEdit) onCreated?.();
@@ -219,7 +219,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
         toast.warning?.("The server responded unexpectedly.", {
           title: `Status ${response?.status ?? "—"}`,
           durationMs: 3000,
-          position: "bottom-center",
+          position: "bottom-left",
         });
       }
     } catch (err: any) {
@@ -233,7 +233,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
       toast.error(msg, {
         title: isEdit ? "Update failed" : "Create failed",
         durationMs: 4500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     }
   };

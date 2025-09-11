@@ -22,7 +22,7 @@ export default function App() {
     // Anchor a sticky “loading” toast; we’ll clear it on outcome
     const loadingId = toast.info("Authenticating with Google…", {
       durationMs: 0, // sticky
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -35,7 +35,7 @@ export default function App() {
         toast.remove(loadingId);
         toast.error("We couldn’t read your Google email. Please try again.", {
           durationMs: 5000,
-          position: "bottom-center",
+          position: "bottom-left",
           title: "Sign-in issue",
         });
         return;
@@ -45,7 +45,7 @@ export default function App() {
       toast.remove(loadingId);
       const validatingId = toast.info("Validating your access…", {
         durationMs: 0,
-        position: "bottom-center",
+        position: "bottom-left",
         dismissible: true,
       });
 
@@ -68,7 +68,7 @@ export default function App() {
           {
             title: "Signed in",
             durationMs: 2500,
-            position: "bottom-center",
+            position: "bottom-left",
           }
         );
       } else {
@@ -78,7 +78,7 @@ export default function App() {
           {
             title: "Access not confirmed",
             durationMs: 5000,
-            position: "bottom-center",
+            position: "bottom-left",
           }
         );
       }
@@ -96,7 +96,7 @@ export default function App() {
       toast.error(msg, {
         title: "Authentication failed",
         durationMs: 5000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     }
   };
@@ -106,7 +106,7 @@ export default function App() {
     toast.error("Google sign-in was canceled or failed. Please try again.", {
       title: "Sign-in failed",
       durationMs: 4000,
-      position: "bottom-center",
+      position: "bottom-left",
     });
   };
 

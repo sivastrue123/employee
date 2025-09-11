@@ -78,7 +78,7 @@ export default function Employees() {
       toast.warning("You don’t have access to Employee Management.", {
         title: "Access limited",
         durationMs: 3500,
-        position: "bottom-center",
+        position: "bottom-left",
       });
       navigate("/Attendance", { replace: true });
     }
@@ -100,7 +100,7 @@ export default function Employees() {
 
     const loadingId = toast.info("Fetching Employees...", {
       durationMs: 0,
-      position: "bottom-center",
+      position: "bottom-left",
       dismissible: true,
     });
 
@@ -114,7 +114,7 @@ export default function Employees() {
         toast.remove(loadingId);
         toast.success("Employee Data refreshed.", {
           durationMs: 1800,
-          position: "bottom-center",
+          position: "bottom-left",
         });
       }
     } catch (err: any) {
@@ -129,7 +129,7 @@ export default function Employees() {
           isNetwork
             ? "Network hiccup while loading employees. Please check your connection and retry."
             : "We couldn’t load employees right now. Please try again.",
-          { title: "Load failed", durationMs: 4500, position: "bottom-center" }
+          { title: "Load failed", durationMs: 4500, position: "bottom-left" }
         );
       }
     } finally {
@@ -183,7 +183,7 @@ export default function Employees() {
       if (filteredEmployees.length === 0 && !hasAnnouncedNoResultsRef.current) {
         toast.info("No matching employees. Try adjusting filters.", {
           durationMs: 2500,
-          position: "bottom-center",
+          position: "bottom-left",
         });
         hasAnnouncedNoResultsRef.current = true;
       } else if (filteredEmployees.length > 0) {
@@ -210,7 +210,7 @@ export default function Employees() {
     toast.info("Add a new team member.", {
       title: "Create employee",
       durationMs: 2200,
-      position: "bottom-center",
+      position: "bottom-left",
     });
   }, [location.search, navigate, toast]);
 
@@ -231,7 +231,7 @@ export default function Employees() {
       setShowForm(true);
       toast.info(`Editing ${employee.first_name} ${employee.last_name}.`, {
         durationMs: 2000,
-        position: "bottom-center",
+        position: "bottom-left",
       });
     },
     [toast]
@@ -242,7 +242,7 @@ export default function Employees() {
     toast.success("Employee details saved.", {
       title: "Changes applied",
       durationMs: 2200,
-      position: "bottom-center",
+      position: "bottom-left",
     });
     loadEmployees(); // refresh and close
     closeForm();
@@ -252,7 +252,7 @@ export default function Employees() {
     setViewMode("grid");
     toast.info("Switched to grid view.", {
       durationMs: 1200,
-      position: "bottom-center",
+      position: "bottom-left",
     });
   };
 
@@ -260,7 +260,7 @@ export default function Employees() {
     setViewMode("table");
     toast.info("Switched to table view.", {
       durationMs: 1200,
-      position: "bottom-center",
+      position: "bottom-left",
     });
   };
 
@@ -460,7 +460,7 @@ export default function Employees() {
             onCancel={() => {
               toast.info("No changes were saved.", {
                 durationMs: 1800,
-                position: "bottom-center",
+                position: "bottom-left",
               });
               closeForm();
             }}
