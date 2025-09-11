@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import "./toast.css"
+import "./toast.css";
 import { createPortal } from "react-dom";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
@@ -17,7 +17,7 @@ type ToastPosition =
   | "bottom-right"
   | "bottom-left"
   | "bottom-center"
-  | "bottom-center";
+  | "top-center";
 
 export type ToastOptions = {
   id?: string;
@@ -67,7 +67,7 @@ const positions: ToastPosition[] = [
   "bottom-right",
   "bottom-left",
   "bottom-center",
-  "bottom-center",
+  "top-center",
 ];
 
 export const ToastProvider: React.FC<{
@@ -76,10 +76,10 @@ export const ToastProvider: React.FC<{
   defaultDurationMs?: number;
   defaultPosition?: ToastPosition;
 }> = ({
-  children,
+  children, 
   maxVisible = 3,
   defaultDurationMs = DEFAULT_DURATION,
-  defaultPosition = "top-right",
+  defaultPosition = "bottom-left",
 }) => {
   const [toasts, setToasts] = useState<InternalToast[]>([]);
   const queueRef = useRef<InternalToast[]>([]);
