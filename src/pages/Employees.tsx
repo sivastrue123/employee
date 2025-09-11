@@ -29,6 +29,7 @@ import EmployeeTable from "@/components/EmployeeTable";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/toast/ToastProvider";
 import { api } from "@/lib/axios";
+import { useSidebar } from "@/components/ui/sidebar";
 
 type ViewMode = "grid" | "table";
 type ApiEmployee = Employee;
@@ -62,6 +63,7 @@ export default function Employees() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<any>(null);
 
+  const { state } = useSidebar();
   // keep track of mounted state to avoid setState after unmount
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -264,9 +266,9 @@ export default function Employees() {
 
   return (
     <div
-      className={`flex-1 ${
-        viewMode == "table" ? "lg:pl-14 lg:pr-10" : "lg:px-10"
-      }  !lg:pr-8 space-y-4 lg:space-y-8 w-full h-auto`}
+      className={`flex flex-col ${
+        state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
+      } w-full max-w-none min-w-0 px-4 lg:px-8 py-6 space-y-4 lg:space-y-8`}
     >
       <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
         <div>
@@ -344,7 +346,7 @@ export default function Employees() {
         </div>
       ) : (
         <AnimatePresence mode="wait">
-          <div className="flex justify-end w-full lg:px-12">
+          <div className="flex justify-end w-full">
             <div className="flex items-center w-[90px] gap-2 pb-4">
               <TooltipProvider>
                 <Tooltip>
@@ -397,7 +399,9 @@ export default function Employees() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.25 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              className={`grid grid-cols-1 sm:grid-cols-2 ${
+                state == "expanded" ? "lg:grid-cols-3" : "lg:grid-cols-4"
+              } gap-6`}
               layout
             >
               {filteredEmployees.map((employee, index) => (

@@ -6,9 +6,11 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const Layout: React.FC = () => {
+  // const state =useSidebar()
   return (
     <SidebarProvider>
       {/* ⬇️ This wrapper is the missing piece */}
@@ -27,8 +29,8 @@ const Layout: React.FC = () => {
           </header>
 
           {/* No width clamps here */}
-          <main className="min-h-[calc(100dvh-3.5rem)] px-4 lg:px-6">
-            <div className="w-full min-w-0">
+          <main className="w-screen min-h-[calc(100dvh-3.5rem)]  px-4 lg:px-6">
+            <div className="w-[90%] min-w-0">
               <Outlet />
             </div>
           </main>

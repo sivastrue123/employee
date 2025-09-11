@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserTable from "./UserTable";
 import EmployeeTable from "./EmployeeTable";
+import { useSidebar } from "@/components/ui/sidebar";
 
 // -------- Styles --------
 const kpiCard = {
@@ -45,7 +46,7 @@ const slideTabs = {
 };
 
 const Attendance: React.FC = () => {
-  const { user, attendanceRefresh,setAttendanceRefresh } = useAuth();
+  const { user, attendanceRefresh, setAttendanceRefresh } = useAuth();
 
   const [monthlyPresents, setMonthlyPresents] = useState<number>(0);
   const [monthlyAbsents, setMonthlyAbsents] = useState<number>(0);
@@ -53,8 +54,10 @@ const Attendance: React.FC = () => {
   const [CurrentViewAbsent, setCurrentViewAbsent] = useState<number>(0);
 
   const isAdmin = user?.role === "admin";
-  const [activeTab, setActiveTab] = useState<string>(isAdmin ? "user" : "only-user");
-
+  const [activeTab, setActiveTab] = useState<string>(
+    isAdmin ? "user" : "only-user"
+  );
+  const { state } = useSidebar();
   // Tab wiring to keep AnimatePresence in sync with shadcn Tabs value
   const tabsValue = isAdmin ? activeTab : "only-user";
 
@@ -90,16 +93,21 @@ const Attendance: React.FC = () => {
 
   return (
     <motion.div
-      className="mx-auto w-full max-w-6xl px-6 pb-16"
+      className={`w-full ${
+        state == "expanded" ? "lg:w-[90%]" : "w-full"
+      } px-6 pb-16`}
       variants={containerStagger}
       initial="hidden"
       animate="show"
     >
       {/* Page header */}
       <motion.div className="mb-6" variants={fadeInUp as any}>
-        <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">Attendance</p>
+        <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
+          Attendance
+        </p>
         <p className="mt-1 text-slate-600">
-          Keep a clean view of time and presence—filter, sort, and review at a glance.
+          Keep a clean view of time and presence—filter, sort, and review at a
+          glance.
         </p>
       </motion.div>
 
@@ -130,14 +138,24 @@ const Attendance: React.FC = () => {
           <motion.div variants={fadeInUp as any}>
             <Tabs value={tabsValue} onValueChange={setActiveTab} className="">
               <TabsList className="!border-none w-full ">
-                <TabsTrigger value="user" className="tab-trigger">User</TabsTrigger>
-                <TabsTrigger value="employees" className="tab-trigger">Employees</TabsTrigger>
+                <TabsTrigger value="user" className="tab-trigger">
+                  User
+                </TabsTrigger>
+                <TabsTrigger value="employees" className="tab-trigger">
+                  Employees
+                </TabsTrigger>
               </TabsList>
 
               {/* Animated Tab Content */}
               <AnimatePresence mode="wait">
                 {activeTab === "user" && (
-                  <motion.div key="tab-user" variants={slideTabs} initial="hidden" animate="show" exit="exit">
+                  <motion.div
+                    key="tab-user"
+                    variants={slideTabs}
+                    initial="hidden"
+                    animate="show"
+                    exit="exit"
+                  >
                     <TabsContent value="user" asChild>
                       <motion.div layout>
                         <UserTable
@@ -155,7 +173,13 @@ const Attendance: React.FC = () => {
                 )}
 
                 {activeTab === "employees" && (
-                  <motion.div key="tab-employees" variants={slideTabs} initial="hidden" animate="show" exit="exit">
+                  <motion.div
+                    key="tab-employees"
+                    variants={slideTabs}
+                    initial="hidden"
+                    animate="show"
+                    exit="exit"
+                  >
                     <TabsContent value="employees" asChild>
                       <motion.div layout>
                         <EmployeeTable
@@ -180,7 +204,13 @@ const Attendance: React.FC = () => {
         ) : (
           // Non-admin: only the User table, but still animated
           <AnimatePresence mode="wait">
-            <motion.div key="only-user" variants={slideTabs} initial="hidden" animate="show" exit="exit">
+            <motion.div
+              key="only-user"
+              variants={slideTabs}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+            >
               <UserTable
                 pageSize={pageSize}
                 user={user}

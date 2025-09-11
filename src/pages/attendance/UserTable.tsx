@@ -260,7 +260,7 @@ const UserTable: React.FC<any> = ({
       {" "}
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="flex  flex-wrap items-center gap-2">
             {/* Search */}
 
             <div className="relative">
@@ -358,7 +358,7 @@ const UserTable: React.FC<any> = ({
             </Popover>
 
             {/* Presets */}
-            <div className="flex items-center gap-1">
+            
               <Button
                 variant={activePreset === "today" ? "outline" : "ghost"}
                 size="sm"
@@ -396,7 +396,7 @@ const UserTable: React.FC<any> = ({
               >
                 Clear
               </Button>
-            </div>
+            
           </div>
         </div>
       </div>

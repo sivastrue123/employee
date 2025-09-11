@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { TaskPanel } from "./components/TaskPanel";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const kpiCard = {
   base: "rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow p-4",
@@ -62,13 +63,17 @@ const Projects: React.FC = () => {
     updateTask,
     toggleChecklistItem,
     tasks,
-    isTaskLoading
+    isTaskLoading,
   } = useClients();
 
   const [isEdit, setIsEdit] = useState<boolean>(false);
-
+  const { state } = useSidebar();
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 pb-16">
+    <div
+      className={`${
+        state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
+      } w-full max-w-6xl px-6 pb-16`}
+    >
       <div className="mb-6 flex items-center justify-between  gap-4">
         <div>
           <p className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">

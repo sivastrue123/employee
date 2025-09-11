@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "@/toast/ToastProvider";
 import { api } from "@/lib/axios";
 import { QuickActionsCard } from "@/widgets/QuickActionsCard"; // ⬅️ new import
+import { useSidebar } from "@/components/ui/sidebar";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function Dashboard() {
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [dashboardData, setdashboardData] = useState<any>();
-
+const {state}=useSidebar()
   const handleAddEmployee = useCallback(() => {
     navigate("/Employees?AddEmployee");
   }, [navigate]);
@@ -69,7 +70,7 @@ export default function Dashboard() {
   }, [user]);
 
   return (
-    <div className="flex flex-col w-[100%] min-w-0 h-auto px-4 lg:px-8 py-6 box-border">
+    <div className={`flex flex-col ${state=="expanded"?"lg:w-[90%]":"lg:w-full"} w-full min-w-0 h-auto px-4 lg:px-8 py-6 box-border`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

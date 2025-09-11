@@ -1022,289 +1022,286 @@ const EmployeeTable: React.FC<{
             </DropdownMenu>
 
             {/* Presets */}
-            <div className="flex items-center gap-1">
+
+            <Button
+              variant={filters.preset === "today" ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                setFilters((f) => ({
+                  ...f,
+                  preset: "today",
+                  singleDate: today,
+                  range: undefined,
+                }));
+                toast.info("Filtered to today.", {
+                  durationMs: 1200,
+                  position: "bottom-center",
+                });
+              }}
+              className={
+                filters.preset === "today" ? "!hidden sm:inline-flex" : ""
+              }
+            >
+              Today
+            </Button>
+            <Button
+              variant={filters.preset === "week" ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => {
+                const now = new Date();
+                setFilters((f) => ({
+                  ...f,
+                  preset: "week",
+                  singleDate: undefined,
+                  range: {
+                    from: startOfWeek(now, { weekStartsOn: 1 }),
+                    to: endOfWeek(now, { weekStartsOn: 1 }),
+                  },
+                }));
+                toast.info("Filtered to this week.", {
+                  durationMs: 1200,
+                  position: "bottom-center",
+                });
+              }}
+              className={
+                filters.preset === "week" ? "!hidden sm:inline-flex" : ""
+              }
+            >
+              This week
+            </Button>
+            <Button
+              variant={filters.preset === "month" ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => {
+                const now = new Date();
+                setFilters((f) => ({
+                  ...f,
+                  preset: "month",
+                  singleDate: undefined,
+                  range: { from: startOfMonth(now), to: endOfMonth(now) },
+                }));
+                toast.info("Filtered to this month.", {
+                  durationMs: 1200,
+                  position: "bottom-center",
+                });
+              }}
+              className={
+                filters.preset === "month" ? "!hidden sm:inline-flex" : ""
+              }
+            >
+              This month
+            </Button>
+            <Button
+              variant={filters.preset === null ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => {
+                // hard reset all date filters and search
+                commitSearchDebounced.cancel(); // prevent stale pending apply
+                setSearchDraft(""); // clear the input instantly
+                setFilters((f) => ({
+                  ...f,
+                  preset: null,
+                  singleDate: undefined,
+                  range: undefined,
+                  search: "", // this triggers a fresh page-1 fetch
+                }));
+                toast.info("Cleared filters.", {
+                  durationMs: 1200,
+                  position: "bottom-center",
+                });
+              }}
+            >
+              Clear
+            </Button>
+            {/* Export actions */}
+            <div className="flex gap-2">
               <Button
-                variant={filters.preset === "today" ? "outline" : "ghost"}
+                variant="outline"
                 size="sm"
-                onClick={() => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  setFilters((f) => ({
-                    ...f,
-                    preset: "today",
-                    singleDate: today,
-                    range: undefined,
-                  }));
-                  toast.info("Filtered to today.", {
-                    durationMs: 1200,
-                    position: "bottom-center",
-                  });
-                }}
-                className={
-                  filters.preset === "today" ? "!hidden sm:inline-flex" : ""
+                onClick={handleExportCSV}
+                disabled={!filteredAndSorted.length}
+                title={
+                  !filteredAndSorted.length
+                    ? "No data in current view"
+                    : "Export CSV"
                 }
               >
-                Today
+                <Download className="h-4 w-4 mr-1" />
+                CSV
               </Button>
+
               <Button
-                variant={filters.preset === "week" ? "outline" : "ghost"}
+                variant="default"
                 size="sm"
-                onClick={() => {
-                  const now = new Date();
-                  setFilters((f) => ({
-                    ...f,
-                    preset: "week",
-                    singleDate: undefined,
-                    range: {
-                      from: startOfWeek(now, { weekStartsOn: 1 }),
-                      to: endOfWeek(now, { weekStartsOn: 1 }),
-                    },
-                  }));
-                  toast.info("Filtered to this week.", {
-                    durationMs: 1200,
-                    position: "bottom-center",
-                  });
-                }}
-                className={
-                  filters.preset === "week" ? "!hidden sm:inline-flex" : ""
+                className="!bg-emerald-600"
+                onClick={handleExportExcel}
+                disabled={!filteredAndSorted.length}
+                title={
+                  !filteredAndSorted.length
+                    ? "No data in current view"
+                    : "Export Excel"
                 }
               >
-                This week
+                <Download className="h-4 w-4 mr-1" />
+                Excel
               </Button>
-              <Button
-                variant={filters.preset === "month" ? "outline" : "ghost"}
-                size="sm"
-                onClick={() => {
-                  const now = new Date();
-                  setFilters((f) => ({
-                    ...f,
-                    preset: "month",
-                    singleDate: undefined,
-                    range: { from: startOfMonth(now), to: endOfMonth(now) },
-                  }));
-                  toast.info("Filtered to this month.", {
-                    durationMs: 1200,
-                    position: "bottom-center",
-                  });
-                }}
-                className={
-                  filters.preset === "month" ? "!hidden sm:inline-flex" : ""
-                }
-              >
-                This month
-              </Button>
-              <Button
-                variant={filters.preset === null ? "outline" : "ghost"}
-                size="sm"
-                onClick={() => {
-                  // hard reset all date filters and search
-                  commitSearchDebounced.cancel(); // prevent stale pending apply
-                  setSearchDraft(""); // clear the input instantly
-                  setFilters((f) => ({
-                    ...f,
-                    preset: null,
-                    singleDate: undefined,
-                    range: undefined,
-                    search: "", // this triggers a fresh page-1 fetch
-                  }));
-                  toast.info("Cleared filters.", {
-                    durationMs: 1200,
-                    position: "bottom-center",
-                  });
-                }}
-              >
-                Clear
-              </Button>
-              {/* Export actions */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportCSV}
-                  disabled={!filteredAndSorted.length}
-                  title={
-                    !filteredAndSorted.length
-                      ? "No data in current view"
-                      : "Export CSV"
-                  }
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  CSV
-                </Button>
+            </div>
 
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="!bg-emerald-600"
-                  onClick={handleExportExcel}
-                  disabled={!filteredAndSorted.length}
-                  title={
-                    !filteredAndSorted.length
-                      ? "No data in current view"
-                      : "Export Excel"
-                  }
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Excel
-                </Button>
-              </div>
+            {/* More actions sheet */}
+            <div className="flex">
+              <Sheet open={open} onOpenChange={setOpen}>
+                <SheetTrigger className="!border-transaparent !p-0">
+                  <Button
+                    variant="destructive"
+                    className="!bg-red-500"
+                    size="sm"
+                    onClick={() => setOpen(true)}
+                  >
+                    + More
+                  </Button>
+                </SheetTrigger>
 
-              {/* More actions sheet */}
-              <div className="flex">
-                <Sheet open={open} onOpenChange={setOpen}>
-                  <SheetTrigger className="!border-transaparent !p-0">
-                    <Button
-                      variant="destructive"
-                      className="!bg-red-500"
-                      size="sm"
-                      onClick={() => setOpen(true)}
-                    >
-                      + More
-                    </Button>
-                  </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Absence Entry</SheetTitle>
+                  </SheetHeader>
 
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Absence Entry</SheetTitle>
-                    </SheetHeader>
-
-                    <form onSubmit={handleSubmit}>
-                      <div className="p-2 space-y-4">
-                        <Label>Employees</Label>
-                        <Select<Option, true>
-                          components={animatedComponents}
-                          placeholder="Select Employees"
-                          isMulti
-                          options={employeeSelectOptions}
-                          value={selectedEmployees}
-                          onChange={(selected) =>
-                            setSelectedEmployees(selected ? [...selected] : [])
-                          }
-                        />
-                        <Label>Attendance Status</Label>
-                        <Select<Option, false>
-                          closeMenuOnSelect
-                          components={animatedComponents}
-                          placeholder="Select Status"
-                          options={attendanceStatus}
-                          value={selectedStatus}
-                          onChange={(selected) => setSelectedStatus(selected)}
-                          isMulti={false}
-                        />
-                        {selectedStatus?.value === "Present" && (
-                          <div className="mt-2 space-y-3">
-                            <div>
-                              <Label className="mb-1 block">
-                                Clock In (12-hour)
-                              </Label>
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="hh:mm"
-                                  value={clockInTime}
-                                  onChange={(e) =>
-                                    setClockInTime(e.target.value)
-                                  }
-                                  inputMode="numeric"
-                                  pattern="^(\d{1,2}):([0-5]\d)$"
-                                  className="w-32"
-                                />
-                                <select
-                                  className="border rounded px-2 py-2"
-                                  value={clockInMeridiem}
-                                  onChange={(e) =>
-                                    setClockInMeridiem(
-                                      e.target.value as "AM" | "PM"
-                                    )
-                                  }
-                                >
-                                  <option>AM</option>
-                                  <option>PM</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div>
-                              <Label className="mb-1 block">
-                                Clock Out (12-hour)
-                              </Label>
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="hh:mm"
-                                  value={clockOutTime}
-                                  onChange={(e) =>
-                                    setClockOutTime(e.target.value)
-                                  }
-                                  inputMode="numeric"
-                                  pattern="^(\d{1,2}):([0-5]\d)$"
-                                  className="w-32"
-                                />
-                                <select
-                                  className="border rounded px-2 py-2"
-                                  value={clockOutMeridiem}
-                                  onChange={(e) =>
-                                    setClockOutMeridiem(
-                                      e.target.value as "AM" | "PM"
-                                    )
-                                  }
-                                >
-                                  <option>AM</option>
-                                  <option>PM</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Optional live preview */}
-                            <div className="text-xs text-slate-500">
-                              {(() => {
-                                const ci = toTodayFrom12h(
-                                  clockInTime,
-                                  clockInMeridiem
-                                );
-                                const co = toTodayFrom12h(
-                                  clockOutTime,
-                                  clockOutMeridiem
-                                );
-                                const ciISO = ci ? toOffsetISOString(ci) : null;
-                                const coISO = co ? toOffsetISOString(co) : null;
-                                return (
-                                  <>
-                                    {ciISO && (
-                                      <div>
-                                        Clock In → <code>{ciISO}</code>
-                                      </div>
-                                    )}
-                                    {coISO && (
-                                      <div>
-                                        Clock Out → <code>{coISO}</code>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
+                  <form onSubmit={handleSubmit}>
+                    <div className="p-2 space-y-4">
+                      <Label>Employees</Label>
+                      <Select<Option, true>
+                        components={animatedComponents}
+                        placeholder="Select Employees"
+                        isMulti
+                        options={employeeSelectOptions}
+                        value={selectedEmployees}
+                        onChange={(selected) =>
+                          setSelectedEmployees(selected ? [...selected] : [])
+                        }
+                      />
+                      <Label>Attendance Status</Label>
+                      <Select<Option, false>
+                        closeMenuOnSelect
+                        components={animatedComponents}
+                        placeholder="Select Status"
+                        options={attendanceStatus}
+                        value={selectedStatus}
+                        onChange={(selected) => setSelectedStatus(selected)}
+                        isMulti={false}
+                      />
+                      {selectedStatus?.value === "Present" && (
+                        <div className="mt-2 space-y-3">
+                          <div>
+                            <Label className="mb-1 block">
+                              Clock In (12-hour)
+                            </Label>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="hh:mm"
+                                value={clockInTime}
+                                onChange={(e) => setClockInTime(e.target.value)}
+                                inputMode="numeric"
+                                pattern="^(\d{1,2}):([0-5]\d)$"
+                                className="w-32"
+                              />
+                              <select
+                                className="border rounded px-2 py-2"
+                                value={clockInMeridiem}
+                                onChange={(e) =>
+                                  setClockInMeridiem(
+                                    e.target.value as "AM" | "PM"
+                                  )
+                                }
+                              >
+                                <option>AM</option>
+                                <option>PM</option>
+                              </select>
                             </div>
                           </div>
-                        )}
-                        {/* Notes to land the plane */}
-                        <Label>Reason</Label>
-                        <textarea
-                          className="w-full border-[2px]"
-                          maxLength={200}
-                          placeholder="Max 200 characters allowed"
-                          value={reason}
-                          onChange={(e) => setReason(e.target.value)}
-                        />
-                        <Button
-                          className="!bg-sky-500 !text-white !w-full"
-                          type="submit"
-                          disabled={submitting}
-                        >
-                          {submitting ? "Submitting..." : "Submit"}
-                        </Button>
-                      </div>
-                    </form>
-                  </SheetContent>
-                </Sheet>
-              </div>
+
+                          <div>
+                            <Label className="mb-1 block">
+                              Clock Out (12-hour)
+                            </Label>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="hh:mm"
+                                value={clockOutTime}
+                                onChange={(e) =>
+                                  setClockOutTime(e.target.value)
+                                }
+                                inputMode="numeric"
+                                pattern="^(\d{1,2}):([0-5]\d)$"
+                                className="w-32"
+                              />
+                              <select
+                                className="border rounded px-2 py-2"
+                                value={clockOutMeridiem}
+                                onChange={(e) =>
+                                  setClockOutMeridiem(
+                                    e.target.value as "AM" | "PM"
+                                  )
+                                }
+                              >
+                                <option>AM</option>
+                                <option>PM</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Optional live preview */}
+                          <div className="text-xs text-slate-500">
+                            {(() => {
+                              const ci = toTodayFrom12h(
+                                clockInTime,
+                                clockInMeridiem
+                              );
+                              const co = toTodayFrom12h(
+                                clockOutTime,
+                                clockOutMeridiem
+                              );
+                              const ciISO = ci ? toOffsetISOString(ci) : null;
+                              const coISO = co ? toOffsetISOString(co) : null;
+                              return (
+                                <>
+                                  {ciISO && (
+                                    <div>
+                                      Clock In → <code>{ciISO}</code>
+                                    </div>
+                                  )}
+                                  {coISO && (
+                                    <div>
+                                      Clock Out → <code>{coISO}</code>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                      {/* Notes to land the plane */}
+                      <Label>Reason</Label>
+                      <textarea
+                        className="w-full border-[2px]"
+                        maxLength={200}
+                        placeholder="Max 200 characters allowed"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                      />
+                      <Button
+                        className="!bg-sky-500 !text-white !w-full"
+                        type="submit"
+                        disabled={submitting}
+                      >
+                        {submitting ? "Submitting..." : "Submit"}
+                      </Button>
+                    </div>
+                  </form>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
