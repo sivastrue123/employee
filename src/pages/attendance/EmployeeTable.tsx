@@ -13,7 +13,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, ChevronDownIcon, Search } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronDownIcon,
+  ChevronRight,
+  Search,
+  ChevronsUpDown,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import {
   endOfDay,
@@ -73,6 +79,25 @@ import * as XLSX from "xlsx";
 import { Download } from "lucide-react";
 import { api } from "@/lib/axios";
 
+// shadcn Select (used inside dialog)
+import {
+  Select as SSelect,
+  SelectContent as SSelectContent,
+  SelectItem as SSelectItem,
+  SelectTrigger as SSelectTrigger,
+  SelectValue as SSelectValue,
+} from "@/components/ui/select";
+
+// shadcn Dialog (for OT approval confirm)
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
 // ---------------- constants ----------------
 const PAGE_SIZE = 10;
 const TRIGGER_INDEX_IN_PAGE = 8;
@@ -87,6 +112,8 @@ type Employee = {
   department?: string | null;
 };
 
+type OTStatus = "Pending" | "Approved" | "Rejected";
+
 type AttendanceRow = {
   id: string;
   attendanceDate: string; // ISO date
@@ -96,13 +123,16 @@ type AttendanceRow = {
   clockIn?: string | null;
   clockOut?: string | null;
   worked?: string | null;
-  ot?: string | null;
+  ot?: string | null; // OT hours/duration string (kept)
   late?: string | null;
   status: "Present" | "Absent" | string;
   createdBy?: { name?: string | null } | null;
   createdAt?: string | null; // ISO
   editedBy?: { name?: string | null } | null;
   editedAt?: string | null; // ISO
+
+  // backend-provided or derived
+  otStatus?: OTStatus | null;
 };
 
 type DateRange = RDateRange | undefined;
@@ -165,7 +195,6 @@ const serializeParams = (opts: {
   pageSize?: number;
   search?: string;
 }) => {
-  console.log(opts);
   const params = new URLSearchParams();
   if (opts.employeeIds?.length)
     params.set("employeeIds", opts.employeeIds.join(","));
@@ -227,13 +256,21 @@ const EmployeeTable: React.FC<{
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // group collapse state keyed by YYYY-MM-DD
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // OT dialog state
+  const [otDialogOpen, setOtDialogOpen] = useState(false);
+  const [otDialogRow, setOtDialogRow] = useState<AttendanceRow | null>(null);
+  const [otNextStatus, setOtNextStatus] = useState<OTStatus>("Pending");
+
   // --- time inputs for "Present"
   const [clockInTime, setClockInTime] = useState<string>(""); // "hh:mm" 12h
   const [clockInMeridiem, setClockInMeridiem] = useState<"AM" | "PM">("AM");
   const [clockOutTime, setClockOutTime] = useState<string>("");
   const [clockOutMeridiem, setClockOutMeridiem] = useState<"AM" | "PM">("PM");
 
-  // Parse "hh:mm" + AM/PM into a Date for *today* (local)
+  // Helpers
   const toTodayFrom12h = (hhmm: string, meridiem: "AM" | "PM"): Date | null => {
     const m = /^(\d{1,2}):([0-5]\d)$/.exec(hhmm.trim());
     if (!m) return null;
@@ -242,7 +279,7 @@ const EmployeeTable: React.FC<{
     if (hours < 1 || hours > 12) return null;
     hours = (hours % 12) + (meridiem === "PM" ? 12 : 0);
     const d = new Date();
-    d.setHours(hours, minutes, 0, 0); // today at hh:mm:00.000 local
+    d.setHours(hours, minutes, 0, 0);
     return d;
   };
 
@@ -264,7 +301,6 @@ const EmployeeTable: React.FC<{
 
   // ------------ debounced table search ------------
   const setSearchDebounced = useDebouncedCallback((q: string) => {
-    console.log(q, "search string");
     setFilters((f) => ({ ...f, search: q }));
   }, 1200);
 
@@ -276,7 +312,6 @@ const EmployeeTable: React.FC<{
     setFilters((f) => ({ ...f, search: next }));
   }, 3000);
 
-  // defensive: cancel any in-flight debounce on unmount
   useEffect(() => {
     return () => commitSearchDebounced.cancel();
   }, [commitSearchDebounced]);
@@ -312,22 +347,18 @@ const EmployeeTable: React.FC<{
 
   const fetchAttendancePage = useCallback(
     async (pageToLoad: number, isFirstPage: boolean) => {
-      // guard: if no more, or already loading for this call
       if (!isFirstPage && (!hasMore || loadingMore)) return;
 
-      // cancel previous request
       lastAbortRef.current?.abort();
       const controller = new AbortController();
       lastAbortRef.current = controller;
 
-      // UX loaders
       if (isFirstPage) {
         setInitialLoading(true);
       } else {
         setLoadingMore(true);
       }
 
-      // first page: sticky loader toast; subsequent pages: stay quiet
       const loaderToastId = isFirstPage
         ? toast.info("Fetching attendance…", {
             durationMs: 0,
@@ -337,13 +368,12 @@ const EmployeeTable: React.FC<{
         : null;
 
       try {
-        console.log(filters);
         const qs = serializeParams({
           employeeIds: filters.selectedEmployeeIds,
           today: filters?.singleDate,
           from: filters.range?.from,
           to: filters.range?.to,
-          page: pageToLoad, // 🚀 backend will receive paging signal
+          page: pageToLoad,
           pageSize: PAGE_SIZE,
           search: filters?.search,
         });
@@ -352,8 +382,16 @@ const EmployeeTable: React.FC<{
           signal: controller.signal,
         });
 
-        const data = res.data?.data ?? [];
-        console.log(res.data);
+        // ensure otStatus defaults (Pending if ot exists but status is null)
+        const data: AttendanceRow[] = (res.data?.data ?? []).map(
+          (r: AttendanceRow) => ({
+            ...r,
+            otStatus:
+              (r.otStatus as OTStatus | null | undefined) ??
+              (r.ot ? "Pending" : null),
+          })
+        );
+
         setRows((prev) => (isFirstPage ? data : [...prev, ...data]));
         setLoadedPage(pageToLoad);
         setHasMore(res?.data.hasMore);
@@ -368,7 +406,6 @@ const EmployeeTable: React.FC<{
           });
         }
       } catch (e: any) {
-        console.log(e);
         if (axios.isCancel(e)) {
           if (loaderToastId) toast.remove(loaderToastId);
           return;
@@ -378,7 +415,6 @@ const EmployeeTable: React.FC<{
 
         const status = e?.response?.status;
         if (status === 404) {
-          // nothing to show
           if (isFirstPage) setRows([]);
           toast.info("No records found for the selected view.", {
             durationMs: 2200,
@@ -413,24 +449,23 @@ const EmployeeTable: React.FC<{
       hasMore,
       loadingMore,
       toast,
+      setMonthlyAbsents,
+      setMonthlyPresents,
     ]
   );
 
   // initial + on filter changes → reset and load page 1
   useEffect(() => {
-    // setRows([]);
     setHasMore(true);
     setLoadedPage(0);
     fetchAttendancePage(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     attendanceRefresh,
-    // key filters to reset on
     filters.selectedEmployeeIds.join(","),
     filters.singleDate?.toString(),
     filters.range?.from?.toString(),
     filters.range?.to?.toString(),
-    // sort influences server order (if your API supports it, add it here)
     filters.search,
     filters.sort?.id,
     filters.sort?.desc,
@@ -470,8 +505,8 @@ const EmployeeTable: React.FC<{
           cinSquash.includes(qSquash) ||
           coutSquash.includes(qSquash) ||
           name.includes(qLower) ||
-          createdName.includes(qLower);
-        editedName.includes(qLower);
+          createdName.includes(qLower) ||
+          editedName.includes(qLower);
 
         const timeHit =
           qMins !== null && (cinMins === qMins || coutMins === qMins);
@@ -491,6 +526,54 @@ const EmployeeTable: React.FC<{
     return data;
   }, [rows, filters.search, filters.sort]);
 
+  // ------------ GROUPING (by date, collapsible) ------------
+  const groups = useMemo(() => {
+    const map = new Map<string, AttendanceRow[]>();
+    for (const r of filteredAndSorted) {
+      const key = format(parseISO(r.attendanceDate), "yyyy-MM-dd");
+      const arr = map.get(key);
+      if (arr) arr.push(r);
+      else map.set(key, [r]);
+    }
+    return map;
+  }, [filteredAndSorted]);
+
+  // Seed new groups as collapsed (minimized). No locking.
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      for (const key of Array.from(groups.keys())) {
+        if (!(key in next))
+          next[key] = key === format(new Date(), "yyyy-MM-dd");
+      }
+      return next;
+    });
+  }, [groups]);
+
+  const toggleGroup = (key: string) =>
+    setOpenGroups((s) => ({ ...s, [key]: !s[key] }));
+
+  // Are all groups currently expanded?
+  const allOpen = useMemo(() => {
+    let any = false;
+    let all = true;
+    for (const key of Array.from(groups.keys())) {
+      any = true;
+      all = all && !!openGroups[key];
+    }
+    return any && all;
+  }, [groups, openGroups]);
+
+  // Flip all groups at once
+  const toggleAllGroups = () => {
+    const nextOpen = !allOpen;
+    setOpenGroups(() => {
+      const next: Record<string, boolean> = {};
+      for (const key of Array.from(groups.keys())) next[key] = nextOpen;
+      return next;
+    });
+  };
+
   // --- Export helpers (current filtered + sorted view) ---
   const buildExportRows = (data: AttendanceRow[]) =>
     data.map((row) => ({
@@ -501,6 +584,7 @@ const EmployeeTable: React.FC<{
       "Clock Out": row.clockOut ? row.clockOut : "—",
       "Total Hours Worked": row.worked ?? "—",
       OT: row.ot ?? "—",
+      "OT Status": row.otStatus ?? "—",
       Late: row.late ?? "—",
       Status: row.status,
       "Created By": row.createdBy?.name ?? "—",
@@ -594,20 +678,6 @@ const EmployeeTable: React.FC<{
 
   // ------------ KPI rollups ------------
   useEffect(() => {
-    const now = new Date();
-    const month = now.getMonth();
-    const year = now.getFullYear();
-
-    const thisMonth = rows.filter((r) => {
-      const d = parseISO(r.attendanceDate);
-      return d.getMonth() === month && d.getFullYear() === year;
-    });
-
-    // setMonthlyPresents(thisMonth.filter((i) => i.status === "Present").length);
-    // setMonthlyAbsents(thisMonth.filter((i) => i.status === "Absent").length);
-  }, [rows]);
-
-  useEffect(() => {
     const presents = filteredAndSorted.filter(
       (i) => i.status === "Present"
     ).length;
@@ -618,38 +688,32 @@ const EmployeeTable: React.FC<{
     setcurrentViewPresent(presents);
   }, [filteredAndSorted, setCurrentViewAbsent, setcurrentViewPresent]);
 
-  // ------------ IntersectionObserver (lazy load on 9th row) ------------
+  // ------------ IntersectionObserver (lazy load on 9th *flat* row) ------------
   const observerRef = useRef<IntersectionObserver | null>(null);
   const triggerElRef = useRef<HTMLTableRowElement | null>(null);
 
-  // compute the absolute index of the trigger row for the current loaded page
+  // flat index of trigger row
   const triggerIndex =
     loadedPage > 0 ? (loadedPage - 1) * PAGE_SIZE + TRIGGER_INDEX_IN_PAGE : -1;
 
   useEffect(() => {
-    // cleanup previous observer
     if (observerRef.current) {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
 
-    if (!hasMore) return; // nothing more to load
-    if (rows.length < PAGE_SIZE) return; // requirement: only if we have 10 or more rows
-    if (!triggerElRef.current) return; // not yet rendered
+    if (!hasMore) return;
+    if (rows.length < PAGE_SIZE) return;
+    if (!triggerElRef.current) return;
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (entry.isIntersecting) {
-          // proactively fetch next page
           fetchAttendancePage(loadedPage + 1, false);
         }
       },
-      {
-        root: null,
-        rootMargin: "0px",
-        threshold: 0.25, // fire when ~25% visible
-      }
+      { root: null, rootMargin: "0px", threshold: 0.25 }
     );
 
     observerRef.current.observe(triggerElRef.current);
@@ -662,10 +726,9 @@ const EmployeeTable: React.FC<{
     };
   }, [rows.length, triggerIndex, hasMore, loadedPage, fetchAttendancePage]);
 
-  // helpers to attach the trigger ref to the correct row
   const attachTriggerRef =
-    (index: number) => (el: HTMLTableRowElement | null) => {
-      if (index === triggerIndex) {
+    (flatIndex: number) => (el: HTMLTableRowElement | null) => {
+      if (flatIndex === triggerIndex) {
         triggerElRef.current = el;
       }
     };
@@ -689,7 +752,7 @@ const EmployeeTable: React.FC<{
     });
   };
 
-  // --------- Bulk “More Actions” (unchanged UX, just included for completeness) ---------
+  // --------- Bulk “More Actions” ---------
   const addAttendance = async (payload: {
     employeeIds: string[];
     status: string | null;
@@ -698,9 +761,7 @@ const EmployeeTable: React.FC<{
     clockIn?: any;
     clockOut?: any;
   }) => {
-    return api.post(`/api/attendance/MoreActions/${user?.userId}`, {
-      payload,
-    });
+    return api.post(`/api/attendance/MoreActions/${user?.userId}`, { payload });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -756,9 +817,8 @@ const EmployeeTable: React.FC<{
         });
         return;
       }
-      // Reuse your existing helper to include timezone offset with colon
-      clockInISO = toOffsetISOString(ci); // e.g. 2025-08-21T09:15:00.000+05:30
-      clockOutISO = toOffsetISOString(co); // e.g. 2025-08-21T18:00:00.000+05:30
+      clockInISO = toOffsetISOString(ci);
+      clockOutISO = toOffsetISOString(co);
     }
 
     setAttendanceRefresh(!attendanceRefresh);
@@ -815,9 +875,57 @@ const EmployeeTable: React.FC<{
     }
   };
 
+  // ---------- OT Approval (row-level) ----------
+  const updateOTStatus = async (row: AttendanceRow, next: OTStatus) => {
+    // optimistic update
+    setRows((prev) =>
+      prev.map((r) => (r.id === row.id ? { ...r, otStatus: next } : r))
+    );
+    try {
+      await api.patch(`/api/attendance/${row.id}/ot-status`, {
+        status: next,
+      });
+
+      toast.success(`OT marked as ${next}.`, {
+        durationMs: 1500,
+        position: "bottom-left",
+      });
+    } catch (err: any) {
+      // rollback
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, otStatus: row.otStatus ?? null } : r
+        )
+      );
+      const isNetwork =
+        err?.code === "ERR_NETWORK" ||
+        err?.message?.toLowerCase?.().includes("network");
+      toast.error(
+        isNetwork
+          ? "Network hiccup while updating OT."
+          : "Couldn’t update OT status. Please retry.",
+        { title: "OT update failed", durationMs: 3500, position: "bottom-left" }
+      );
+    }
+  };
+
+  const openOTDialog = (row: AttendanceRow) => {
+    setOtDialogRow(row);
+    setOtNextStatus((row.otStatus ?? "Pending") as OTStatus);
+    setOtDialogOpen(true);
+  };
+
+  const confirmOTUpdate = async () => {
+    if (!otDialogRow) return;
+    await updateOTStatus(otDialogRow, otNextStatus);
+    setOtDialogOpen(false);
+    setOtDialogRow(null);
+  };
+
+  // ------- Render -------
   return (
     <>
-      {/* Filters + actions shell (unchanged) */}
+      {/* Filters + actions shell */}
       <div className="mb-4 rounded-xl border bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
@@ -830,17 +938,13 @@ const EmployeeTable: React.FC<{
                 value={searchDraft}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setSearchDraft(v); // update UI immediately
-                  commitSearchDebounced(v); // schedule commit after 3s of silence
+                  setSearchDraft(v);
+                  commitSearchDebounced(v);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    // power users: commit immediately
-                    commitSearchDebounced.flush();
-                  }
+                  if (e.key === "Enter") commitSearchDebounced.flush();
                 }}
               />
-
               <span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">
                 <Search className="w-4 h-4" />
               </span>
@@ -867,10 +971,7 @@ const EmployeeTable: React.FC<{
                   selected={filters.singleDate}
                   onSelect={(d?: Date) => {
                     let date: Date | undefined;
-                    if (d) {
-                      date = new Date(d);
-                      // date = date_12.setHours(0, 0, 0, 0);
-                    }
+                    if (d) date = new Date(d);
                     setFilters((f) => ({
                       ...f,
                       singleDate: date,
@@ -1022,7 +1123,6 @@ const EmployeeTable: React.FC<{
             </DropdownMenu>
 
             {/* Presets */}
-
             <Button
               variant={filters.preset === "today" ? "outline" : "ghost"}
               size="sm"
@@ -1097,15 +1197,14 @@ const EmployeeTable: React.FC<{
               variant={filters.preset === null ? "outline" : "ghost"}
               size="sm"
               onClick={() => {
-                // hard reset all date filters and search
-                commitSearchDebounced.cancel(); // prevent stale pending apply
-                setSearchDraft(""); // clear the input instantly
+                commitSearchDebounced.cancel();
+                setSearchDraft("");
                 setFilters((f) => ({
                   ...f,
                   preset: null,
                   singleDate: undefined,
                   range: undefined,
-                  search: "", // this triggers a fresh page-1 fetch
+                  search: "",
                 }));
                 toast.info("Cleared filters.", {
                   durationMs: 1200,
@@ -1115,6 +1214,7 @@ const EmployeeTable: React.FC<{
             >
               Clear
             </Button>
+
             {/* Export actions */}
             <div className="flex gap-2">
               <Button
@@ -1131,7 +1231,6 @@ const EmployeeTable: React.FC<{
                 <Download className="h-4 w-4 mr-1" />
                 CSV
               </Button>
-
               <Button
                 variant="default"
                 size="sm"
@@ -1162,12 +1261,10 @@ const EmployeeTable: React.FC<{
                     + More
                   </Button>
                 </SheetTrigger>
-
                 <SheetContent>
                   <SheetHeader>
                     <SheetTitle>Absence Entry</SheetTitle>
                   </SheetHeader>
-
                   <form onSubmit={handleSubmit}>
                     <div className="p-2 space-y-4">
                       <Label>Employees</Label>
@@ -1251,7 +1348,6 @@ const EmployeeTable: React.FC<{
                             </div>
                           </div>
 
-                          {/* Optional live preview */}
                           <div className="text-xs text-slate-500">
                             {(() => {
                               const ci = toTodayFrom12h(
@@ -1282,7 +1378,6 @@ const EmployeeTable: React.FC<{
                           </div>
                         </div>
                       )}
-                      {/* Notes to land the plane */}
                       <Label>Reason</Label>
                       <textarea
                         className="w-full border-[2px]"
@@ -1307,7 +1402,7 @@ const EmployeeTable: React.FC<{
         </div>
       </div>
 
-      {/* Data table + lazy load sentinel */}
+      {/* Data table + grouped sections + lazy load sentinel */}
       <motion.div
         initial={false}
         animate={{ opacity: 1, y: 0 }}
@@ -1318,7 +1413,22 @@ const EmployeeTable: React.FC<{
           <Table className="min-w-full text-sm">
             <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
               <TableRow>
-                <TableHead className="whitespace-nowrap">Date</TableHead>
+                {/* Sticky Date header */}
+                <TableHead className="whitespace-nowrap sticky left-0 z-20 bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={toggleAllGroups}
+                    className="flex items-center gap-1 hover:text-slate-900 text-slate-700"
+                    title={allOpen ? "Collapse all dates" : "Expand all dates"}
+                  >
+                    Date
+                    <ChevronsUpDown
+                      className={`h-4 w-4 transition-transform ${
+                        allOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                </TableHead>
                 <TableHead className="whitespace-nowrap">
                   Employee Name
                 </TableHead>
@@ -1329,6 +1439,8 @@ const EmployeeTable: React.FC<{
                   Total Hours Worked
                 </TableHead>
                 <TableHead className="whitespace-nowrap">OT</TableHead>
+                <TableHead className="whitespace-nowrap">OT Status</TableHead>
+                <TableHead className="whitespace-nowrap">OT Approval</TableHead>
                 <TableHead className="whitespace-nowrap">Late</TableHead>
                 <TableHead className="whitespace-nowrap">Status</TableHead>
                 <TableHead className="whitespace-nowrap">Created By</TableHead>
@@ -1341,55 +1453,174 @@ const EmployeeTable: React.FC<{
             <TableBody>
               {initialLoading && rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-40 text-center">
+                  <TableCell colSpan={15} className="h-40 text-center">
                     Loading…
                   </TableCell>
                 </TableRow>
-              ) : rows.length > 0 ? (
-                rows.map((row, index) => (
-                  <TableRow
-                    key={row.id}
-                    ref={attachTriggerRef(index)} // 🔔 attach IO to the right row
-                    className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
-                  >
-                    <TableCell className="font-medium">
-                      {fmtDay(row.attendanceDate)}
-                    </TableCell>
-                    <TableCell>{row.employeeName ?? "—"}</TableCell>
-                    <TableCell>{row.employeeDepartment ?? "—"}</TableCell>
-                    <TableCell>
-                      {row.clockIn == "" ? "—" : row.clockIn}
-                    </TableCell>
-                    <TableCell>
-                      {row.clockOut == "" ? "—" : row.clockOut}
-                    </TableCell>
-                    <TableCell>{row.worked ?? "—"}</TableCell>
-                    <TableCell>{row.ot ?? "—"}</TableCell>
-                    <TableCell>{row.late ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          row.status === "Present" ? "default" : "destructive"
-                        }
-                        className="uppercase tracking-wide"
-                      >
-                        {row.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
-                    <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
-                    <TableCell>
-                      {row.editedBy?.name == " " || !row.editedBy?.name
-                        ? "—"
-                        : row.editedBy?.name}
-                    </TableCell>
-                    <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
-                  </TableRow>
-                ))
+              ) : filteredAndSorted.length > 0 ? (
+                // Render grouped blocks
+                (() => {
+                  let flatIndex = 0; // to keep lazy-load sentinel aligned
+                  const blocks: React.ReactNode[] = [];
+
+                  for (const [key, items] of Array.from(groups.entries())) {
+                    const dayLabel = format(
+                      parseISO(items[0].attendanceDate),
+                      "PPP"
+                    );
+                    const open = !!openGroups[key];
+
+                    // Group header row (toggle for all groups)
+                    blocks.push(
+                      <TableRow key={`hdr-${key}`} className="bg-slate-50/70">
+                        <TableCell colSpan={15} className="!p-0">
+                          <div
+                            className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer"
+                            onClick={() => toggleGroup(key)}
+                            role="button"
+                          >
+                            <ChevronRight
+                              className={`h-4 w-4 transition-transform ${
+                                open ? "rotate-90" : ""
+                              }`}
+                            />
+                            <span className="font-semibold">{dayLabel}</span>
+                            <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
+                              {items.length} record{items.length > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+
+                    // Render rows when that group is open
+                    if (open) {
+                      for (const row of items) {
+                        const refCb = attachTriggerRef(flatIndex);
+                        flatIndex += 1;
+
+                        blocks.push(
+                          <TableRow
+                            key={row.id}
+                            ref={refCb}
+                            className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
+                          >
+                            {/* Sticky Date cell */}
+                            <TableCell className="font-medium sticky left-0 z-10 bg-white">
+                              {fmtDay(row.attendanceDate)}
+                            </TableCell>
+                            <TableCell>{row.employeeName ?? "—"}</TableCell>
+                            <TableCell>
+                              {row.employeeDepartment ?? "—"}
+                            </TableCell>
+                            <TableCell>
+                              {row.clockIn == "" ? "—" : row.clockIn}
+                            </TableCell>
+                            <TableCell>
+                              {row.clockOut == "" ? "—" : row.clockOut}
+                            </TableCell>
+                            <TableCell>{row.worked ?? "—"}</TableCell>
+                            <TableCell>{row.ot ?? "—"}</TableCell>
+
+                            {/* OT Status visual */}
+                            <TableCell>
+                              {row.otStatus ? (
+                                <Badge
+                                  variant={
+                                    row.otStatus === "Approved"
+                                      ? "default"
+                                      : row.otStatus === "Rejected"
+                                      ? "destructive"
+                                      : "secondary"
+                                  }
+                                  className="uppercase tracking-wide"
+                                >
+                                  {row.otStatus}
+                                </Badge>
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+
+                            {/* OT Approval via Dialog */}
+                            <TableCell>
+                              {row.ot ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openOTDialog(row)}
+                                  title="Review & approve OT"
+                                >
+                                  Review
+                                </Button>
+                              ) : (
+                                <span className="text-slate-400">No OT</span>
+                              )}
+                            </TableCell>
+
+                            <TableCell>{row.late ?? "—"}</TableCell>
+
+                            {/* Attendance Status (Present/Absent/etc) */}
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  row.status === "Present"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                                className="uppercase tracking-wide"
+                              >
+                                {row.status}
+                              </Badge>
+                            </TableCell>
+
+                            <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
+                            <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
+                            <TableCell>
+                              {row.editedBy?.name == " " || !row.editedBy?.name
+                                ? "—"
+                                : row.editedBy?.name}
+                            </TableCell>
+                            <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
+                          </TableRow>
+                        );
+                      }
+                    }
+                  }
+
+                  // Tail loaders / caught-up states
+                  blocks.push(
+                    loadingMore && rows.length > 9 && hasMore ? (
+                      <TableRow key="loading-more">
+                        <TableCell
+                          colSpan={15}
+                          className="py-4 text-center text-slate-500"
+                        >
+                          Loading more…
+                        </TableCell>
+                      </TableRow>
+                    ) : null
+                  );
+
+                  if (!hasMore && rows.length >= PAGE_SIZE) {
+                    blocks.push(
+                      <TableRow key="caught-up">
+                        <TableCell
+                          colSpan={15}
+                          className="py-4 text-center text-slate-400"
+                        >
+                          You’re all caught up.
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return blocks;
+                })()
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={13}
+                    colSpan={15}
                     className="h-56 text-center align-middle"
                   >
                     <div className="mx-auto max-w-sm">
@@ -1404,32 +1635,88 @@ const EmployeeTable: React.FC<{
                   </TableCell>
                 </TableRow>
               )}
-
-              {loadingMore && rows.length > 9 && hasMore && (
-                <TableRow>
-                  <TableCell
-                    colSpan={13}
-                    className="py-4 text-center text-slate-500"
-                  >
-                    Loading more…
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {!hasMore && rows.length >= PAGE_SIZE && (
-                <TableRow>
-                  <TableCell
-                    colSpan={13}
-                    className="py-4 text-center text-slate-400"
-                  >
-                    You’re all caught up.
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>
       </motion.div>
+
+      {/* Centralized OT Approval Dialog */}
+      <Dialog open={otDialogOpen} onOpenChange={setOtDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Overtime Approval</DialogTitle>
+            <DialogDescription>
+              Validate and confirm the OT disposition for this entry.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="text-sm text-slate-600">
+              <div>
+                <span className="font-medium">Employee:</span>{" "}
+                {otDialogRow?.employeeName ?? "—"}
+              </div>
+              <div>
+                <span className="font-medium">Date:</span>{" "}
+                {fmtDay(otDialogRow?.attendanceDate)}
+              </div>
+              <div>
+                <span className="font-medium">OT:</span>{" "}
+                {otDialogRow?.ot ?? "—"}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Current:</span>
+                {otDialogRow?.otStatus ? (
+                  <Badge
+                    variant={
+                      otDialogRow.otStatus === "Approved"
+                        ? "default"
+                        : otDialogRow.otStatus === "Rejected"
+                        ? "destructive"
+                        : "secondary"
+                    }
+                    className="uppercase tracking-wide"
+                  >
+                    {otDialogRow.otStatus}
+                  </Badge>
+                ) : (
+                  "—"
+                )}
+              </div>
+            </div>
+
+            {/* Desired status selector */}
+            <div className="space-y-1">
+              <Label htmlFor="otStatusSelect">Set new status</Label>
+              <SSelect
+                value={otNextStatus}
+                onValueChange={(v: OTStatus) => setOtNextStatus(v)}
+              >
+                <SSelectTrigger id="otStatusSelect" className="w-full">
+                  <SSelectValue placeholder="Choose status" />
+                </SSelectTrigger>
+                <SSelectContent>
+                  <SSelectItem value="Pending">Pending</SSelectItem>
+                  <SSelectItem value="Approved">Approved</SSelectItem>
+                  <SSelectItem value="Rejected">Rejected</SSelectItem>
+                </SSelectContent>
+              </SSelect>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" onClick={() => setOtDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="!bg-sky-500 !text-white"
+              onClick={confirmOTUpdate}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
