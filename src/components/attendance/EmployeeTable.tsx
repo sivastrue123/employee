@@ -615,11 +615,17 @@ const EmployeeTable: React.FC<Props> = ({
 
   // OT dialog flows
   const updateOTStatus = async (row: AttendanceRow, next: OTStatus) => {
+    console.log(row);
     setRows((prev) =>
       prev.map((r) => (r.id === row.id ? { ...r, otStatus: next } : r))
     );
     try {
-      await api.patch(`/api/attendance/${row.id}/ot-status`, { status: next });
+      await api.patch(
+        `/api/attendance/editAttendance/${row.id}/ot-status?userId=${user?.userId}`,
+        {
+          status: next,
+        }
+      );
       toast.success(`OT marked as ${next}.`, {
         durationMs: 1500,
         position: "bottom-left",
