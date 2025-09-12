@@ -3,7 +3,7 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserTable from "./UserTable";
-import EmployeeTable from "./EmployeeTable";
+import EmployeeTable from "@/components/attendance/EmployeeTable";
 import { useSidebar } from "@/components/ui/sidebar";
 
 // -------- Styles --------
