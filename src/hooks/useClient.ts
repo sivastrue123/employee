@@ -204,7 +204,7 @@ export function useClients() {
     );
 
   // row expansion -> fetch tasks for a client
-  const handleGetAllTasks = async (clientId: string) => {
+  const handleGetAllTasks = async (clientId: string, userId?: string) => {
     const loadingId = toast.info("Loading task inventory…", {
       durationMs: 0,
       position: "bottom-left",
@@ -213,7 +213,9 @@ export function useClients() {
 
     try {
       const response = await api.get(
-        `/api/client/${clientId}/getAllTasks`,
+        `/api/client/${clientId}/getAllTasks${
+          userId ? `?userId=${userId}` : ""
+        }`,
         axiosOpts
       );
 
@@ -517,5 +519,6 @@ export function useClients() {
     toggleChecklistItem,
     isTaskLoading,
     setIsTaskLoading,
+    handleGetAllTasks
   };
 }

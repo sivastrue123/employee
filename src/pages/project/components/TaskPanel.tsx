@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"; // <-- add this import
+} from "@/components/ui/alert-dialog";
 
 import {
   employeeFullName,
@@ -33,6 +33,16 @@ import {
 
 import { Employee, Option, Task } from "@/types/projectTypes";
 import { TaskDialog } from "./TaskDialog.js";
+
+// NEW: shadcn Select for the assignee filter
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { useAuth } from "@/context/AuthContext.js";
 
 type Mode = "create" | "edit";
 
@@ -52,6 +62,11 @@ interface TaskPanelProps {
   clientId: string;
   clientName?: string;
   isLoading?: boolean;
+  // you already declared this in your props interface earlier
+  handleGetAllTasks: (
+    clientId: string,
+    userId?: string | undefined
+  ) => Promise<void>;
 }
 
 export const TaskPanel: React.FC<TaskPanelProps> = ({
@@ -66,15 +81,22 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   clientId,
   clientName,
   isLoading = false,
+  handleGetAllTasks,
 }) => {
   // Dialog state (create/edit)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("create");
   const [initial, setInitial] = useState<Task | null>(null);
-
-  // NEW: central delete confirmation state
+  const { user } = useAuth();
+  // Central delete confirmation state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [taskPendingDelete, setTaskPendingDelete] = useState<Task | null>(null);
+
+  // NEW: Assignee filter state
+  const [assigneeFilter, setAssigneeFilter] = useState<"all" | "me">("all");
+
+  // TODO: Replace with your real user id from auth context
+  const MY_USER_ID = user?.employee_id;
 
   const openCreate = () => {
     setMode("create");
@@ -110,16 +132,44 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     }
   };
 
+  // NEW: when filter changes, fetch accordingly
+  const onChangeAssigneeFilter = async (value: "all" | "me") => {
+    setAssigneeFilter(value);
+    if (value === "all") {
+      await handleGetAllTasks(clientId);
+    } else {
+      await handleGetAllTasks(clientId, MY_USER_ID);
+    }
+  };
+
   return (
     <div className="px-2 py-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-slate-900 font-medium">
           <CheckSquare className="h-4 w-4" />
           Tasks for {clientName}
         </div>
-        <Button size="sm" className="gap-2 !bg-yellow-500" onClick={openCreate}>
-          <PlusCircle className="h-4 w-4" /> Add Task
-        </Button>
+
+        <div className="flex items-center gap-2">
+          {/* NEW: Assignee filter dropdown */}
+          <Select value={assigneeFilter} onValueChange={onChangeAssigneeFilter}>
+            <SelectTrigger className="w-44" aria-label="Assignee filter">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="me">Assigned to me</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            size="sm"
+            className="gap-2 !bg-yellow-500"
+            onClick={openCreate}
+          >
+            <PlusCircle className="h-4 w-4" /> Add Task
+          </Button>
+        </div>
       </div>
 
       <Separator className="my-3" />
@@ -139,7 +189,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
             return (
               <div
-                key={t._id || t.id} // <-- prefer _id; fallback maintained for safety
+                key={t._id || t.id}
                 className="rounded-lg border bg-white p-4 hover:shadow-sm transition-shadow"
               >
                 {/* Header row */}
@@ -179,7 +229,6 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                       <Edit3 className="h-4 w-4" /> Edit
                     </Button>
 
-                    {/* Delete - now launches confirmation */}
                     <AlertDialog
                       open={confirmOpen}
                       onOpenChange={setConfirmOpen}
@@ -300,7 +349,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   <div className="mt-3 grid gap-2">
                     {t.checklist.map((c: any) => (
                       <label
-                        key={c._id || c.id} // <-- prefer _id
+                        key={c._id || c.id}
                         className="flex items-center gap-2 text-sm"
                       >
                         <input
