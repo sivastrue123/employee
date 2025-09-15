@@ -1,4 +1,3 @@
-// components/attendance/EmployeeTable.tsx
 import React, {
   useCallback,
   useEffect,
@@ -8,16 +7,7 @@ import React, {
 } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
-import {
-  endOfDay,
-  endOfMonth,
-  endOfWeek,
-  format,
-  parseISO,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useDebouncedCallback } from "use-debounce";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/toast/ToastProvider";
@@ -33,7 +23,6 @@ import { useGroupState } from "@/hooks/useGroupState";
 
 import {
   AttendanceRow,
-  DateRange,
   Employee,
   Filters,
   OTStatus,
@@ -41,7 +30,7 @@ import {
 } from "@/types/attendanceTypes";
 
 import {
-  parseTimeToMinutes,
+  parseTimeToMinutes, // still used for search
   squash,
   toLowerSafe,
 } from "@/helpers/attendanceDateHelper";
@@ -125,6 +114,7 @@ const EmployeeTable: React.FC<Props> = ({
   const [clockOutTime, setClockOutTime] = useState<string>("");
   const [clockOutMeridiem, setClockOutMeridiem] = useState<"AM" | "PM">("PM");
 
+  // ---------- duration utilities (robust for "HH:mm" and "X hr(s) Y min(s)") ----------
   const toTodayFrom12h = (hhmm: string, meridiem: "AM" | "PM"): Date | null => {
     const m = /^(\d{1,2}):([0-5]\d)$/.exec(hhmm.trim());
     if (!m) return null;
@@ -137,6 +127,60 @@ const EmployeeTable: React.FC<Props> = ({
     return d;
   };
 
+  // Parses "8 hrs 17 mins", "8 hr 17 min", "8h 17m", "08:17", "8", "17m"
+  const parseDurationToMinutes = (val?: string | null): number => {
+    if (!val) return 0;
+    const s = String(val).trim().toLowerCase();
+
+    // 1) "HH:mm"
+    const mClock = /^(\d{1,2}):([0-5]\d)$/.exec(s);
+    if (mClock) {
+      const h = parseInt(mClock[1], 10);
+      const m = parseInt(mClock[2], 10);
+      return h * 60 + m;
+    }
+
+    // 2) "xh ym" variants (with/without spaces/plurals)
+    const mHrsMins =
+      /^(?:(\d+)\s*h(?:r|rs)?)?\s*(?:(\d+)\s*m(?:in|ins)?)?$/.exec(
+        s.replace(/\s+/g, " ").trim()
+      );
+    if (mHrsMins && (mHrsMins[1] || mHrsMins[2])) {
+      const h = mHrsMins[1] ? parseInt(mHrsMins[1], 10) : 0;
+      const m = mHrsMins[2] ? parseInt(mHrsMins[2], 10) : 0;
+      return h * 60 + m;
+    }
+
+    // 3) "x hrs y mins" long form
+    const mLong = /^(?:(\d+)\s*hour(?:s)?)?(?:\s*(\d+)\s*minute(?:s)?)?$/.exec(
+      s
+    );
+    if (mLong && (mLong[1] || mLong[2])) {
+      const h = mLong[1] ? parseInt(mLong[1], 10) : 0;
+      const m = mLong[2] ? parseInt(mLong[2], 10) : 0;
+      return h * 60 + m;
+    }
+
+    // 4) just hours ("8"), just minutes ("17m", "17 min")
+    const mJustH = /^(\d+)$/.exec(s);
+    if (mJustH) return parseInt(mJustH[1], 10) * 60;
+
+    const mJustM = /^(\d+)\s*m(?:in|ins)?$/.exec(s);
+    if (mJustM) return parseInt(mJustM[1], 10);
+
+    return 0;
+  };
+
+  const minutesToHrsMins = (mins: number): string => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const hPart = h > 0 ? `${h} hr${h === 1 ? "" : "s"}` : "";
+    const mPart = m > 0 ? `${m} min${m === 1 ? "" : "s"}` : "";
+    if (!hPart && !mPart) return "0 mins";
+    return [hPart, mPart].filter(Boolean).join(" ");
+  };
+
+  // ---------- select options ----------
   const attendanceStatus: Option[] = [
     { value: "Present", label: "Present" },
     { value: "Absent", label: "Absent" },
@@ -153,19 +197,14 @@ const EmployeeTable: React.FC<Props> = ({
     [employeeOptions]
   );
 
-  // debounced search
+  // ---------- debounced search ----------
   const commitSearchDebounced = useDebouncedCallback((next: string) => {
     setFilters((f) => ({ ...f, search: next }));
   }, 3000);
 
   const handleClearAll = useCallback(() => {
-    // kill any pending search commit that could re-apply stale search
     commitSearchDebounced.cancel();
-
-    // hard reset the filter state in one atomic transaction
     setFilters(DEFAULT_FILTERS);
-
-    // align UI affordances
     setSearchDraft("");
     setEmployeeSearch("");
     setDropdownOpen(false);
@@ -182,7 +221,7 @@ const EmployeeTable: React.FC<Props> = ({
   );
   useEffect(() => setSearchDraft(filters.search || ""), [filters.search]);
 
-  // bootstrap employees
+  // ---------- bootstrap employees ----------
   useEffect(() => {
     let active = true;
     (async () => {
@@ -208,7 +247,7 @@ const EmployeeTable: React.FC<Props> = ({
     };
   }, [toast]);
 
-  // fetch logic (paged)
+  // ---------- fetch logic (paged) ----------
   const lastAbortRef = useRef<AbortController | null>(null);
 
   const fetchAttendancePage = useCallback(
@@ -332,7 +371,7 @@ const EmployeeTable: React.FC<Props> = ({
     filters.sort?.desc,
   ]);
 
-  // local filter + sort (client)
+  // ---------- local filter + sort (client) ----------
   const filteredAndSorted = useMemo(() => {
     const q = filters.search.trim();
     const qLower = toLowerSafe(q);
@@ -385,7 +424,7 @@ const EmployeeTable: React.FC<Props> = ({
     return data;
   }, [rows, filters.search, filters.sort]);
 
-  // groups
+  // ---------- groups ----------
   const groups = useMemo(() => {
     const map = new Map<string, AttendanceRow[]>();
     for (const r of filteredAndSorted) {
@@ -401,7 +440,7 @@ const EmployeeTable: React.FC<Props> = ({
   const { openGroups, toggleGroup, allOpen, toggleAllGroups } =
     useGroupState(groups);
 
-  // KPIs
+  // ---------- KPIs for parent ----------
   useEffect(() => {
     const presents = filteredAndSorted.filter(
       (i) => i.status === "Present"
@@ -413,7 +452,7 @@ const EmployeeTable: React.FC<Props> = ({
     setcurrentViewPresent(presents);
   }, [filteredAndSorted, setCurrentViewAbsent, setcurrentViewPresent]);
 
-  // infinite scroll
+  // ---------- infinite scroll ----------
   const { attachTriggerRef } = useInfiniteScroll({
     hasMore,
     rowsLength: rows.length,
@@ -423,7 +462,35 @@ const EmployeeTable: React.FC<Props> = ({
     onLoadNext: (nextPage) => fetchAttendancePage(nextPage, false),
   });
 
-  // export helpers
+  // ---------- rollups for export ----------
+  const exportRollups = useMemo(() => {
+    const totalPresent = filteredAndSorted.filter(
+      (r) => r.status === "Present"
+    ).length;
+    const totalAbsent = filteredAndSorted.filter(
+      (r) => r.status === "Absent"
+    ).length;
+
+    const totalWorkedMinutes = filteredAndSorted.reduce((acc, r) => {
+      return acc + parseDurationToMinutes(r.worked ?? "");
+    }, 0);
+
+    const totalOTApprovedMinutes = filteredAndSorted.reduce((acc, r) => {
+      if ((r.otStatus ?? "").toLowerCase() === "approved") {
+        return acc + parseDurationToMinutes(r.ot ?? "");
+      }
+      return acc;
+    }, 0);
+
+    return {
+      totalPresent,
+      totalAbsent,
+      totalWorkedStr: minutesToHrsMins(totalWorkedMinutes),
+      totalOTApprovedStr: minutesToHrsMins(totalOTApprovedMinutes),
+    };
+  }, [filteredAndSorted]);
+
+  // ---------- export helpers ----------
   const buildExportRows = (data: AttendanceRow[]) =>
     data.map((row) => ({
       Date: fmtDay(row.attendanceDate),
@@ -442,6 +509,16 @@ const EmployeeTable: React.FC<Props> = ({
       "Edited On": fmtDateTime(row.editedAt),
     }));
 
+  const buildSummaryRecords = () => [
+    { Metric: "Total Present", Value: exportRollups.totalPresent },
+    { Metric: "Total Absent", Value: exportRollups.totalAbsent },
+    { Metric: "Total Hours Worked", Value: exportRollups.totalWorkedStr },
+    {
+      Metric: "Total OT Hours (Approved)",
+      Value: exportRollups.totalOTApprovedStr,
+    },
+  ];
+
   const handleExportExcel = () => {
     if (!filteredAndSorted.length) {
       toast.info("No rows to export for the current view.", {
@@ -459,10 +536,19 @@ const EmployeeTable: React.FC<Props> = ({
     try {
       const data = buildExportRows(filteredAndSorted);
       const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Summary
+      const summary = buildSummaryRecords();
+      const wsSummary = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+
+      // Sheet 2: Attendance
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+
       const stamp = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(wb, `attendance_${stamp}.xlsx`);
+
       toast.remove(loadingId);
       toast.success("Excel exported successfully.", {
         durationMs: 1800,
@@ -493,8 +579,19 @@ const EmployeeTable: React.FC<Props> = ({
     });
     try {
       const data = buildExportRows(filteredAndSorted);
+
+      // Build "Summary" section for CSV
+      const summary = buildSummaryRecords();
+      const wsSummary = XLSX.utils.json_to_sheet(summary);
+      const csvSummary = XLSX.utils.sheet_to_csv(wsSummary);
+
+      // Build Attendance section
       const ws = XLSX.utils.json_to_sheet(data);
-      const csv = XLSX.utils.sheet_to_csv(ws);
+      const csvAttendance = XLSX.utils.sheet_to_csv(ws);
+
+      // Stitch with a blank line between sections
+      const csv = `Summary\n${csvSummary}\nAttendance\n${csvAttendance}`;
+
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -505,6 +602,7 @@ const EmployeeTable: React.FC<Props> = ({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
       toast.remove(loadingId);
       toast.success("CSV exported successfully.", {
         durationMs: 1800,
@@ -519,7 +617,7 @@ const EmployeeTable: React.FC<Props> = ({
     }
   };
 
-  // bulk actions
+  // ---------- bulk actions (unchanged) ----------
   const addAttendance = async (payload: {
     employeeIds: string[];
     status: string | null;
@@ -641,18 +739,15 @@ const EmployeeTable: React.FC<Props> = ({
     }
   };
 
-  // OT dialog flows
+  // ---------- OT dialog flows (unchanged) ----------
   const updateOTStatus = async (row: AttendanceRow, next: OTStatus) => {
-    console.log(row);
     setRows((prev) =>
       prev.map((r) => (r.id === row.id ? { ...r, otStatus: next } : r))
     );
     try {
       await api.patch(
         `/api/attendance/editAttendance/${row.id}/ot-status?userId=${user?.userId}`,
-        {
-          status: next,
-        }
+        { status: next }
       );
       toast.success(`OT marked as ${next}.`, {
         durationMs: 1500,
@@ -721,14 +816,11 @@ const EmployeeTable: React.FC<Props> = ({
         onExportCSV={handleExportCSV}
         onExportExcel={handleExportExcel}
         onOpenMore={() => setOpenSheet(true)}
-        onClearAll={handleClearAll} 
+        onClearAll={handleClearAll}
       />
 
       <GroupedAttendanceTable
-        groups={(() => {
-          // pass the same map
-          return groups;
-        })()}
+        groups={(() => groups)()}
         openGroups={openGroups}
         toggleGroup={toggleGroup}
         allOpen={allOpen}
