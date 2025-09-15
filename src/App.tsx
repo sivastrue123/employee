@@ -134,9 +134,9 @@ export default function App() {
                   className="h-9 w-auto"
                   onError={(e: any) => (e.currentTarget.style.display = "none")}
                 />
-                <span className="text-2xl font-semibold tracking-tight text-[#2F78FF]">
+                {/* <span className="text-2xl font-semibold tracking-tight text-[#2F78FF]">
                   ezofis
-                </span>
+                </span> */}
               </div>
 
               {/* Right rail actions */}

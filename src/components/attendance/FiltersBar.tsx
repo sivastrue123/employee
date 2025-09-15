@@ -2,7 +2,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CustomDatePicker } from "@/components/Daypicker/CustomDatePicker";
 import {
@@ -14,7 +18,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CalendarIcon, ChevronDownIcon, Search, Download } from "lucide-react";
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, format } from "date-fns";
+import {
+  startOfDay,
+  endOfDay,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  format,
+} from "date-fns";
 import { Option, Filters, DateRange, Employee } from "@/types/attendanceTypes";
 import { useToast } from "@/toast/ToastProvider";
 
@@ -36,6 +48,7 @@ type Props = {
   onExportExcel: () => void;
 
   onOpenMore: () => void;
+  onClearAll: () => void;
 };
 
 const FiltersBar: React.FC<Props> = ({
@@ -52,19 +65,24 @@ const FiltersBar: React.FC<Props> = ({
   onExportCSV,
   onExportExcel,
   onOpenMore,
+  onClearAll,
 }) => {
   const toast = useToast();
   const filteredEmployees =
     employeeSearch.trim().length === 0
       ? employeeOptions
       : employeeOptions.filter((e) =>
-          `${e.first_name} ${e.last_name}`.toLowerCase().includes(employeeSearch.trim().toLowerCase())
+          `${e.first_name} ${e.last_name}`
+            .toLowerCase()
+            .includes(employeeSearch.trim().toLowerCase())
         );
 
   const toggleEmployee = (employeeId: string) => {
     setFilters((f) => {
       const exists = f.selectedEmployeeIds.includes(employeeId);
-      const nextIds = exists ? f.selectedEmployeeIds.filter((id) => id !== employeeId) : [...f.selectedEmployeeIds, employeeId];
+      const nextIds = exists
+        ? f.selectedEmployeeIds.filter((id) => id !== employeeId)
+        : [...f.selectedEmployeeIds, employeeId];
       return { ...f, selectedEmployeeIds: nextIds };
     });
   };
@@ -102,12 +120,17 @@ const FiltersBar: React.FC<Props> = ({
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-44 justify-between">
                 <span className="truncate">
-                  {filters.singleDate ? format(filters.singleDate, "PP") : "Select date"}
+                  {filters.singleDate
+                    ? format(filters.singleDate, "PP")
+                    : "Select date"}
                 </span>
                 <ChevronDownIcon className="h-4 w-4 opacity-70" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+            <PopoverContent
+              className="w-auto overflow-hidden p-0"
+              align="start"
+            >
               <Calendar
                 mode="single"
                 selected={filters.singleDate}
@@ -129,12 +152,16 @@ const FiltersBar: React.FC<Props> = ({
           {/* Range date */}
           <Popover open={openRange} onOpenChange={setOpenRange}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[280px] justify-start text-left">
+              <Button
+                variant="outline"
+                className="w-[280px] justify-start text-left"
+              >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {filters.range?.from ? (
                   filters.range.to ? (
                     <>
-                      {format(filters.range.from, "LLL dd, y")} – {format(filters.range.to, "LLL dd, y")}
+                      {format(filters.range.from, "LLL dd, y")} –{" "}
+                      {format(filters.range.to, "LLL dd, y")}
                     </>
                   ) : (
                     format(filters.range.from, "LLL dd, y")
@@ -149,7 +176,12 @@ const FiltersBar: React.FC<Props> = ({
                 selected={filters.range}
                 onSelect={(r: DateRange) => {
                   if (!r) {
-                    setFilters((f) => ({ ...f, range: undefined, singleDate: undefined, preset: null }));
+                    setFilters((f) => ({
+                      ...f,
+                      range: undefined,
+                      singleDate: undefined,
+                      preset: null,
+                    }));
                     return;
                   }
                   const rawFrom = r?.from ?? undefined;
@@ -176,7 +208,9 @@ const FiltersBar: React.FC<Props> = ({
               <Button variant="outline">
                 Filter By Employees
                 {filters.selectedEmployeeIds.length > 0 ? (
-                  <span className="ml-2 text-xs text-slate-500">({filters.selectedEmployeeIds.length})</span>
+                  <span className="ml-2 text-xs text-slate-500">
+                    ({filters.selectedEmployeeIds.length})
+                  </span>
                 ) : null}
               </Button>
             </DropdownMenuTrigger>
@@ -191,7 +225,9 @@ const FiltersBar: React.FC<Props> = ({
               />
               {filteredEmployees.length > 0 ? (
                 filteredEmployees.map((emp) => {
-                  const checked = filters.selectedEmployeeIds.includes(emp.employee_id);
+                  const checked = filters.selectedEmployeeIds.includes(
+                    emp.employee_id
+                  );
                   return (
                     <DropdownMenuCheckboxItem
                       key={emp.employee_id}
@@ -209,14 +245,20 @@ const FiltersBar: React.FC<Props> = ({
                 </DropdownMenuCheckboxItem>
               )}
               <div className="mt-2 flex gap-2">
-                <Button variant="ghost" className="w-full" onClick={() => setDropdownOpen(false)}>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setDropdownOpen(false)}
+                >
                   Close
                 </Button>
-                {filters.selectedEmployeeIds.length > 0 && (
+                {filteredEmployees.length > 0 && (
                   <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => setFilters((f) => ({ ...f, selectedEmployeeIds: [] }))}
+                    variant={filters.preset === null ? "outline" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      onClearAll(); // <-- single source of truth reset
+                    }}
                   >
                     Clear
                   </Button>
@@ -232,10 +274,20 @@ const FiltersBar: React.FC<Props> = ({
             onClick={() => {
               const today = new Date();
               today.setHours(0, 0, 0, 0);
-              setFilters((f) => ({ ...f, preset: "today", singleDate: today, range: undefined }));
-              toast.info("Filtered to today.", { durationMs: 1200, position: "bottom-left" });
+              setFilters((f) => ({
+                ...f,
+                preset: "today",
+                singleDate: today,
+                range: undefined,
+              }));
+              toast.info("Filtered to today.", {
+                durationMs: 1200,
+                position: "bottom-left",
+              });
             }}
-            className={filters.preset === "today" ? "!hidden sm:inline-flex" : ""}
+            className={
+              filters.preset === "today" ? "!hidden sm:inline-flex" : ""
+            }
           >
             Today
           </Button>
@@ -248,11 +300,19 @@ const FiltersBar: React.FC<Props> = ({
                 ...f,
                 preset: "week",
                 singleDate: undefined,
-                range: { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) },
+                range: {
+                  from: startOfWeek(now, { weekStartsOn: 1 }),
+                  to: endOfWeek(now, { weekStartsOn: 1 }),
+                },
               }));
-              toast.info("Filtered to this week.", { durationMs: 1200, position: "bottom-left" });
+              toast.info("Filtered to this week.", {
+                durationMs: 1200,
+                position: "bottom-left",
+              });
             }}
-            className={filters.preset === "week" ? "!hidden sm:inline-flex" : ""}
+            className={
+              filters.preset === "week" ? "!hidden sm:inline-flex" : ""
+            }
           >
             This week
           </Button>
@@ -267,9 +327,14 @@ const FiltersBar: React.FC<Props> = ({
                 singleDate: undefined,
                 range: { from: startOfMonth(now), to: endOfMonth(now) },
               }));
-              toast.info("Filtered to this month.", { durationMs: 1200, position: "bottom-left" });
+              toast.info("Filtered to this month.", {
+                durationMs: 1200,
+                position: "bottom-left",
+              });
             }}
-            className={filters.preset === "month" ? "!hidden sm:inline-flex" : ""}
+            className={
+              filters.preset === "month" ? "!hidden sm:inline-flex" : ""
+            }
           >
             This month
           </Button>
@@ -278,8 +343,18 @@ const FiltersBar: React.FC<Props> = ({
             size="sm"
             onClick={() => {
               setSearchDraft("");
-              setFilters((f) => ({ ...f, preset: null, singleDate: undefined, range: undefined, search: "" }));
-              toast.info("Cleared filters.", { durationMs: 1200, position: "bottom-left" });
+              onClearAll();
+              setFilters((f) => ({
+                ...f,
+                preset: null,
+                singleDate: undefined,
+                range: undefined,
+                search: "",
+              }));
+              toast.info("Cleared filters.", {
+                durationMs: 1200,
+                position: "bottom-left",
+              });
             }}
           >
             Clear
@@ -287,11 +362,22 @@ const FiltersBar: React.FC<Props> = ({
 
           {/* Export */}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onExportCSV} title="Export CSV">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportCSV}
+              title="Export CSV"
+            >
               <Download className="h-4 w-4 mr-1" />
               CSV
             </Button>
-            <Button variant="default" size="sm" className="!bg-emerald-600" onClick={onExportExcel} title="Export Excel">
+            <Button
+              variant="default"
+              size="sm"
+              className="!bg-emerald-600"
+              onClick={onExportExcel}
+              title="Export Excel"
+            >
               <Download className="h-4 w-4 mr-1" />
               Excel
             </Button>
@@ -299,7 +385,12 @@ const FiltersBar: React.FC<Props> = ({
 
           {/* More actions sheet trigger */}
           <div className="flex">
-            <Button variant="destructive" className="!bg-red-500" size="sm" onClick={onOpenMore}>
+            <Button
+              variant="destructive"
+              className="!bg-red-500"
+              size="sm"
+              onClick={onOpenMore}
+            >
               + More
             </Button>
           </div>

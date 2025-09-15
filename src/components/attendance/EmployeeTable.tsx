@@ -56,6 +56,16 @@ import {
 const PAGE_SIZE = 10;
 const TRIGGER_INDEX_IN_PAGE = 8;
 
+// canonical defaults for filters
+const DEFAULT_FILTERS: Filters = {
+  selectedEmployeeIds: [],
+  singleDate: undefined,
+  range: undefined,
+  search: "",
+  preset: null,
+  sort: null,
+};
+
 type Props = {
   setMonthlyAbsents: (n: number) => void;
   setMonthlyPresents: (n: number) => void;
@@ -147,6 +157,24 @@ const EmployeeTable: React.FC<Props> = ({
   const commitSearchDebounced = useDebouncedCallback((next: string) => {
     setFilters((f) => ({ ...f, search: next }));
   }, 3000);
+
+  const handleClearAll = useCallback(() => {
+    // kill any pending search commit that could re-apply stale search
+    commitSearchDebounced.cancel();
+
+    // hard reset the filter state in one atomic transaction
+    setFilters(DEFAULT_FILTERS);
+
+    // align UI affordances
+    setSearchDraft("");
+    setEmployeeSearch("");
+    setDropdownOpen(false);
+
+    toast.info("Cleared filters.", {
+      durationMs: 1200,
+      position: "bottom-left",
+    });
+  }, [commitSearchDebounced, toast]);
 
   useEffect(
     () => () => commitSearchDebounced.cancel(),
@@ -693,6 +721,7 @@ const EmployeeTable: React.FC<Props> = ({
         onExportCSV={handleExportCSV}
         onExportExcel={handleExportExcel}
         onOpenMore={() => setOpenSheet(true)}
+        onClearAll={handleClearAll} 
       />
 
       <GroupedAttendanceTable
