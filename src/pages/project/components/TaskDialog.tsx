@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +75,7 @@ type FieldErrors = Partial<{
   due: string;
   actualEnd: string;
   estHrs: string;
+  actualHrs: string;
   assignees: string;
   status: string;
   priority: string;
@@ -102,28 +103,48 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
   const [status, setStatus] = useState<TaskStatus>(
     initial?.status ?? "Not Started"
   );
-  const [start, setStart] = useState<string>(dateInputFromISO(initial?.startDate));
+  const [start, setStart] = useState<string>(
+    dateInputFromISO(initial?.startDate)
+  );
   const [due, setDue] = useState<string>(dateInputFromISO(initial?.dueDate));
-  const [actualEnd, setActualEnd] = useState<string>(dateInputFromISO(initial?.actualEndDate));
-  const [estHrs, setEstHrs] = useState<number | "">(initial?.estimatedHours ?? "");
+  const [actualEnd, setActualEnd] = useState<string>(
+    dateInputFromISO(initial?.actualEndDate)
+  );
+  const [estHrs, setEstHrs] = useState<number | "">(
+    initial?.estimatedHours ?? ""
+  );
   const [assignees, setAssignees] = useState<Option[]>(
     initial?.assigneeEmployeeIds
       ? (initial.assigneeEmployeeIds
           .map((eid) => {
             const emp = employees.find((e) => e.employee_id === eid);
             return emp
-              ? { value: emp.employee_id, label: `${emp.first_name} ${emp.last_name}`.trim() || emp.email }
+              ? {
+                  value: emp.employee_id,
+                  label:
+                    `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
+                }
               : null;
           })
           .filter(Boolean) as Option[])
       : []
   );
   const [draftChecklist, setDraftChecklist] = useState<string>("");
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(initial?.checklist ?? []);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(
+    initial?.checklist ?? []
+  );
 
   // ----- Validation State -----
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [touched, setTouched] = useState<Record<keyof FieldErrors, boolean>>({} as any);
+  const [touched, setTouched] = useState<Record<keyof FieldErrors, boolean>>(
+    {} as any
+  );
+  const [actualHrs, setActualHrs] = useState<number | "">(
+    initial?.actualHours ?? ""
+  ); // NEW
+
+  // Refs for focus management
+  const actualEndRef = useRef<HTMLInputElement | null>(null);
 
   // ----- Hydrate on open/initial changes (no auto-erroring) -----
   useEffect(() => {
@@ -142,7 +163,11 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
             .map((eid) => {
               const emp = employees.find((e) => e.employee_id === eid);
               return emp
-                ? { value: emp.employee_id, label: `${emp.first_name} ${emp.last_name}`.trim() || emp.email }
+                ? {
+                    value: emp.employee_id,
+                    label:
+                      `${emp.first_name} ${emp.last_name}`.trim() || emp.email,
+                  }
                 : null;
             })
             .filter(Boolean) as Option[])
@@ -151,24 +176,23 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
     setChecklist(initial?.checklist ?? []);
     setErrors({});
     setTouched({} as any);
+    setActualHrs(initial?.actualHours ?? "");
   }, [open, initial, employees]);
 
   // ----- Validators -----
-  const isValidDate = (v: string) => !!v && !Number.isNaN(new Date(v).getTime());
+  const isValidDate = (v: string) =>
+    !!v && !Number.isNaN(new Date(v).getTime());
   const dateObj = (v?: string) => (v ? new Date(v) : undefined);
 
   const validateAll = (): FieldErrors => {
     const next: FieldErrors = {};
 
-    // Title (still required, just not shown until touched)
     if (!title.trim()) next.title = "Title is required.";
-
-    // Required per spec
     if (!start) next.start = "Start date is required.";
     if (!due) next.due = "Due date is required.";
-    if (!assignees.length) next.assignees = "At least one assignee is required.";
+    if (!assignees.length)
+      next.assignees = "At least one assignee is required.";
 
-    // Type/format
     const dStart = isValidDate(start) ? dateObj(start)! : undefined;
     const dDue = isValidDate(due) ? dateObj(due)! : undefined;
     const dActual = isValidDate(actualEnd) ? dateObj(actualEnd)! : undefined;
@@ -177,31 +201,50 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
     if (due && !dDue) next.due = "Due date is invalid.";
     if (actualEnd && !dActual) next.actualEnd = "Actual end date is invalid.";
 
-    // Chronology
-    if (dStart && dDue && dDue < dStart) next.due = "Due date cannot be before start date.";
-    if (dStart && dActual && dActual < dStart) next.actualEnd = "Actual end cannot be before start date.";
+    if (dStart && dDue && dDue < dStart)
+      next.due = "Due date cannot be before start date.";
+    if (dStart && dActual && dActual < dStart)
+      next.actualEnd = "Actual end cannot be before start date.";
 
-    // Completion dependency
-    if (status === "Completed" && !actualEnd) {
-      next.actualEnd = "Actual end date is required when status is Completed.";
+    // Completion dependencies
+    if (status === "Completed") {
+      if (!actualEnd)
+        next.actualEnd =
+          "Actual end date is required when status is Completed.";
+      if (actualHrs === "" || typeof actualHrs !== "number")
+        next.actualHrs = "Actual hours are required when status is Completed.";
     }
 
-    // Priority/Status enums
-    const allowedPriorities: TaskPriority[] = ["Low", "Medium", "High", "Critical"];
-    const allowedStatuses: TaskStatus[] = ["Not Started", "In Progress", "Completed"];
-    if (!allowedPriorities.includes(priority)) next.priority = "Invalid priority.";
+    // Priority/Status guardrails
+    const allowedPriorities: TaskPriority[] = [
+      "Low",
+      "Medium",
+      "High",
+      "Critical",
+    ];
+    const allowedStatuses: TaskStatus[] = [
+      "Not Started",
+      "In Progress",
+      "Completed",
+    ];
+    if (!allowedPriorities.includes(priority))
+      next.priority = "Invalid priority.";
     if (!allowedStatuses.includes(status)) next.status = "Invalid status.";
 
-    // Hours
+    // Numeric bounds
     if (estHrs !== "" && (typeof estHrs !== "number" || estHrs < 0)) {
       next.estHrs = "Estimated hours must be a non-negative number.";
     } else if (typeof estHrs === "number" && estHrs > 10000) {
       next.estHrs = "Estimated hours seems unrealistic.";
     }
+    if (actualHrs !== "" && (typeof actualHrs !== "number" || actualHrs < 0)) {
+      next.actualHrs = "Actual hours must be a non-negative number.";
+    } else if (typeof actualHrs === "number" && actualHrs > 10000) {
+      next.actualHrs = "Actual hours seems unrealistic.";
+    }
 
     return next;
   };
-
   // Show only errors for fields that have been interacted with
   const revealTouchedErrors = (all: FieldErrors) => {
     const scoped: FieldErrors = {};
@@ -227,7 +270,16 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
   const removeChecklistItem = (id: string) =>
     setChecklist((cur) => cur.filter((c) => c._id !== id));
   const toggleChecklistItemLocal = (id: string) =>
-    setChecklist((cur) => cur.map((c) => (c._id === id ? { ...c, done: !c.done } : c)));
+    setChecklist((cur) =>
+      cur.map((c) => (c._id === id ? { ...c, done: !c.done } : c))
+    );
+
+  useEffect(() => {
+    const needsActualEnd = status === "Completed" && !actualEnd;
+    if (needsActualEnd && actualEndRef.current) {
+      actualEndRef.current.focus();
+    }
+  }, [status, actualEnd]);
 
   // ----- Save flow -----
   const handleSave = () => {
@@ -240,6 +292,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
         due: true,
         actualEnd: true,
         estHrs: true,
+        actualHrs: true,
         assignees: true,
         status: true,
         priority: true,
@@ -259,6 +312,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
       dueDate: toISOFromDateInput(due),
       actualEndDate: toISOFromDateInput(actualEnd),
       estimatedHours: typeof estHrs === "number" ? estHrs : undefined,
+      actualHours: typeof actualHrs === "number" ? actualHrs : undefined,
       assigneeEmployeeIds: assignees.map((a) => a.value),
       checklist,
     });
@@ -271,14 +325,19 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-screen max-h-screen overflow-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Add Task" : "Edit Task"}</DialogTitle>
+          <DialogTitle>
+            {mode === "create" ? "Add Task" : "Edit Task"}
+          </DialogTitle>
           <DialogDescription>
             Right-size scope, assign the A-team, and lock the dates.
           </DialogDescription>
         </DialogHeader>
 
         {/* DETAILS */}
-        <Section title="Details" subtitle="Set the strategic context and guardrails.">
+        <Section
+          title="Details"
+          subtitle="Set the strategic context and guardrails."
+        >
           <div className="grid gap-4">
             {/* Title */}
             <div className="grid gap-1.5">
@@ -290,7 +349,9 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                 onBlur={() => onFieldBlur("title")}
                 aria-invalid={!!errors.title}
               />
-              {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
+              {errors.title && (
+                <p className="text-xs text-red-500">{errors.title}</p>
+              )}
             </div>
 
             {/* Description */}
@@ -309,8 +370,14 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
               {/* Priority */}
               <div className="grid gap-1.5">
                 <Label htmlFor="t-priority">Priority</Label>
-                <Select value={priority} onValueChange={(v: TaskPriority) => setPriority(v)}>
-                  <SelectTrigger id="t-priority" aria-invalid={!!errors.priority}>
+                <Select
+                  value={priority}
+                  onValueChange={(v: TaskPriority) => setPriority(v)}
+                >
+                  <SelectTrigger
+                    id="t-priority"
+                    aria-invalid={!!errors.priority}
+                  >
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -320,13 +387,18 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                     <SelectItem value="Critical">Critical</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.priority && <p className="text-xs text-red-500">{errors.priority}</p>}
+                {errors.priority && (
+                  <p className="text-xs text-red-500">{errors.priority}</p>
+                )}
               </div>
 
               {/* Status */}
               <div className="grid gap-1.5">
                 <Label htmlFor="t-status">Status</Label>
-                <Select value={status} onValueChange={(v: TaskStatus) => setStatus(v)}>
+                <Select
+                  value={status}
+                  onValueChange={(v: TaskStatus) => setStatus(v)}
+                >
                   <SelectTrigger id="t-status" aria-invalid={!!errors.status}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -336,19 +408,27 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                     <SelectItem value="Completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.status && <p className="text-xs text-red-500">{errors.status}</p>}
+                {errors.status && (
+                  <p className="text-xs text-red-500">{errors.status}</p>
+                )}
               </div>
             </div>
           </div>
         </Section>
 
         {/* SCHEDULE */}
-        <Section title="Schedule" subtitle="Align timelines to drive predictable delivery.">
+        <Section
+          title="Schedule"
+          subtitle="Align timelines to drive predictable delivery."
+        >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Start (Required) */}
             <div className="grid gap-1.5">
               <Label htmlFor="t-start">
-                Start Date <span className="text-red-500" aria-hidden="true">*</span>
+                Start Date{" "}
+                <span className="text-red-500" aria-hidden="true">
+                  *
+                </span>
               </Label>
               <Input
                 id="t-start"
@@ -359,13 +439,18 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                 aria-required="true"
                 aria-invalid={!!errors.start}
               />
-              {errors.start && <p className="text-xs text-red-500">{errors.start}</p>}
+              {errors.start && (
+                <p className="text-xs text-red-500">{errors.start}</p>
+              )}
             </div>
 
             {/* Due (Required) */}
             <div className="grid gap-1.5">
               <Label htmlFor="t-due">
-                Due Date <span className="text-red-500" aria-hidden="true">*</span>
+                Due Date{" "}
+                <span className="text-red-500" aria-hidden="true">
+                  *
+                </span>
               </Label>
               <Input
                 id="t-due"
@@ -377,28 +462,46 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                 aria-required="true"
                 aria-invalid={!!errors.due}
               />
-              {errors.due && <p className="text-xs text-red-500">{errors.due}</p>}
+              {errors.due && (
+                <p className="text-xs text-red-500">{errors.due}</p>
+              )}
             </div>
 
             {/* Actual End (conditional) */}
             <div className="grid gap-1.5">
-              <Label htmlFor="t-actual">Actual End</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="t-actual">Actual End</Label>
+                {status === "Completed" && (
+                  <Badge variant="destructive" className="text-[10px]">
+                    Required when Completed
+                  </Badge>
+                )}
+              </div>
               <Input
                 id="t-actual"
                 type="date"
+                ref={actualEndRef}
                 value={actualEnd}
                 min={start || undefined}
                 onChange={(e) => setActualEnd(e.target.value)}
                 onBlur={() => onFieldBlur("actualEnd")}
                 aria-invalid={!!errors.actualEnd}
+                className={
+                  errors.actualEnd
+                    ? "ring-2 ring-red-500 focus:ring-red-500"
+                    : ""
+                }
               />
-              {errors.actualEnd && <p className="text-xs text-red-500">{errors.actualEnd}</p>}
+              {errors.actualEnd && (
+                <p className="text-xs text-red-500">{errors.actualEnd}</p>
+              )}
             </div>
           </div>
 
           {/* Estimated Hours */}
-          <div className="grid gap-1.5 mt-3">
-            <Label htmlFor="t-est">Estimated Hours</Label>
+          <div className="flex mt-3">
+          <div className="grid gap-1.5 w-1/2 mr-2">
+              <Label htmlFor="t-est">Estimated Hours</Label>
             <Input
               id="t-est"
               type="number"
@@ -412,15 +515,54 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
               placeholder="e.g., 8"
               aria-invalid={!!errors.estHrs}
             />
-            {errors.estHrs && <p className="text-xs text-red-500">{errors.estHrs}</p>}
+            {errors.estHrs && (
+              <p className="text-xs text-red-500">{errors.estHrs}</p>
+            )}
+
+          </div>
+            <div className="grid gap-1.5 w-1/2 ml-2">
+              <div className="flex items-center justify-between">
+              <Label htmlFor="t-actual-hrs">Actual Hours</Label>
+              {status === "Completed" && (
+                <Badge variant="destructive" className="text-[10px]">
+                  Required when Completed
+                </Badge>
+              )}
+            </div>
+            <Input
+              id="t-actual-hrs"
+              type="number"
+              min={0}
+              placeholder="e.g., 6.5"
+              value={actualHrs}
+              onChange={(e) => {
+                const v = e.target.value;
+                setActualHrs(v === "" ? "" : Math.max(0, Number(v) || 0));
+              }}
+              onBlur={() => onFieldBlur("actualHrs")}
+              aria-invalid={!!errors.actualHrs}
+              className={
+                errors.actualHrs ? "ring-2 ring-red-500 focus:ring-red-500" : ""
+              }
+            />
+            {errors.actualHrs && (
+              <p className="text-xs text-red-500">{errors.actualHrs}</p>
+            )}
+            </div>
           </div>
         </Section>
 
         {/* ASSIGNMENT (Required) */}
-        <Section title="Assignment" subtitle="Orchestrate the right talent against the right work.">
+        <Section
+          title="Assignment"
+          subtitle="Orchestrate the right talent against the right work."
+        >
           <div className="grid gap-1.5">
             <Label>
-              Assignees <span className="text-red-500" aria-hidden="true">*</span>
+              Assignees{" "}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </Label>
             <ReactSelect
               components={animatedComponents}
@@ -429,18 +571,26 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
               options={employeeOptions}
               value={assignees}
               onChange={(selected) => {
-                setAssignees(selected ? [...(selected as MultiValue<Option>)] : []);
+                setAssignees(
+                  selected ? [...(selected as MultiValue<Option>)] : []
+                );
               }}
               onBlur={() => onFieldBlur("assignees")}
               classNamePrefix="rs"
               aria-invalid={!!errors.assignees}
               aria-required="true"
             />
-            {errors.assignees && <p className="text-xs text-red-500">{errors.assignees}</p>}
+            {errors.assignees && (
+              <p className="text-xs text-red-500">{errors.assignees}</p>
+            )}
             {assignees.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {assignees.map((opt) => (
-                  <Badge key={opt.value} variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    key={opt.value}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     {opt.label}
                   </Badge>
                 ))}
@@ -450,7 +600,10 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
         </Section>
 
         {/* CHECKLIST (unchanged) */}
-        <Section title="Checklist" subtitle="Break work into actionable, shippable units.">
+        <Section
+          title="Checklist"
+          subtitle="Break work into actionable, shippable units."
+        >
           <div className="flex gap-2">
             <Input
               placeholder="Add checklist item"
@@ -463,7 +616,12 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                 }
               }}
             />
-            <Button type="button" variant="outline" className="!bg-black !text-white" onClick={addChecklistItem}>
+            <Button
+              type="button"
+              variant="outline"
+              className="!bg-black !text-white"
+              onClick={addChecklistItem}
+            >
               Add
             </Button>
           </div>
@@ -471,7 +629,10 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
           {checklist.length > 0 && (
             <div className="mt-3 grid gap-2">
               {checklist.map((c) => (
-                <div key={c._id} className="flex items-center justify-between rounded border bg-white p-2 text-sm">
+                <div
+                  key={c._id}
+                  className="flex items-center justify-between rounded border bg-white p-2 text-sm"
+                >
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -479,9 +640,17 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
                       checked={c.done}
                       onChange={() => toggleChecklistItemLocal(c._id as string)}
                     />
-                    <span className={c.done ? "line-through text-slate-500" : ""}>{c.text}</span>
+                    <span
+                      className={c.done ? "line-through text-slate-500" : ""}
+                    >
+                      {c.text}
+                    </span>
                   </label>
-                  <Button variant="ghost" size="icon" onClick={() => removeChecklistItem(c._id as string)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeChecklistItem(c._id as string)}
+                  >
                     <Trash2 className="h-4 w-4 text-slate-500" />
                   </Button>
                 </div>
@@ -495,7 +664,11 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="!bg-blue-500" disabled={!canSave}>
+          <Button
+            onClick={handleSave}
+            className="!bg-blue-500"
+            disabled={!canSave}
+          >
             {mode === "create" ? "Create Task" : "Save Changes"}
           </Button>
         </div>

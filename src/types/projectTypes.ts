@@ -29,6 +29,7 @@ export type Task = {
   dueDate?: string; // ISO
   actualEndDate?: string; // ISO
   estimatedHours?: number;
+  actualHours?: number; 
   assigneeEmployeeIds: string[]; // employee_id values
   checklist: ChecklistItem[];
 };
