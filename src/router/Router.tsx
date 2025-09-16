@@ -6,6 +6,7 @@ import Projects from "@/pages/project/Projects";
 import Attendance from "@/pages/attendance/Attendance";
 import Payroll from "@/pages/Payroll";
 import AddNotes from "@/pages/addnotes/AddNotes";
+import RoleBasedIndex from "./RoleBasedIndex";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -14,7 +15,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard />,
+        element: <RoleBasedIndex />,
       },
       {
         path: "/Dashboard",
