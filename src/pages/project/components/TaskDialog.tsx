@@ -471,7 +471,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="t-actual">Actual End</Label>
-                {status === "Completed" && (
+                {status === "Completed" && actualEnd===""&&(
                   <Badge variant="destructive" className="text-[10px]">
                     Required when Completed
                   </Badge>
@@ -523,7 +523,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
             <div className="grid gap-1.5 w-1/2 ml-2">
               <div className="flex items-center justify-between">
               <Label htmlFor="t-actual-hrs">Actual Hours</Label>
-              {status === "Completed" && (
+              {status === "Completed" && actualHrs==""&& (
                 <Badge variant="destructive" className="text-[10px]">
                   Required when Completed
                 </Badge>
