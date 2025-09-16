@@ -11,7 +11,7 @@ import {
   LogOut,
   NotebookPen,
 } from "lucide-react";
-
+import { NotificationPrompt } from "./notification/NotificationPrompt";
 import {
   Sidebar,
   SidebarContent,
@@ -44,6 +44,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/axios";
+import { useToast } from "@/toast/ToastProvider";
+import { ensurePushSubscription } from "@/push/ensurePushSubscription";
 
 /* ----------------------------- Helpers ----------------------------- */
 
@@ -95,9 +97,10 @@ export default function SidebarComp({
 }: {
   children?: React.ReactNode;
 }) {
-  const { logout, user, setAttendanceRefresh, attendanceRefresh } = useAuth();
+  const { logout, setUser, user, setAttendanceRefresh, attendanceRefresh } =
+    useAuth();
   const location = useLocation();
-
+  const toast = useToast();
   // ⬇️ read collapse state from shadcn provider
   const { state } = useSidebar();
   const isCollapsed = state;
@@ -105,6 +108,61 @@ export default function SidebarComp({
   const [isLoading] = useState(false);
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+
+  useEffect(() => {
+    if (!user?.userId) return;
+
+    const supported = "serviceWorker" in navigator && "PushManager" in window;
+    const permission =
+      typeof Notification !== "undefined" ? Notification.permission : "default";
+
+    // Snooze logic optional
+    const snoozeUntil = Number(localStorage.getItem("pushSnoozeUntil") || 0);
+    const snoozed = Date.now() < snoozeUntil;
+
+    if (supported && !user?.hasPush && permission !== "denied" && !snoozed) {
+      setShowNotifPrompt(true);
+    }
+  }, [user?.userId, user?.hasPush]);
+
+  const onEnableNotifications = async () => {
+    try {
+      const id = toast.info("Enabling browser notifications…", {
+        durationMs: 0,
+      });
+      const res = await ensurePushSubscription(user!.employee_id, {
+        testPush: true,
+      });
+      toast.remove(id);
+
+      if (res.ok) {
+        setUser({ ...user!, hasPush: true });
+        setShowNotifPrompt(false);
+        toast.success(
+          "Notifications enabled. You’ll now get real-time updates."
+        );
+      } else if (res.reason === "denied") {
+        setShowNotifPrompt(false);
+        toast.error(
+          "Permission denied. Enable notifications from your browser settings."
+        );
+      } else {
+        toast.error("Notifications aren’t supported in this browser.");
+      }
+    } catch (e) {
+      console.error("Enable notifications failed:", e);
+      toast.error("We couldn’t enable notifications. Please try again.");
+    }
+  };
+  const onDismissNotifications = () => {
+    // Optional: snooze 24h to avoid spamming users
+    localStorage.setItem(
+      "pushSnoozeUntil",
+      String(Date.now() + 24 * 60 * 60 * 1000)
+    );
+    setShowNotifPrompt(false);
+  };
 
   // Restore from localStorage on mount
   useEffect(() => {
@@ -206,6 +264,11 @@ export default function SidebarComp({
       setAttendanceRefresh(!attendanceRefresh);
       setIsClockedIn(true);
       setElapsedTime(elapsed);
+      await api.post("/api/push/clockin", {
+        userId: user?.employee_id, // Mongo _id of the actor
+        title: "Clocked In",
+        url: "/Attendance", // optional deep link
+      });
     } catch (error: any) {
       if (error?.status === 409) alert("You have already clocked in today.");
       console.error("Clock-in error:", error?.response?.data || error);
@@ -233,6 +296,11 @@ export default function SidebarComp({
       setAttendanceRefresh(!attendanceRefresh);
       setIsClockedIn(false);
       setElapsedTime(0);
+      await api.post("/api/push/clockin", {
+        userId: user?.employee_id, // Mongo _id of the actor
+        title: `${isLoggedOut ? "Logged Out" : "Breaked Out"}`,
+        url: "/Attendance", // optional deep link
+      });
     } catch (e) {
       console.error("Clock-out error:", e);
     }
@@ -247,205 +315,212 @@ export default function SidebarComp({
   }
 
   return (
-    <Sidebar
-      collapsible="icon"
-      className="border-r bg-white"
-      aria-label="Primary navigation"
-    >
-      {/* Brand */}
-      <SidebarHeader className="border-b px-3 py-3">
-        <div
-          className={`flex items-center gap-3 truncate ${
-            isCollapsed == "collapsed" ? "justify-center" : ""
-          }`}
-        >
-          {/* ✅ fixed square icon that never stretches */}
-          <div className="h-8 w-8 aspect-square shrink-0 rounded-md bg-gradient-to-br from-slate-800 to-slate-600 flex items-center justify-center">
-            <Users className="h-4 w-4 text-white" />
-          </div>
-          {/* Hide brand text when collapsed */}
-          {isCollapsed == "expanded" && (
-            <div className="min-w-0">
-              <div className="truncate font-semibold">Ezofis</div>
-              <div className="truncate text-xs text-muted-foreground">
-                Employee Management
-              </div>
+    <>
+      <Sidebar
+        collapsible="icon"
+        className="border-r bg-white"
+        aria-label="Primary navigation"
+      >
+        {/* Brand */}
+        <SidebarHeader className="border-b px-3 py-3">
+          <div
+            className={`flex items-center gap-3 truncate ${
+              isCollapsed == "collapsed" ? "justify-center" : ""
+            }`}
+          >
+            {/* ✅ fixed square icon that never stretches */}
+            <div className="h-8 w-8 aspect-square shrink-0 rounded-md bg-gradient-to-br from-slate-800 to-slate-600 flex items-center justify-center">
+              <Users className="h-4 w-4 text-white" />
             </div>
-          )}
-        </div>
-      </SidebarHeader>
+            {/* Hide brand text when collapsed */}
+            {isCollapsed == "expanded" && (
+              <div className="min-w-0">
+                <div className="truncate font-semibold">Ezofis</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  Employee Management
+                </div>
+              </div>
+            )}
+          </div>
+        </SidebarHeader>
 
-      <SidebarContent>
-        {/* Primary nav */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV_ITEMS.filter(
-                (n) => !n.roles || n.roles.includes(String(user?.role))
-              ).map((item, index) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === item.url}
-                    className={`rounded-xl transition-all duration-200 ${
-                      location.pathname === item.url ||
-                      (location.pathname === "/" && index === 0)
-                        ? "!bg-sky-500 !text-white shadow-lg"
-                        : "hover:!bg-slate-100 !text-black hover:!text-black"
-                    } `}
-                  >
-                    <NavLink
-                      to={item.url}
-                      aria-current={
-                        location.pathname === item.url ? "page" : undefined
-                      }
-                      className="flex items-center gap-3"
-                    >
-                      <item.icon className="h-4 w-4" aria-hidden />
-                      <span className="truncate">{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        {/* Quick Actions — hidden when collapsed */}
-        {isCollapsed == "expanded" && (
+        <SidebarContent>
+          {/* Primary nav */}
           <SidebarGroup>
-            <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
             <SidebarGroupContent>
-              {isClockedIn ? (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <div className="cursor-pointer rounded-lg bg-red-50 p-3">
-                      <div className="mb-1 flex items-center gap-2 text-sm font-medium text-red-700">
-                        <Clock className="h-4 w-4" />
-                        <span>Clocked In</span>
-                      </div>
-                      <p className="text-sm font-semibold text-red-900">
-                        {formatTime(elapsedTime)}
-                      </p>
-                    </div>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Clock out now?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Your session will end and the total worked time will be
-                        recorded.
-                        <br />
-                        Elapsed: <strong>{formatTime(elapsedTime)}</strong>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleClockOut(false)}
-                        className="!bg-sky-600 !text-white hover:!bg-sky-700"
+              <SidebarMenu>
+                {NAV_ITEMS.filter(
+                  (n) => !n.roles || n.roles.includes(String(user?.role))
+                ).map((item, index) => (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === item.url}
+                      className={`rounded-xl transition-all duration-200 ${
+                        location.pathname === item.url ||
+                        (location.pathname === "/" && index === 0)
+                          ? "!bg-sky-500 !text-white shadow-lg"
+                          : "hover:!bg-slate-100 !text-black hover:!text-black"
+                      } `}
+                    >
+                      <NavLink
+                        to={item.url}
+                        aria-current={
+                          location.pathname === item.url ? "page" : undefined
+                        }
+                        className="flex items-center gap-3"
                       >
-                        Break Out
-                      </AlertDialogAction>
-                      <AlertDialogAction
-                        onClick={() => handleClockOut(true)}
-                        className="!bg-red-600 !text-white hover:!bg-red-700"
-                      >
-                        Logout
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <div className="cursor-pointer rounded-lg bg-emerald-50 p-3">
-                      <div className="mb-1 flex items-center gap-2 text-sm font-medium text-emerald-700">
-                        <Clock className="h-4 w-4" />
-                        <span>Quick Clock In</span>
-                      </div>
-                      <p className="text-xs text-emerald-800">
-                        Track your time instantly
-                      </p>
-                    </div>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm clock in?</AlertDialogTitle>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleClockIn}
-                        className="!bg-sky-600 !text-white hover:!bg-sky-700"
-                      >
-                        Confirm
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
+                        <item.icon className="h-4 w-4" aria-hidden />
+                        <span className="truncate">{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
-      </SidebarContent>
 
-      {/* Footer — show only logout icon when collapsed */}
-      <SidebarFooter className="border-t px-3 py-3">
-        {isCollapsed == "collapsed" ? (
-          <div className="flex items-center justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={logout}
-              aria-label="Logout"
-              className="text-muted-foreground hover:bg-slate-100"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={user?.picture} />
-                <AvatarFallback className="!bg-slate-100 !text-slate-800 !font-semibold">
-                  {user?.name
-                    ?.split(" ")
-                    .map((n: string) => n[0])
-                    .join("") || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">
-                  {user?.name || "User"}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {user?.email || "email"}
-                </p>
-                <p className="text-xs font-medium text-emerald-600 capitalize">
-                  {user?.role || "role"}
-                </p>
-              </div>
+          <SidebarSeparator />
+
+          {/* Quick Actions — hidden when collapsed */}
+          {isCollapsed == "expanded" && (
+            <SidebarGroup>
+              <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
+              <SidebarGroupContent>
+                {isClockedIn ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <div className="cursor-pointer rounded-lg bg-red-50 p-3">
+                        <div className="mb-1 flex items-center gap-2 text-sm font-medium text-red-700">
+                          <Clock className="h-4 w-4" />
+                          <span>Clocked In</span>
+                        </div>
+                        <p className="text-sm font-semibold text-red-900">
+                          {formatTime(elapsedTime)}
+                        </p>
+                      </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Clock out now?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Your session will end and the total worked time will
+                          be recorded.
+                          <br />
+                          Elapsed: <strong>{formatTime(elapsedTime)}</strong>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleClockOut(false)}
+                          className="!bg-sky-600 !text-white hover:!bg-sky-700"
+                        >
+                          Break Out
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                          onClick={() => handleClockOut(true)}
+                          className="!bg-red-600 !text-white hover:!bg-red-700"
+                        >
+                          Logout
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <div className="cursor-pointer rounded-lg bg-emerald-50 p-3">
+                        <div className="mb-1 flex items-center gap-2 text-sm font-medium text-emerald-700">
+                          <Clock className="h-4 w-4" />
+                          <span>Quick Clock In</span>
+                        </div>
+                        <p className="text-xs text-emerald-800">
+                          Track your time instantly
+                        </p>
+                      </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm clock in?</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleClockIn}
+                          className="!bg-sky-600 !text-white hover:!bg-sky-700"
+                        >
+                          Confirm
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+        </SidebarContent>
+
+        {/* Footer — show only logout icon when collapsed */}
+        <SidebarFooter className="border-t px-3 py-3">
+          {isCollapsed == "collapsed" ? (
+            <div className="flex items-center justify-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={logout}
+                aria-label="Logout"
+                className="text-muted-foreground hover:bg-slate-100"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={logout}
-              className="text-muted-foreground hover:bg-slate-100"
-              aria-label="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </SidebarFooter>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={user?.picture} />
+                  <AvatarFallback className="!bg-slate-100 !text-slate-800 !font-semibold">
+                    {user?.name
+                      ?.split(" ")
+                      .map((n: string) => n[0])
+                      .join("") || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {user?.name || "User"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user?.email || "email"}
+                  </p>
+                  <p className="text-xs font-medium text-emerald-600 capitalize">
+                    {user?.role || "role"}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={logout}
+                className="text-muted-foreground hover:bg-slate-100"
+                aria-label="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </SidebarFooter>
 
-      {/* If you want the draggable rail, re-enable:
+        {/* If you want the draggable rail, re-enable:
       <SidebarRail /> */}
-    </Sidebar>
+      </Sidebar>
+      <NotificationPrompt
+        open={showNotifPrompt}
+        onEnable={onEnableNotifications}
+        onDismiss={onDismissNotifications}
+      />
+    </>
   );
 }
