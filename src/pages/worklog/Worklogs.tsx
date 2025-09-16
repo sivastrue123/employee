@@ -1,3 +1,4 @@
+// src/pages/Worklogs.tsx
 "use client";
 
 import * as React from "react";
@@ -36,7 +37,7 @@ import {
 import { useToast } from "@/toast/ToastProvider";
 import { useSidebar } from "@/components/ui/sidebar";
 
-// ---- types aligned with your enriched API (no _id, no attendanceId) ----
+// ---- types aligned with enriched API (no _id, no attendanceId) ----
 type WorklogTask = {
   taskName: string;
   customer: string;
@@ -77,9 +78,9 @@ export default function Worklogs() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
 
-  // filters (URL-synced for deep-linkability)
-  const [employeeId, setEmployeeId] = React.useState(
-    params.get("employeeId") || ""
+  // ✅ switch filter from employeeId → submittedByName (URL-synced)
+  const [submittedByName, setSubmittedByName] = React.useState(
+    params.get("submittedByName") || ""
   );
   const [from, setFrom] = React.useState(params.get("from") || "");
   const [to, setTo] = React.useState(params.get("to") || "");
@@ -95,7 +96,7 @@ export default function Worklogs() {
       setError(null);
 
       const q: Record<string, string> = {};
-      if (employeeId.trim()) q.employeeId = employeeId.trim();
+      if (submittedByName.trim()) q.submittedByName = submittedByName.trim();
       if (from) q.from = from;
       if (to) q.to = to;
       const qs = new URLSearchParams(q).toString();
@@ -109,7 +110,7 @@ export default function Worklogs() {
     } finally {
       setLoading(false);
     }
-  }, [employeeId, from, to, toast]);
+  }, [submittedByName, from, to, toast]);
 
   React.useEffect(() => {
     fetchData();
@@ -118,7 +119,7 @@ export default function Worklogs() {
 
   const onApply = () => {
     const next = new URLSearchParams();
-    if (employeeId.trim()) next.set("employeeId", employeeId.trim());
+    if (submittedByName.trim()) next.set("submittedByName", submittedByName.trim());
     if (from) next.set("from", from);
     if (to) next.set("to", to);
     setParams(next, { replace: true });
@@ -126,7 +127,7 @@ export default function Worklogs() {
   };
 
   const onReset = () => {
-    setEmployeeId("");
+    setSubmittedByName("");
     setFrom("");
     setTo("");
     setParams(new URLSearchParams(), { replace: true });
@@ -135,6 +136,7 @@ export default function Worklogs() {
 
   const totalHoursAll = data.reduce((sum, w) => sum + (w.totalHours || 0), 0);
   const { state } = useSidebar();
+
   return (
     <div
       className={`flex flex-col ${
@@ -168,12 +170,12 @@ export default function Worklogs() {
         <div className="flex flex-col gap-3 p-4 md:flex-row md:items-end">
           <div className="w-full md:max-w-xs">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Employee ID
+              Submitted By (name)
             </label>
             <Input
-              placeholder="emp_123"
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
+              placeholder="e.g., Jane Doe"
+              value={submittedByName}
+              onChange={(e) => setSubmittedByName(e.target.value)}
             />
           </div>
           <div className="w-full md:max-w-xs">
@@ -200,7 +202,7 @@ export default function Worklogs() {
             <Button variant="outline" onClick={onReset}>
               Reset
             </Button>
-            <Button onClick={onApply}>
+            <Button onClick={onApply} className="!bg-sky-500 !text-white">
               <Filter className="mr-2 h-4 w-4" /> Apply
             </Button>
           </div>
