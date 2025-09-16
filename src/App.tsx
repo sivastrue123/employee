@@ -9,7 +9,8 @@ import { api } from "./lib/axios";
 import { useToast } from "./toast/ToastProvider"; // adjust path if needed
 import { useState } from "react";
 import Logo from "./assets/ezofis-logo.png";
-
+import "./styles/tiptap.css";
+import "./styles/notes-html.css"
 export default function App() {
   const { user, setUser } = useAuth();
   const toast = useToast();

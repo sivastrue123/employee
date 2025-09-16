@@ -1,5 +1,5 @@
 // src/pages/AddNotes.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/axios";
 import { useToast } from "@/toast/ToastProvider";
@@ -15,7 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 
-import { Search } from "lucide-react";
+import { Search, Pencil, Plus } from "lucide-react";
+import "../../styles/notes-html.css"; // bullet/align + 3-line clamp styles
 
 // Dialogs & Tooltips
 import {
@@ -33,8 +34,19 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { Pencil, Plus } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
+import DOMPurify from "dompurify";
+import Editor from "@/components/TextEditor/plugins/Editor";
+
+const sanitizeHtml = (html?: string) =>
+  html ? DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }) : "";
+
+// Basic “is empty” check for HTML content
+const isEmptyHtml = (html: string) =>
+  !html ||
+  !DOMPurify.sanitize(html)
+    .replace(/<[^>]+>/g, "")
+    .trim();
 
 // ---------- Types (client removed)
 export type Note = {
@@ -72,7 +84,6 @@ export default function AddNotes() {
   // Search (notes)
   const [noteSearch, setNoteSearch] = useState("");
   const [noteSearchDebounced, setNoteSearchDebounced] = useState("");
-  // state (add this near your other state)
   const [searchFocused, setSearchFocused] = useState(false);
 
   // Create Note Dialog state
@@ -87,6 +98,43 @@ export default function AddNotes() {
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Per-note expanded state
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Per-note overflow (whether content exceeds 3-line clamp)
+  const [overflowing, setOverflowing] = useState<Record<string, boolean>>({});
+  const previewRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Assign/measure ref for collapsed previews only
+  const setPreviewRef =
+    (id: string) =>
+    (el: HTMLDivElement | null): void => {
+      previewRefs.current[id] = el;
+      if (!el) return;
+      const measure = () => {
+        // If clamped: scrollHeight > clientHeight => needs toggle button
+        const isOverflow = el.scrollHeight > el.clientHeight + 1;
+        setOverflowing((prev) => ({ ...prev, [id]: isOverflow }));
+      };
+      // measure after layout paint
+      requestAnimationFrame(measure);
+    };
+
+  // Re-measure on window resize for all collapsed previews
+  useEffect(() => {
+    const onResize = () => {
+      Object.entries(previewRefs.current).forEach(([id, el]) => {
+        if (!el) return;
+        const isOverflow = el.scrollHeight > el.clientHeight + 1;
+        setOverflowing((prev) => ({ ...prev, [id]: isOverflow }));
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   // --- Debounce search input
   useEffect(() => {
     const t = setTimeout(() => setNoteSearchDebounced(noteSearch.trim()), 300);
@@ -97,8 +145,6 @@ export default function AddNotes() {
   const fetchNotes = async (q = "") => {
     setNotesLoading(true);
     try {
-      // ✅ API is now client-agnostic
-      // GET /api/note?q=...
       const res = await api.get(`/api/client/note`, { params: { q } });
       if (res?.status === 200) {
         setNotes(res.data?.items ?? []);
@@ -117,7 +163,7 @@ export default function AddNotes() {
 
   // ---- Create Note (Dialog) — no client precondition
   const createNote = async () => {
-    if (!newTitle.trim() || !newText.trim()) {
+    if (!newTitle.trim() || isEmptyHtml(newText)) {
       toast.warning("Title and Notes are required.");
       return;
     }
@@ -125,8 +171,6 @@ export default function AddNotes() {
     setCreating(true);
     const loadingId = toast.info("Publishing note…");
     try {
-      // ✅ API is now client-agnostic
-      // POST /api/note?userId=...  body: { title, text }
       const res = await api.post(
         `/api/client/note?userId=${user?.employee_id}`,
         {
@@ -136,7 +180,6 @@ export default function AddNotes() {
       );
 
       if (res?.status === 200 || res?.status === 201) {
-        // Optimistic reconciliation (prepend newest to the list)
         const created: Note | undefined = res.data?.data ?? res.data?.item;
         setNotes((prev) => {
           if (!prev) return created ? [created] : prev;
@@ -168,7 +211,7 @@ export default function AddNotes() {
   // ---- Save Edit (Dialog)
   const saveEdit = async () => {
     if (!editing) return;
-    if (!editTitle.trim() || !editText.trim()) {
+    if (!editTitle.trim() || isEmptyHtml(editText)) {
       toast.warning("Title and Notes are required.");
       return;
     }
@@ -176,8 +219,6 @@ export default function AddNotes() {
     setSavingEdit(true);
     const loadingId = toast.info("Updating note…");
     try {
-      // ✅ API is now client-agnostic
-      // PATCH /api/note/:id?userId=...
       const res = await api.patch(
         `/api/client/note/${editing._id}?userId=${user?.employee_id}`,
         {
@@ -187,7 +228,6 @@ export default function AddNotes() {
       );
 
       if (res?.status === 200) {
-        // optimistic local reconciliation
         setNotes((prev) =>
           prev
             ? prev.map((n) =>
@@ -236,7 +276,7 @@ export default function AddNotes() {
         state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
       } w-full grid grid-cols-1 gap-4 p-4`}
     >
-      {/* Single Pane - Notes (client rail removed) */}
+      {/* Single Pane - Notes */}
       <Card className="flex flex-col">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -250,18 +290,14 @@ export default function AddNotes() {
         <CardContent className="flex flex-col gap-4 flex-1">
           {/* Notes Toolbar: Add + Search */}
           <div className="flex flex-col md:flex-row items-end justify-end gap-3">
-            {/* Compact → Expanding Search */}
             <div className="relative">
               <Label htmlFor="note-search" className="sr-only">
                 Search notes (title or body)
               </Label>
-
-              {/* Search icon (non-interactive) */}
               <Search
                 className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                 aria-hidden="true"
               />
-
               <Input
                 id="note-search"
                 placeholder="Filter by title/notes…"
@@ -269,19 +305,16 @@ export default function AddNotes() {
                 onChange={(e) => setNoteSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => {
-                  // collapse only if field is empty
                   if (!noteSearch.trim()) setSearchFocused(false);
                 }}
-                // UX: start tiny, glide to wide on focus or when text exists
                 className={[
-                  "pl-8", // room for the search icon
+                  "pl-8",
                   "transition-all duration-300 ease-out",
                   "focus:ring-2 focus:ring-sky-500/40",
                   "shadow-sm",
-                  // sizes
                   searchFocused || noteSearch.trim()
-                    ? "w-[80vw] md:w-[420px]" // expanded footprint
-                    : "w-[120px] md:w-[10px]", // compact footprint
+                    ? "w-[80vw] md:w-[420px]"
+                    : "w-[120px] md:w-[10px]",
                 ].join(" ")}
                 aria-label="Search notes"
               />
@@ -319,49 +352,75 @@ export default function AddNotes() {
                 </div>
               ) : notes && notes.length > 0 ? (
                 <ul className="space-y-4">
-                  {notes.map((n) => (
-                    <li key={n._id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs text-muted-foreground">
-                          {n.createdByUser?.first_name &&
-                          n.createdByUser?.last_name
-                            ? `${n.createdByUser.first_name} ${n.createdByUser.last_name}`
-                            : n.createdBy?.name || "User"}{" "}
-                          • {fmtDate(n.createdAt)}
+                  {notes.map((n) => {
+                    const isExpanded = !!expanded[n._id];
+                    const showToggle = isExpanded || !!overflowing[n._id]; 
+                    return (
+                      <li key={n._id} className="group rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs text-muted-foreground">
+                            {n.createdByUser?.first_name &&
+                            n.createdByUser?.last_name
+                              ? `${n.createdByUser.first_name} ${n.createdByUser.last_name}`
+                              : n.createdBy?.name || "User"}{" "}
+                            • {fmtDate(n.createdAt)}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => startEdit(n)}
+                                    aria-label={`Edit ${n.noteId}`}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            {n.noteId ? (
+                              <Badge variant="outline">{n.noteId}</Badge>
+                            ) : null}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => startEdit(n)}
-                                  aria-label={`Edit ${n.noteId}`}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        <p className="mt-2 whitespace-pre-wrap text-sm">
+                          <span className="font-medium">Title:</span> {n.title}
+                        </p>
 
-                          {n.noteId ? (
-                            <Badge variant="outline">{n.noteId}</Badge>
-                          ) : null}
-                        </div>
-                      </div>
+                        {/* bullet/align safe HTML + 3-line clamp when NOT expanded */}
+                        <div
+                          data-note-html
+                          className={[
+                            "mt-2 text-sm prose prose-sm dark:prose-invert max-w-none",
+                            isExpanded ? "" : "note-preview",
+                          ].join(" ")}
+                          ref={!isExpanded ? setPreviewRef(n._id) : undefined}
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeHtml(n.notes ?? n.text ?? ""),
+                          }}
+                        />
 
-                      <p className="mt-2 whitespace-pre-wrap text-sm">
-                        <span className="font-medium">Title:</span> {n.title}
-                      </p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm">
-                        <span className="font-medium">Notes:</span>{" "}
-                        {n.notes ?? n.text}
-                      </p>
-                    </li>
-                  ))}
+                        {/* Toggle only when needed (content > 3 lines) */}
+                        {showToggle && (
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              className="opacity-80 group-hover:opacity-100 transition-opacity text-xs text-sky-600 hover:underline"
+                              onClick={() => toggleExpanded(n._id)}
+                            >
+                              {isExpanded ? "Show less" : "Show more"}
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div className="text-sm text-muted-foreground">
@@ -395,11 +454,9 @@ export default function AddNotes() {
               <Label htmlFor="new-notes" className="mt-2">
                 Notes*
               </Label>
-              <Textarea
-                id="new-notes"
-                className="min-h-[120px]"
+              <Editor
                 value={newText}
-                onChange={(e) => setNewText(e.target.value)}
+                onChange={setNewText}
                 disabled={creating}
                 placeholder="Add a note…"
               />
@@ -460,12 +517,11 @@ export default function AddNotes() {
               <Label htmlFor="edit-notes" className="mt-2">
                 Notes*
               </Label>
-              <Textarea
-                id="edit-notes"
-                className="min-h-[120px]"
+              <Editor
                 value={editText}
-                onChange={(e) => setEditText(e.target.value)}
+                onChange={setEditText}
                 disabled={savingEdit}
+                placeholder="Update your note…"
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">

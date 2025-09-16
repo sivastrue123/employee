@@ -1,0 +1,33 @@
+/* --- tiptap-list-alignment.patch.css --- */
+
+/* Baseline visuals */
+[data-rte="notes"] ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+[data-rte="notes"] ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+[data-rte="notes"] li > p {
+  margin: 0;
+}
+
+/* Align-aware behavior:
+   - Move marker inside ONLY when not left-aligned
+   - Make the inner <p> inline so marker + text share a line
+*/
+[data-rte="notes"] li[style*="text-align: center"],
+[data-rte="notes"] li[style*="text-align: right"],
+[data-rte="notes"] li[style*="text-align: justify"] {
+  list-style-position: inside !important;
+  padding-left: 0 !important;
+}
+
+[data-rte="notes"] li[style*="text-align: center"] > p,
+[data-rte="notes"] li[style*="text-align: right"] > p,
+[data-rte="notes"] li[style*="text-align: justify"] > p {
+  display: inline !important;
+}

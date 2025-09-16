@@ -1,0 +1,51 @@
+/* src/styles/notes-html.css */
+
+/* --- Baseline visuals for sanitized HTML when viewing notes --- */
+[data-note-html] ul { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0; }
+[data-note-html] ol { list-style: decimal; padding-left: 1.25rem; margin: 0.5rem 0; }
+[data-note-html] li > p { margin: 0; }            /* TipTap nests <p> inside <li> */
+[data-note-html] p { margin: 0.35rem 0; }
+
+/* Align-aware behavior: when a list item is centered/right/justified,
+   bring the marker inside and keep it on the same baseline as the text. */
+[data-note-html] li[style*="text-align: center"],
+[data-note-html] li[style*="text-align: right"],
+[data-note-html] li[style*="text-align: justify"] {
+  list-style-position: inside !important;
+  padding-left: 0 !important;
+}
+[data-note-html] li[style*="text-align: center"] > p,
+[data-note-html] li[style*="text-align: right"] > p,
+[data-note-html] li[style*="text-align: justify"] > p {
+  display: inline !important;
+}
+
+/* --- 3-line preview clamp (works for mixed content incl. lists) --- */
+[data-note-html].note-preview {
+  --note-line-height: 1.25rem;            /* roughly text-sm line height */
+  max-height: calc(var(--note-line-height) * 3 + 2px);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Optional soft fade at the bottom of the preview (respects shadcn tokens) */
+[data-note-html].note-preview::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1.75rem;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, transparent 100%, black 0%),
+    hsl(var(--background))
+  );
+  pointer-events: none;
+}
+
+.dark [data-note-html].note-preview::after {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, transparent 100%, white 0%),
+    hsl(var(--background))
+  );
+}
