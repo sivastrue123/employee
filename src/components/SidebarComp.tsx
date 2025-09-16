@@ -27,6 +27,10 @@ import {
   // SidebarRail, // keep off if you don't want the vertical handle
   useSidebar, // ⬅️ new
 } from "@/components/ui/sidebar";
+import {
+  LogoutWorklogDialog,
+  type LogoutWorklogPayload,
+} from "./LogoutWorklogDialog";
 
 import {
   AlertDialog,
@@ -109,7 +113,7 @@ export default function SidebarComp({
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
-
+  const [openWorklog, setOpenWorklog] = useState(false);
   useEffect(() => {
     if (!user?.userId) return;
 
@@ -313,7 +317,31 @@ export default function SidebarComp({
       </div>
     );
   }
+  const handleSubmitWorklogAndLogout = async (
+    payload: LogoutWorklogPayload
+  ) => {
+    // 1) Persist worklog (adjust endpoint/shape as per your backend)
+    const today = new Date().toISOString().split("T")[0];
+    try {
+      await api.post("/api/worklog/submitDaily", {
+        employeeId: user?.employee_id,
+        date: today,
+        tasks: payload.tasks,
+        // optional: enrich with attendanceId if you want referential integrity
+        attendanceId: localStorage.getItem("attendanceId") || undefined,
+        submittedBy: user?.userId,
+      });
+    } catch (e) {
+      console.error("Worklog submit failed:", e);
+      throw e; // bubble to dialog for toast
+    }
 
+    // 2) Clock out (and flag as LoggedOut=true for push/title semantics)
+    await handleClockOut(true);
+
+    // 3) Perform your auth logout
+    logout();
+  };
   return (
     <>
       <Sidebar
@@ -420,7 +448,7 @@ export default function SidebarComp({
                           Break Out
                         </AlertDialogAction>
                         <AlertDialogAction
-                          onClick={() => handleClockOut(true)}
+                          onClick={() => setOpenWorklog(true)}
                           className="!bg-red-600 !text-white hover:!bg-red-700"
                         >
                           Logout
@@ -520,6 +548,11 @@ export default function SidebarComp({
         open={showNotifPrompt}
         onEnable={onEnableNotifications}
         onDismiss={onDismissNotifications}
+      />
+      <LogoutWorklogDialog
+        open={openWorklog}
+        onOpenChange={setOpenWorklog}
+        onConfirm={handleSubmitWorklogAndLogout}
       />
     </>
   );
