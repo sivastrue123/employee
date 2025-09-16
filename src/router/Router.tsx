@@ -7,6 +7,7 @@ import Attendance from "@/pages/attendance/Attendance";
 import Payroll from "@/pages/Payroll";
 import AddNotes from "@/pages/addnotes/AddNotes";
 import RoleBasedIndex from "./RoleBasedIndex";
+import Worklogs from "@/pages/worklog/Worklogs";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       { path: "/Payroll", element: <Payroll /> },
       { path: "/Attendance", element: <Attendance /> },
       { path: "/AddNotes", element: <AddNotes /> },
+      { path: "/Worklog", element: <Worklogs /> },
     ],
   },
 ]);

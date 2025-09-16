@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   NotebookPen,
+  Logs,
 } from "lucide-react";
 import { NotificationPrompt } from "./notification/NotificationPrompt";
 import {
@@ -92,6 +93,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Attendance", url: "/Attendance", icon: Clock },
   { title: "Projects", url: "/Projects", icon: FolderOpen },
   { title: "Notes", url: "/AddNotes", icon: NotebookPen },
+  { title: "WorkLog", url: "/Worklog", icon: Logs },
 ];
 
 /* --------------------------- Component ----------------------------- */
