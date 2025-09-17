@@ -354,7 +354,7 @@ export default function AddNotes() {
                 <ul className="space-y-4">
                   {notes.map((n) => {
                     const isExpanded = !!expanded[n._id];
-                    const showToggle = isExpanded || !!overflowing[n._id]; 
+                    const showToggle = isExpanded || !!overflowing[n._id];
                     return (
                       <li key={n._id} className="group rounded-md border p-3">
                         <div className="flex items-center justify-between gap-2">
@@ -394,6 +394,8 @@ export default function AddNotes() {
                         </p>
 
                         {/* bullet/align safe HTML + 3-line clamp when NOT expanded */}
+
+                        <span className="text-sm font-medium">Note:</span>
                         <div
                           data-note-html
                           className={[
