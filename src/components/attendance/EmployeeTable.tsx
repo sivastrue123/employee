@@ -42,7 +42,7 @@ import {
 } from "../../../utils/attendanceData";
 
 // ---------------- constants ----------------
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 const TRIGGER_INDEX_IN_PAGE = 8;
 
 // canonical defaults for filters
