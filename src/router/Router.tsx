@@ -8,26 +8,35 @@ import Payroll from "@/pages/Payroll";
 import AddNotes from "@/pages/addnotes/AddNotes";
 import RoleBasedIndex from "./RoleBasedIndex";
 import Worklogs from "@/pages/worklog/Worklogs";
+
+import { DeviceGate } from "../components/DeviceGate";
+import { NotSupported } from "../components/NotSupported";
+import { JSX } from "react";
+
+const withGate = (element: JSX.Element) => <DeviceGate>{element}</DeviceGate>;
+
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout />,
+    element: withGate(<Layout />),
     errorElement: <h1>oops! An error occurred</h1>,
     children: [
       {
         index: true,
-        element: <RoleBasedIndex />,
+        element: withGate(<RoleBasedIndex />),
       },
       {
         path: "/Dashboard",
-        element: <Dashboard />,
+        element: withGate(<Dashboard />),
       },
-      { path: "/Employees", element: <Employees /> },
-      { path: "/Projects", element: <Projects /> },
-      { path: "/Payroll", element: <Payroll /> },
-      { path: "/Attendance", element: <Attendance /> },
-      { path: "/AddNotes", element: <AddNotes /> },
-      { path: "/Worklog", element: <Worklogs /> },
+      { path: "/Employees", element: withGate(<Employees />) },
+      { path: "/Projects", element: withGate(<Projects />) },
+      { path: "/Payroll", element: withGate(<Payroll />) },
+      { path: "/Attendance", element: withGate(<Attendance />) },
+      { path: "/AddNotes", element: withGate(<AddNotes />) },
+      { path: "/Worklog", element: withGate(<Worklogs />) },
+      { path: "/not-supported", element: <NotSupported /> },
+      { path: "*", element: withGate(<RoleBasedIndex />) },
     ],
   },
 ]);
