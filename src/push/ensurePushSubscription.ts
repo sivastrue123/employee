@@ -26,7 +26,7 @@ export async function ensurePushSubscription(
   if (permission !== "granted") return { ok: false, reason: "denied" as const };
 
   // Subscribe with VAPID public key from env
-  const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
+  const publicKey =`BFMSTQdSh9Dskh8lUvel5mntPdyDBu49UteVmNwkUf1nEpLEsBR40WSYktsVL9XVQNjV-yM79E1c26X53MkQcRQ`;
   if (!publicKey) throw new Error("Missing VITE_VAPID_PUBLIC_KEY");
 
   let sub = await registration.pushManager.getSubscription();
