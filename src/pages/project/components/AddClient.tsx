@@ -239,7 +239,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
   };
 
   const defaultTrigger = (
-    <Button className="gap-2 !bg-sky-500">
+    <Button className="gap-2 !bg-sky-500 !text-white">
       <Plus className="h-4 w-4" />
       Add Client
     </Button>
@@ -358,7 +358,7 @@ export const AddClient: React.FC<AddClientSheetProps> = ({
           </SheetClose>
           <Button
             onClick={handleSave}
-            className="!bg-sky-500"
+            className="!bg-sky-500 !text-white"
             disabled={!isValid}
             aria-disabled={!isValid}
             title={!isValid ? "Fill required fields to proceed" : undefined}

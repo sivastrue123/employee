@@ -666,7 +666,7 @@ export const TaskDialog: React.FC<TaskDialogProps> = ({
           </Button>
           <Button
             onClick={handleSave}
-            className="!bg-blue-500"
+            className="!bg-blue-500 !text-white hover:!bg-blue-600"
             disabled={!canSave}
           >
             {mode === "create" ? "Create Task" : "Save Changes"}

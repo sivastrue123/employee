@@ -361,7 +361,7 @@ const FiltersBar: React.FC<Props> = ({
           </Button>
 
           {/* Export */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 ">
             <Button
               variant="outline"
               size="sm"
@@ -374,7 +374,7 @@ const FiltersBar: React.FC<Props> = ({
             <Button
               variant="default"
               size="sm"
-              className="!bg-emerald-600"
+              className="!bg-emerald-600 !text-white hover:!bg-emerald-700"
               onClick={onExportExcel}
               title="Export Excel"
             >
@@ -387,7 +387,7 @@ const FiltersBar: React.FC<Props> = ({
           <div className="flex">
             <Button
               variant="destructive"
-              className="!bg-red-500"
+              className="!bg-red-500 !text-white hover:!bg-red-600"
               size="sm"
               onClick={onOpenMore}
             >

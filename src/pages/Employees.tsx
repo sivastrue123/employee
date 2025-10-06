@@ -282,7 +282,7 @@ export default function Employees() {
 
         <Button
           onClick={openAddForm}
-          className="!bg-sky-400 hover:!bg-slate-800 !text-black hover:!text-white shadow-lg"
+          className="!bg-sky-400 hover:!bg-slate-800 !text-white hover:!text-white shadow-lg"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Employee
@@ -356,7 +356,7 @@ export default function Employees() {
                       onClick={switchToGrid}
                       className={
                         viewMode === "grid"
-                          ? "!bg-sky-400"
+                          ? "!bg-sky-400 !text-white"
                           : "!bg-white !shadow-md"
                       }
                       size="icon"

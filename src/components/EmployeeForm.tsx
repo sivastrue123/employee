@@ -366,8 +366,10 @@ export default function EmployeeForm({ employee, onSave, onCancel }: any) {
                 </Button>
                 <Button
                   type="submit"
+
+                  variant="default"
                   disabled={isSubmitting}
-                  className="!bg-slate-900 hover:!bg-slate-800"
+                   className="!bg-sky-400 hover:!bg-slate-800 !text-white hover:!text-white shadow-lg"
                 >
                   {isSubmitting ? "Saving..." : `${employee ? "Save" : "Create"} Employee`}
                 </Button>

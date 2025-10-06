@@ -164,7 +164,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
           <Button
             size="sm"
-            className="gap-2 !bg-yellow-500"
+            className="gap-2 !bg-yellow-500 !text-white"
             onClick={openCreate}
           >
             <PlusCircle className="h-4 w-4" /> Add Task

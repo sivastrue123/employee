@@ -146,7 +146,7 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-neutral-800 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F78FF]/60"
+                  className="inline-flex items-center gap-2 rounded-lg dark:text-gray-400 dark:color-white border border-gray-200 dark:border-neutral-800 px-3 py-2 text-sm hover:bg-gray-50 !dark:bg-white !dark:hover:bg-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F78FF]/60"
                   aria-label="Change language"
                   title="Language"
                 >
