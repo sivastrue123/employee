@@ -29,7 +29,7 @@ export function NotificationPrompt({
           </div>
           <AlertDialogDescription className="text-sm mt-2">
             Get notified in your browser when something important happens — like
-           Clock in, tasks, updates.
+            Clock in, tasks, updates.
           </AlertDialogDescription>
           <p className="text-xs mt-2">
             Watch{" "}
@@ -43,7 +43,7 @@ export function NotificationPrompt({
           <AlertDialogCancel onClick={onDismiss}>Not now</AlertDialogCancel>
           <AlertDialogAction
             onClick={onEnable}
-            className="!bg-sky-600 hover:!bg-sky-700"
+            className="!bg-sky-600 !text-white hover:!bg-sky-700"
           >
             Enable notifications
           </AlertDialogAction>
