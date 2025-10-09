@@ -4,12 +4,20 @@ import { ColumnDef } from '@tanstack/react-table';
 import { AmcInfo, AmcStatus } from '@/types/amc';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 
 interface AmcTableProps {
     data: AmcInfo[];
     onEdit: (amc: AmcInfo) => void;
+    meta: {
+        totalRecords: number;
+        totalPages: number;
+        currentPage: number;
+        pageSize: number;
+    };
+    onPageChange: (newPage: number) => void;
+    loading: boolean;
 }
 
 const StatusBadge = ({ status }: { status: AmcStatus }) => {
@@ -75,12 +83,45 @@ export const amcColumns: ColumnDef<AmcInfo>[] = [
     },
 ];
 
-export function AmcTable({ data, onEdit }: AmcTableProps) {
+export function AmcTable({ data, onEdit, meta, onPageChange, loading }: AmcTableProps) {
     return (
-        <DataTable
-            columns={amcColumns}
-            data={data}
-            meta={{ onEdit }}
-        />
+        <div className="relative">
+            {loading && (
+                <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-20">
+                    <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+                </div>
+            )}
+
+            <DataTable
+                columns={amcColumns}
+                data={data}
+                meta={{ onEdit }}
+            />
+
+            {/* --- Pagination Controls --- */}
+            <div className="flex items-center justify-between p-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                    Page {meta.currentPage} of {meta.totalPages} ({meta.totalRecords} records total)
+                </div>
+                <div className="space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(meta.currentPage - 1)}
+                        disabled={meta.currentPage <= 1 || loading}
+                    >
+                        <ChevronLeft className="h-4 w-4" /> Previous
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(meta.currentPage + 1)}
+                        disabled={meta.currentPage >= meta.totalPages || loading}
+                    >
+                        Next <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </div>
     );
 }
