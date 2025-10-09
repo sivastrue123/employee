@@ -11,6 +11,7 @@ import {
   LogOut,
   NotebookPen,
   Logs,
+  Info
 } from "lucide-react";
 import { NotificationPrompt } from "./notification/NotificationPrompt";
 import {
@@ -94,6 +95,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Projects", url: "/Projects", icon: FolderOpen },
   { title: "Notes", url: "/AddNotes", icon: NotebookPen },
   { title: "WorkLog", url: "/Worklog", icon: Logs },
+  { title: "AMC INFO", url: "/AmcInfo", icon: Info },
 ];
 
 /* --------------------------- Component ----------------------------- */
@@ -287,8 +289,7 @@ export default function SidebarComp({
       return console.error("No attendance record to clock out.");
     try {
       await api.put(
-        `/api/attendance/editAttendance/${attendanceId}?userId=${user?.userId}${
-          isLoggedOut ? "&LoggedOut=true" : ""
+        `/api/attendance/editAttendance/${attendanceId}?userId=${user?.userId}${isLoggedOut ? "&LoggedOut=true" : ""
         }`,
         { clockOut: new Date().toISOString() }
       );
@@ -354,9 +355,8 @@ export default function SidebarComp({
         {/* Brand */}
         <SidebarHeader className="border-b px-3 py-3">
           <div
-            className={`flex items-center gap-3 truncate ${
-              isCollapsed == "collapsed" ? "justify-center" : ""
-            }`}
+            className={`flex items-center gap-3 truncate ${isCollapsed == "collapsed" ? "justify-center" : ""
+              }`}
           >
             {/* ✅ fixed square icon that never stretches */}
             <div className="h-8 w-8 aspect-square shrink-0 rounded-md bg-gradient-to-br from-slate-800 to-slate-600 flex items-center justify-center">
@@ -387,12 +387,11 @@ export default function SidebarComp({
                     <SidebarMenuButton
                       asChild
                       isActive={location.pathname === item.url}
-                      className={`rounded-xl transition-all duration-200 ${
-                        location.pathname === item.url ||
-                        (location.pathname === "/" && index === 0)
+                      className={`rounded-xl transition-all duration-200 ${location.pathname === item.url ||
+                          (location.pathname === "/" && index === 0)
                           ? "!bg-sky-500 !text-white shadow-lg"
                           : "hover:!bg-slate-100 !text-black hover:!text-black"
-                      } `}
+                        } `}
                     >
                       <NavLink
                         to={item.url}
