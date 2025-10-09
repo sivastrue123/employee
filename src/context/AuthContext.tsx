@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const newTimeoutId = setTimeout(() => {
-      logout();
+      // logout();
     }, INACTIVITY_TIMEOUT);
     timeoutRef.current = newTimeoutId as unknown as number;
   };
@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUserState(JSON.parse(storedUser));
     }
   }, []);
-console.log("from Auth",attendanceRefresh)
+  console.log("from Auth", attendanceRefresh)
   useEffect(() => {
     if (user) {
       resetTimeout();

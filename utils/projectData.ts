@@ -18,6 +18,8 @@
 //     imgSrc: string;
 //   }>;
 
+import { Employee } from "@/types/projectTypes";
+
 //   budget: {
 //     allocated: number;
 //     spent: number;
@@ -2863,5 +2865,7 @@ export interface Project {
   tags?: string[];          // optional labels
   progress: number;         // 0..100
   status: ProjectStatus;
-  dueDate: string;          // ISO date string
+  dueDate: string;
+    _id?: string;    
+     ownerDetails?: Employee;       // ISO date string
 }

@@ -1,6 +1,6 @@
 // components/clients/Projects.tsx
 import React, { useState } from "react";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,16 +64,16 @@ const Projects: React.FC = () => {
     toggleChecklistItem,
     tasks,
     isTaskLoading,
-    handleGetAllTasks
+    handleGetAllTasks,
+    isLoading
   } = useClients();
 
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const { state } = useSidebar();
   return (
     <div
-      className={`${
-        state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
-      } w-full max-w-6xl px-6 pb-16`}
+      className={`${state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
+        } w-full max-w-6xl px-6 pb-16`}
     >
       <div className="mb-6 flex items-center justify-between  gap-4">
         <div>
@@ -139,6 +139,11 @@ const Projects: React.FC = () => {
 
       {/* Data card (kept inline for now; you can split into ClientTable/ClientRow next) */}
       <div className="rounded-xl border bg-white shadow-sm">
+        {isLoading && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-[2px] rounded-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          </div>
+        )}
         <div className="overflow-auto">
           <Table className="min-w-full text-sm">
             <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
@@ -162,7 +167,7 @@ const Projects: React.FC = () => {
                   </Button>
                 </TableHead>
                 <TableHead className="whitespace-nowrap">Team</TableHead>
-                <TableHead className="whitespace-nowrap">Tags</TableHead>
+                {/* <TableHead className="whitespace-nowrap">Tags</TableHead> */}
                 {/* <TableHead className="whitespace-nowrap">
                   <Button
                     variant="ghost"
@@ -189,13 +194,13 @@ const Projects: React.FC = () => {
             </TableHeader>
 
             <TableBody>
-              {paged.length > 0 ? (
+              {paged.length > 0 && !isLoading ? (
                 paged.map((p) => {
                   const due = parseISO(p.dueDate);
                   const isOpen = expandedId === p._id;
                   return (
                     <React.Fragment key={p.id}>
-                      <TableRow className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors cursor-pointer">
+                      {!isLoading && (<TableRow className="even:bg-slate-50/40 hover:bg-blue-50/60 transition-colors cursor-pointer">
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="whitespace-nowrap ">
                           <span className="inline-flex items-center gap-1">
@@ -207,7 +212,7 @@ const Projects: React.FC = () => {
                         <TableCell className="whitespace-nowrap">
                           {p.team ? p.team : "—"}
                         </TableCell>
-                        <TableCell className="max-w-[260px]">
+                        {/* <TableCell className="max-w-[260px]">
                           <div className="flex flex-wrap items-center gap-1">
                             {p.tags?.length
                               ? p.tags.map((t: any) => (
@@ -222,7 +227,7 @@ const Projects: React.FC = () => {
                                 ))
                               : "—"}
                           </div>
-                        </TableCell>
+                        </TableCell> */}
                         {/* <TableCell className="min-w-[160px]">
                           <div className="flex items-center gap-2">
                             <Progress value={p.progress} className="h-2 w-28" />
@@ -275,7 +280,7 @@ const Projects: React.FC = () => {
                             {isOpen ? "Hide" : "View"}
                           </Button>
                         </TableCell>
-                      </TableRow>
+                      </TableRow>)}
 
                       {/* Inline: you can extract this into <TaskPanel /> one-for-one with your current logic */}
                       {isOpen && (
@@ -290,7 +295,7 @@ const Projects: React.FC = () => {
                               onUpdateTask={updateTask}
                               onRemoveTask={removeTask}
                               onToggleChecklistItem={toggleChecklistItem}
-                              clientId={p?._id}
+                              clientId={p?._id as string}
                               clientName={p?.name}
                               isLoading={isTaskLoading}
                               handleGetAllTasks={handleGetAllTasks}

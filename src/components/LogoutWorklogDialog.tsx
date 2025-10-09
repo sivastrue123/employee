@@ -145,17 +145,24 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
         <div className="flex h-full w-full min-h-0 flex-col">
           {/* sticky header */}
           <DialogHeader
-            className="
+            className="!flex !flex-row !justify-between
               sticky top-0 z-20 border-b
               bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60
               px-6 py-4
               pt-[calc(env(safe-area-inset-top)+1rem)]
             "
           >
-            <DialogTitle>Before you logout, log today’s work</DialogTitle>
-            <DialogDescription>
-              Capture your deliverables to keep the ops engine humming.
-            </DialogDescription>
+            <div className="flex flex-col"> <DialogTitle>Before you logout, log today’s work</DialogTitle>
+              <DialogDescription>
+                Capture your deliverables to keep the ops engine humming.
+              </DialogDescription></div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => append(newRow)}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Add More Task
+            </Button>
           </DialogHeader>
 
           {/* scrollable content rail */}
@@ -167,13 +174,13 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                     Add at least one task. This fuels downstream reporting and
                     velocity metrics.
                   </p>
-                  <Button
+                  {/* <Button
                     type="button"
                     variant="outline"
                     onClick={() => append(newRow)}
                   >
                     <Plus className="h-4 w-4 mr-2" /> Add Row
-                  </Button>
+                  </Button> */}
                 </div>
 
                 <div className="grid gap-4 ">
@@ -342,13 +349,13 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                               <Input type="date" {...field} />
                               {formState.errors.tasks?.[idx]
                                 ?.estimatedCompletion && (
-                                <p className="text-xs text-red-600 mt-1">
-                                  {
-                                    formState.errors.tasks[idx]
-                                      ?.estimatedCompletion?.message as string
-                                  }
-                                </p>
-                              )}
+                                  <p className="text-xs text-red-600 mt-1">
+                                    {
+                                      formState.errors.tasks[idx]
+                                        ?.estimatedCompletion?.message as string
+                                    }
+                                  </p>
+                                )}
                             </div>
                           )}
                         />
@@ -396,7 +403,7 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           render={({ field }) => {
                             const safeValue =
                               typeof field.value === "number" ||
-                              field.value === ""
+                                field.value === ""
                                 ? field.value
                                 : "";
                             return (

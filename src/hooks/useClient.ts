@@ -1,9 +1,10 @@
 // hooks/useClients.ts
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { format, isAfter, parseISO } from "date-fns";
 import axios from "axios";
 
-import { pageSize } from "../../utils/projectUtils.js";
+// ⚠️ Note: pageSize must be imported correctly
+import { pageSize } from "../../utils/projectUtils.js"; 
 import {
   ProjectWithTasks,
   SortId,
@@ -16,7 +17,7 @@ import { useAuth } from "@/context/AuthContext.js";
 import { useToast } from "@/toast/ToastProvider"; // <-- adjust path if needed
 import { api } from "@/lib/axios.js";
 
-// Small helper to classify errors and humanize messages
+// ... (parseHttpError and axiosOpts remain the same)
 const parseHttpError = (error: any) => {
   const status = error?.response?.status;
   const isNetwork =
@@ -83,6 +84,23 @@ const axiosOpts = {
   // Accept 304 as a handled pathway (not “throw”)
   validateStatus: (s: number) => s >= 200 && s < 400,
 };
+// END: parseHttpError and axiosOpts
+
+interface ClientApiResponse {
+    items: ProjectWithTasks[];
+    pagination: {
+        page: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+    };
+    metrics: {
+        totalClients: number;
+        dueIn14Days: number;
+        atRiskClients: number;
+    };
+}
+
 
 export function useClients() {
   const { user } = useAuth();
@@ -91,112 +109,113 @@ export function useClients() {
   const [projects, setProjects] = useState<ProjectWithTasks[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [isTaskLoading, setIsTaskLoading] = useState<boolean>(false);
-  // KPIs
-  const [dueSoon, setDueSoon] = useState(0);
-  const [riskCount, setRiskCount] = useState(0);
-  const [activeProjects, setActiveProject] = useState(0);
-
-  // Initial load: Projects
-  const handleProjects = async () => {
-    const loadingId = toast.info("Syncing clients…", {
-      durationMs: 0,
-      position: "bottom-left",
-      dismissible: true,
-    });
-
-    try {
-      const response = await api.get("api/client/getAllClient", axiosOpts);
-
-      if (response.status === 304) {
-        toast.remove(loadingId);
-        toast.info("Clients are already up to date.", {
-          title: "No change",
-          durationMs: 2000,
-          position: "bottom-left",
-        });
-        return;
-      }
-
-      setProjects(response?.data?.items ?? []);
-      setDueSoon(response?.data?.metrics?.dueIn14Days ?? 0);
-      setActiveProject(response?.data?.metrics?.totalClients ?? 0);
-      setRiskCount(response?.data?.metrics?.atRiskClients ?? 0);
-
-      toast.remove(loadingId);
-      toast.success("Client data synced successfully.", {
-        title: "Sync complete",
-        durationMs: 1800,
-        position: "bottom-left",
-      });
-    } catch (error: any) {
-      toast.remove(loadingId);
-      const { title, message } = parseHttpError(error);
-      toast.error(message, {
-        title,
-        durationMs: 4500,
-        position: "bottom-left",
-      });
-    }
-  };
-
-  useEffect(() => {
-    handleProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // search + sort + pagination
+  
+  // States that control the API fetch (query, sort, page)
   const [query, setQuery] = useState("");
   const [sorting, setSorting] = useState<SortState>({
     id: "dueDate",
     desc: false,
   });
   const [page, setPage] = useState(1);
+    
+  // States updated by the API response's pagination and metrics
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [dueSoon, setDueSoon] = useState(0);
+  const [riskCount, setRiskCount] = useState(0);
+  const [activeProjects, setActiveProject] = useState(0);
+  const [isLoading, setIsLoading] = useState<boolean>(false); 
 
-  const filteredAndSorted: any[] = useMemo(() => {
-    let current = [...projects];
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      current = current.filter((p) => {
-        const hay = [
-          p.name,
-          p.owner,
-          p.team ?? "",
-          ...(p.tags ?? []),
-          p.status,
-          format(parseISO(p.dueDate), "PP"),
-        ]
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(q);
+  // Initial load/Re-fetch: Projects
+  const handleProjects = useCallback(async () => {
+    
+    try {
+        // --- 1. Build Query Parameters for the API ---
+        setIsLoading(true);
+        const sortOrder = sorting?.desc ? -1 : 1; // Convert boolean to server-side value
+        const params = new URLSearchParams({
+            page: String(page),
+            pageSize: String(pageSize),
+            q: query,
+            sortId: sorting?sorting.id:"",
+            sortOrder: String(sortOrder),
+        }).toString();
+        
+        const url = `api/client/getAllClient?${params}`;
+        
+        const response = await api.get<ClientApiResponse>(url, axiosOpts);
+
+        if (response.status === 304) {
+
+            toast.info("Clients are already up to date.", {
+                title: "No change",
+                durationMs: 2000,
+                position: "bottom-left",
+            });
+            return;
+        }
+
+        // --- 2. Update State from Server Response ---
+        const data = response.data;
+        setProjects(data?.items ?? []);
+        setTotal(data?.pagination?.total ?? 0);
+        setTotalPages(data?.pagination?.totalPages ?? 1);
+        setDueSoon(data?.metrics?.dueIn14Days ?? 0);
+        setActiveProject(data?.metrics?.totalClients ?? 0);
+        setRiskCount(data?.metrics?.atRiskClients ?? 0);
+
+        
+        toast.success(`Page ${page} of client data synced successfully.`, {
+            title: "Sync complete",
+            durationMs: 1800,
+            position: "bottom-left",
+        });
+    } catch (error: any) {
+
+      const { title, message } = parseHttpError(error);
+      toast.error(message, {
+        title,
+        durationMs: 4500,
+        position: "bottom-left",
       });
-    }
-    if (sorting) {
-      current.sort((a, b) => {
-        if (sorting.id === "name")
-          return sorting.desc
-            ? b.name.localeCompare(a.name)
-            : a.name.localeCompare(b.name);
-        if (sorting.id === "owner")
-          return sorting.desc
-            ? b.owner.localeCompare(a.owner)
-            : a.owner.localeCompare(b.owner);
-        if (sorting.id === "progress")
-          return sorting.desc
-            ? b.progress - a.progress
-            : a.progress - b.progress;
-        const A = parseISO(a.dueDate).getTime();
-        const B = parseISO(b.dueDate).getTime();
-        return sorting.desc ? B - A : A - B;
-      });
-    }
-    return current;
-  }, [projects, query, sorting]);
+    }finally{
 
-  useEffect(() => setPage(1), [query, sorting]);
+        setIsLoading(false); 
+   
+    }
+  }, [page, query, sorting, toast]); // Dependency array: call API whenever these change
 
-  const total = filteredAndSorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const paged = filteredAndSorted.slice((page - 1) * pageSize, page * pageSize);
+  // --- 3. useEffect hooks to trigger fetching ---
+  
+  // Fetch on initial load
+  useEffect(() => {
+    handleProjects();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
+
+  // Reset page to 1 and fetch when query or sorting changes
+  useEffect(() => {
+    // Only reset page if it's not already 1, otherwise we'll fetch twice
+    if (page !== 1) {
+      setPage(1); 
+    } else {
+      handleProjects(); // Fetch if we're already on page 1
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, sorting]); 
+  
+  // Fetch when page changes (triggered by pagination buttons)
+  useEffect(() => {
+      handleProjects();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]); 
+
+
+  // --- 4. Simplification ---
+  // The sorting and pagination logic is now handled by the server. 
+  // We don't need the complex useMemo logic anymore.
+  // The 'projects' state already holds the correct, paged data.
+  const paged = projects;
 
   const toggleSort = (id: SortId) =>
     setSorting((prev) =>
@@ -205,48 +224,49 @@ export function useClients() {
 
   // row expansion -> fetch tasks for a client
   const handleGetAllTasks = async (clientId: string, userId?: string) => {
+    // ... (Your handleGetAllTasks implementation remains the same)
     const loadingId = toast.info("Loading task inventory…", {
-      durationMs: 0,
-      position: "bottom-left",
-      dismissible: true,
-    });
-
-    try {
-      const response = await api.get(
-        `/api/client/${clientId}/getAllTasks${
-          userId ? `?userId=${userId}` : ""
-        }`,
-        axiosOpts
-      );
-
-      if (response.status === 304) {
+        durationMs: 0,
+        position: "bottom-left",
+        dismissible: true,
+      });
+  
+      try {
+        const response = await api.get(
+          `/api/client/${clientId}/getAllTasks${
+            userId ? `?userId=${userId}` : ""
+          }`,
+          axiosOpts
+        );
+  
+        if (response.status === 304) {
+          toast.remove(loadingId);
+          toast.info("Tasks are already current.", {
+            title: "No change",
+            durationMs: 1800,
+            position: "bottom-left",
+          });
+          return;
+        }
+  
+        setTasks(response?.data?.items ?? []);
+        setIsTaskLoading(false);
         toast.remove(loadingId);
-        toast.info("Tasks are already current.", {
-          title: "No change",
-          durationMs: 1800,
+        toast.success("Tasks loaded.", {
+          durationMs: 1400,
           position: "bottom-left",
         });
-        return;
+      } catch (error: any) {
+        toast.remove(loadingId);
+        const { title, message } = parseHttpError(error);
+        toast.error(message, {
+          title,
+          durationMs: 4500,
+          position: "bottom-left",
+        });
+        setIsTaskLoading(false);
+        setTasks([]);
       }
-
-      setTasks(response?.data?.items ?? []);
-      setIsTaskLoading(false);
-      toast.remove(loadingId);
-      toast.success("Tasks loaded.", {
-        durationMs: 1400,
-        position: "bottom-left",
-      });
-    } catch (error: any) {
-      toast.remove(loadingId);
-      const { title, message } = parseHttpError(error);
-      toast.error(message, {
-        title,
-        durationMs: 4500,
-        position: "bottom-left",
-      });
-      setIsTaskLoading(false);
-      setTasks([]);
-    }
   };
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -519,6 +539,7 @@ export function useClients() {
     toggleChecklistItem,
     isTaskLoading,
     setIsTaskLoading,
-    handleGetAllTasks
+    handleGetAllTasks,
+    isLoading,
   };
 }
