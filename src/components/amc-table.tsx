@@ -4,7 +4,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { AmcInfo, AmcStatus } from '@/types/amc';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 
 interface AmcTableProps {
@@ -18,6 +18,8 @@ interface AmcTableProps {
     };
     onPageChange: (newPage: number) => void;
     loading: boolean;
+    handleSort: (field: any) => void;
+    // renderSort: (field: any) => void;
 }
 
 const StatusBadge = ({ status }: { status: AmcStatus }) => {
@@ -30,9 +32,22 @@ const StatusBadge = ({ status }: { status: AmcStatus }) => {
 
 
 export const amcColumns: ColumnDef<AmcInfo>[] = [
+
     {
         accessorKey: 'dealerName',
         header: 'Dealer',
+        // header: ({ column }) => {
+        //     return (
+        //         <Button
+        //             variant="ghost"
+        //         //     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        //         >
+        //             Dealer
+        //             <ArrowUpDown />
+        //         </Button>
+        //     )
+        // },
+
     },
     {
         accessorKey: 'customerName',
@@ -83,7 +98,7 @@ export const amcColumns: ColumnDef<AmcInfo>[] = [
     },
 ];
 
-export function AmcTable({ data, onEdit, meta, onPageChange, loading }: AmcTableProps) {
+export function AmcTable({ data, onEdit, meta, onPageChange, loading, handleSort }: AmcTableProps) {
     return (
         <div className="relative">
             {loading && (
@@ -96,6 +111,7 @@ export function AmcTable({ data, onEdit, meta, onPageChange, loading }: AmcTable
                 columns={amcColumns}
                 data={data}
                 meta={{ onEdit }}
+                handleSort={handleSort}
             />
 
             {/* --- Pagination Controls --- */}

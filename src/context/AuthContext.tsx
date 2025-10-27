@@ -3,7 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
-  useRef,
+
 } from "react";
 
 type User = {
@@ -27,20 +27,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUserState] = useState<User | null>(null);
-  const timeoutRef = useRef<number | null>(null);
+
   const [attendanceRefresh, setAttendanceRefresh] = useState<Boolean>(false);
-  const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 
-  const resetTimeout = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    const newTimeoutId = setTimeout(() => {
-      // logout();
-    }, INACTIVITY_TIMEOUT);
-    timeoutRef.current = newTimeoutId as unknown as number;
-  };
 
   const logout = () => {
     localStorage.removeItem("user");
@@ -54,8 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const setUser = (user: User | null) => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
-
-      resetTimeout();
+      // Removed resetTimeout() call on setUser
     } else {
       localStorage.removeItem("user");
       localStorage.removeItem("isClockedIn");
@@ -66,31 +54,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUserState(user);
   };
 
+  // Effect to load user from localStorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       setUserState(JSON.parse(storedUser));
     }
   }, []);
-  console.log("from Auth", attendanceRefresh)
-  useEffect(() => {
-    if (user) {
-      resetTimeout();
-      const events = ["mousemove", "mousedown", "keypress", "scroll"];
-      events.forEach((event) => {
-        window.addEventListener(event, resetTimeout);
-      });
 
-      return () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
+  console.log("from Auth", attendanceRefresh)
+
+  // New Effect for 18-hour session limit check
+  useEffect(() => {
+    let intervalId: number | undefined;
+
+    if (user) {
+      const checkSessionDuration = () => {
+        const clockInTimeStr = localStorage.getItem("clockInTime");
+
+        if (clockInTimeStr) {
+          const clockInTime = new Date(clockInTimeStr).getTime();
+          const currentTime = new Date().getTime();
+          // 18 hours in milliseconds
+          const EIGHTEEN_HOURS_MS = 18 * 60 * 60 * 1000;
+
+          if (currentTime - clockInTime > EIGHTEEN_HOURS_MS) {
+            console.log("Session expired: over 18 hours since clock-in.");
+            logout();
+            // Clear the interval after logging out
+            if (intervalId !== undefined) {
+              clearInterval(intervalId);
+            }
+          }
         }
-        events.forEach((event) => {
-          window.removeEventListener(event, resetTimeout);
-        });
       };
+
+      // Check immediately and then every minute (or less frequently if preferred, e.g., every 5 mins)
+      checkSessionDuration();
+      // Set up interval to check every minute (60,000 ms)
+      intervalId = setInterval(checkSessionDuration, 60 * 1000) as unknown as number;
     }
-  }, [user]);
+
+    return () => {
+      if (intervalId !== undefined) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [user]); // Re-run effect when user state changes
+
+  // Removed the old useEffect for inactivity listeners
 
   return (
     <AuthContext.Provider

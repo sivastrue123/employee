@@ -19,17 +19,20 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { ArrowUpDown } from 'lucide-react';
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
-    meta?: any; // To pass context like onEdit
+    meta?: any;
+    handleSort: (field: any) => void;
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
     meta,
+    handleSort
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -59,14 +62,40 @@ export function DataTable<TData, TValue>({
                         <TableRow key={headerGroup.id}>
                             {headerGroup.headers.map((header) => {
                                 return (
-                                    <TableHead key={header.id}>
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                    </TableHead>
+                                    <>
+                                        {header.column.columnDef.header == "Dealer" || header.column.columnDef.header == "Customer" ?
+                                            <TableHead key={header.id} onClick={() => handleSort(header.column.columnDef.header == "Dealer" ? "dealerName" : "customerName")} className='pt-[8px] cursor-pointer'>
+                                                <div className="flex items-center gap-2">
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext()
+                                                        )}<ArrowUpDown className='h-4 w-4' />
+                                                </div>
+                                            </TableHead> :
+                                            <TableHead key={header.id}>
+                                                <>
+                                                    {console.log(header.column.columnDef.header, "header.column.columnDef.header")}
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext()
+                                                        )}
+
+                                                </>
+
+                                            </TableHead>}
+                                        {/* <TableHead key={header.id}>
+                                            {header.isPlaceholder
+                                                ? null
+                                                : flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}
+                                        </TableHead> */}
+                                    </>
                                 );
                             })}
                         </TableRow>

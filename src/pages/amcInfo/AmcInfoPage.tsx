@@ -12,6 +12,7 @@ import { AmcTable } from '@/components/amc-table';
 import { AmcForm } from '@/components/amc-form';
 import { useToast } from '@/toast/ToastProvider';
 import { useSidebar } from '@/components/ui/sidebar';
+import axios from 'axios';
 
 interface PaginationMeta {
     totalRecords: number;
@@ -27,10 +28,11 @@ const DEFAULT_PAGE_SIZE = 10;
 export default function AmcInfoPage() {
 
     const toast = useToast()
-    const [data, setData] = useState<AmcInfo[]>([]);
+    const [amcList, setAmcList] = useState<AmcInfo[]>([]);
     const [dealers, setDealers] = useState<EntityOption[]>([]);
     const [customers, setCustomers] = useState<EntityOption[]>([]);
-
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [page, setPage] = useState(1);
     const [meta, setMeta] = useState<PaginationMeta>({
         totalRecords: 0,
@@ -42,49 +44,60 @@ export default function AmcInfoPage() {
     const [editingAmc, setEditingAmc] = useState<AmcInfo | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState('customerName');
+    const [sortOrder, setSortOrder] = useState('desc');
     // 1. DATA FETCHING (GET)
-    const fetchData = React.useCallback(async (currentPage: number) => {
+    const fetchAmcList = React.useCallback(async () => {
         setIsLoading(true);
+
         try {
+            // Construct the query string from state
+            // const params = {
+            //     page: currentPage,
+            //     limit: pageSize,
+            //     search: searchTerm, // Passed to backend
+            //     sortBy: sortBy,     // Passed to backend
+            //     sortOrder: sortOrder, // Passed to backend
+            // };
+
             const [amcRes, dealerRes, customerRes] = await Promise.all([
                 // Pass pagination parameters to the AMC list endpoint
                 api.get<{ data: AmcInfo[]; meta: PaginationMeta }>(
-                    `${API_BASE_PATH}?page=${currentPage}&limit=${DEFAULT_PAGE_SIZE}`
+                    `${API_BASE_PATH}?page=${currentPage}&limit=${DEFAULT_PAGE_SIZE}&search=${searchTerm}&sortBy=${sortBy}&sortOrder=${sortOrder}`
                 ),
                 api.get<EntityOption[]>(`${API_BASE_PATH}/dealers`),
                 api.get<EntityOption[]>(`${API_BASE_PATH}/customers`),
             ]);
-
             const newEntryOption: EntityOption = { id: 'new', name: '[+ New Entry]' };
 
             setDealers([...dealerRes.data, newEntryOption]);
             setCustomers([...customerRes.data, newEntryOption]);
 
-            // Update the main data and metadata state
-            setData(amcRes.data.data);
-            setMeta(amcRes.data.meta);
-            setPage(amcRes.data.meta.currentPage); // Ensure state reflects the response page
 
-        } catch (error) {
-            console.error('Error fetching initial data:', error);
-            const errorMessage = (error as any).response?.data?.message || (error as any).message || 'Failed to load portal data.';
-            toast.error(errorMessage);
+            setAmcList(amcRes.data.data);
+            setMeta(amcRes.data.meta.currentPage as any);
+
+        } catch (err) {
+            console.error('API Error:', err);
+
         } finally {
             setIsLoading(false);
         }
-    }, []); // Empty dependency array means this function is stable
+    }, [currentPage, pageSize, searchTerm, sortBy, sortOrder]); // Dependencies updated
 
-
+    // Trigger fetch when any relevant state changes
     useEffect(() => {
-        fetchData(page);
-    }, [page, fetchData]);
-
+        fetchAmcList();
+    }, [fetchAmcList]);
 
     const handlePageChange = (newPage: number) => {
         setPage(newPage);
     };
-
+    const handleSearchChange = (event: any) => {
+        setSearchTerm(event.target.value);
+        setCurrentPage(1); // Reset to the first page when searching
+    };
     // Helper to find the database ID of an entity by its displayed name.
     const findOptionIdByName = (options: EntityOption[], name: string): string => {
         return options.find(o => o.name === name)?.id || '';
@@ -122,7 +135,7 @@ export default function AmcInfoPage() {
 
             // Instead of manually manipulating the 'data' state, we simply refresh the current view
             // This is safer and more reliable with pagination enabled.
-            await fetchData(page);
+            await fetchAmcList();
 
             toast.success(`${editingAmc ? 'Updated' : 'Created'} AMC record successfully!`);
 
@@ -166,7 +179,7 @@ export default function AmcInfoPage() {
     }, [editingAmc, dealers, customers]);
 
 
-    if (isLoading && data.length === 0) {
+    if (isLoading && amcList.length === 0) {
         return (
             <div className="container mx-auto py-10 text-center">
                 <p className="text-xl font-medium text-sky-600">Loading data, please wait...</p>
@@ -174,11 +187,27 @@ export default function AmcInfoPage() {
         );
     }
     const { state } = useSidebar()
+
+    const handleSort = (field: any) => {
+        if (sortBy === field) {
+            // If the same field is clicked, toggle the order
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            // If a new field is clicked, set it and default to 'desc'
+            setSortBy(field);
+            setSortOrder('desc');
+        }
+        setCurrentPage(1); // Always reset to page 1 when changing sort
+    };
+
+    // Helper function to render the sort icon
+
     return (
         <div className={`py-4  ${state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
             }`}>
             <header className="flex justify-between items-center mb-6">
                 <p className="text-3xl font-bold">AMC Info</p>
+
                 <Button
                     className="!bg-sky-500 hover:!bg-sky-600 !text-white shadow-md"
                     onClick={() => setIsSheetOpen(true)}
@@ -186,12 +215,25 @@ export default function AmcInfoPage() {
                     + Add New AMC Info
                 </Button>
             </header>
+            <div className='flex w-full justify-end'>
+                <input
+                    type="text"
+                    placeholder="Search by Dealer or Customer"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    style={{ padding: '8px', marginRight: '10px' }}
+                    className='border-[2px] mb-2 w-full md:w-[25%] rounded-[4px]'
+                />
+            </div>
 
             {/* --- Data Table --- */}
             <div className="border rounded-lg shadow-sm">
-                <AmcTable data={data} onEdit={handleEdit} meta={meta}
+
+                <AmcTable data={amcList} onEdit={handleEdit} meta={meta}
                     onPageChange={handlePageChange}
-                    loading={isLoading} />
+                    loading={isLoading}
+                    handleSort={handleSort}
+                />
             </div>
 
             {/* --- Sheet for CRUD Form --- */}
