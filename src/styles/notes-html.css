@@ -49,3 +49,72 @@
     hsl(var(--background))
   );
 }
+
+/* Custom styles for Tiptap tables within a Prose environment */
+
+/* 1. Base table structure and visual borders */
+.prose table,
+.prose-sm table {
+  /* Set table appearance */
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  table-layout: fixed; /* Essential for resizable columns */
+}
+
+/* 2. Cell borders and padding (Header and Body) */
+.prose th,
+.prose td,
+.prose-sm th,
+.prose-sm td {
+  /* Use CSS variables for Tailwind-like colors (defaults to light gray) */
+  border: 1px solid var(--tw-prose-table-border, #d1d5db); /* gray-300 */
+  padding: 0.5rem 0.75rem; /* ~py-2 px-3 */
+  text-align: left;
+  vertical-align: top;
+  min-width: 128px;
+  position: relative; /* Required for Tiptap's resize handles */
+  box-sizing: border-box; /* Important for resize behavior */
+}
+
+/* 3. Header Row Background */
+.prose th,
+.prose-sm th {
+  background-color: var(--tw-prose-th-bg, #f3f4f6); /* gray-50 */
+  font-weight: 600;
+}
+
+/* 4. Tiptap Resize Handles and Selection (required for functionality) */
+
+/* Cursor for dragging */
+.resize-cursor {
+  cursor: ew-resize;
+  cursor: col-resize;
+}
+
+/* The actual drag handle/bar */
+.column-resize-handle {
+  position: absolute;
+  right: -2px; 
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #3b82f6; /* blue-500 */
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Cell selection highlight */
+.selectedCell:after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Light blue overlay: blue-500 with 20% opacity */
+  background: rgba(59, 130, 246, 0.2); 
+  pointer-events: none;
+  z-index: 2; 
+}

@@ -110,17 +110,17 @@ export default function AddNotes() {
   // Assign/measure ref for collapsed previews only
   const setPreviewRef =
     (id: string) =>
-    (el: HTMLDivElement | null): void => {
-      previewRefs.current[id] = el;
-      if (!el) return;
-      const measure = () => {
-        // If clamped: scrollHeight > clientHeight => needs toggle button
-        const isOverflow = el.scrollHeight > el.clientHeight + 1;
-        setOverflowing((prev) => ({ ...prev, [id]: isOverflow }));
+      (el: HTMLDivElement | null): void => {
+        previewRefs.current[id] = el;
+        if (!el) return;
+        const measure = () => {
+          // If clamped: scrollHeight > clientHeight => needs toggle button
+          const isOverflow = el.scrollHeight > el.clientHeight + 1;
+          setOverflowing((prev) => ({ ...prev, [id]: isOverflow }));
+        };
+        // measure after layout paint
+        requestAnimationFrame(measure);
       };
-      // measure after layout paint
-      requestAnimationFrame(measure);
-    };
 
   // Re-measure on window resize for all collapsed previews
   useEffect(() => {
@@ -231,14 +231,14 @@ export default function AddNotes() {
         setNotes((prev) =>
           prev
             ? prev.map((n) =>
-                n._id === editing._id
-                  ? {
-                      ...n,
-                      title: editTitle.trim(),
-                      notes: editText.trim(),
-                    }
-                  : n
-              )
+              n._id === editing._id
+                ? {
+                  ...n,
+                  title: editTitle.trim(),
+                  notes: editText.trim(),
+                }
+                : n
+            )
             : prev
         );
         setEditing(null);
@@ -272,9 +272,8 @@ export default function AddNotes() {
   // ---------- Render
   return (
     <div
-      className={`h-full ${
-        state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
-      } w-full grid grid-cols-1 gap-4 p-4`}
+      className={`h-full ${state == "expanded" ? "lg:w-[90%]" : "lg:w-full"
+        } w-full grid grid-cols-1 gap-4 p-4`}
     >
       {/* Single Pane - Notes */}
       <Card className="flex flex-col">
@@ -360,7 +359,7 @@ export default function AddNotes() {
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-xs text-muted-foreground">
                             {n.createdByUser?.first_name &&
-                            n.createdByUser?.last_name
+                              n.createdByUser?.last_name
                               ? `${n.createdByUser.first_name} ${n.createdByUser.last_name}`
                               : n.createdBy?.name || "User"}{" "}
                             • {fmtDate(n.createdAt)}
@@ -433,17 +432,21 @@ export default function AddNotes() {
           </div>
         </CardContent>
 
-        {/* Create Note Dialog */}
         <Dialog open={addOpen} onOpenChange={(o) => setAddOpen(o)}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
+
+
+          <DialogContent className="sm:max-w-3xl h-[90vh] max-h-[90vh] flex flex-col">
+
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Create Note</DialogTitle>
               <DialogDescription>
                 Capture the signal, minimize the noise.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-2">
+            <Separator className="my-2 flex-shrink-0" />
+
+            <div className="mt-4 flex flex-col gap-2 flex-1 overflow-y-auto min-h-0 p-2">
               <Label htmlFor="new-title">Title*</Label>
               <Input
                 id="new-title"
@@ -463,11 +466,12 @@ export default function AddNotes() {
                 placeholder="Add a note…"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 flex-shrink-0">
               * required fields
             </p>
 
-            <DialogFooter className="mt-4">
+
+            <DialogFooter className="mt-4 flex-shrink-0">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -489,7 +493,6 @@ export default function AddNotes() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
         {/* Edit Note Dialog */}
         <Dialog
           open={!!editing}
@@ -497,8 +500,9 @@ export default function AddNotes() {
             if (!o) setEditing(null);
           }}
         >
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
+
+          <DialogContent className="sm:max-w-3xl h-[90vh] max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>
                 Edit Note {editing?.noteId ? `(${editing.noteId})` : ""}
               </DialogTitle>
@@ -506,8 +510,9 @@ export default function AddNotes() {
                 Refine the content and ship the update.
               </DialogDescription>
             </DialogHeader>
+            <Separator className="my-2 flex-shrink-0" />
 
-            <div className="grid gap-2">
+            <div className="mt-4 flex flex-col gap-2 flex-1 overflow-y-auto min-h-0 p-2">
               <Label htmlFor="edit-title">Title*</Label>
               <Input
                 id="edit-title"
@@ -526,11 +531,11 @@ export default function AddNotes() {
                 placeholder="Update your note…"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 flex-shrink-0">
               * required fields
             </p>
 
-            <DialogFooter className="mt-4">
+           <DialogFooter className="mt-4 flex-shrink-0">
               <Button
                 variant="outline"
                 onClick={() => setEditing(null)}

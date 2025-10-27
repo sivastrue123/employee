@@ -11,8 +11,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogOverlay, // 👈 add this
-  DialogPortal, // 👈 add this
+  DialogOverlay,
+  DialogPortal,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +34,6 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus } from "lucide-react";
 import { useToast } from "@/toast/ToastProvider";
-
-/* ---------- schema ---------- */
 
 const PRIORITIES = ["Low", "Medium", "High"] as const;
 const STATUSES = ["On-going", "Completed", "Hold", "Assigned"] as const;
@@ -71,6 +69,14 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
   const toast = useToast();
   const [step, setStep] = React.useState<"form" | "review">("form");
   const [submitting, setSubmitting] = React.useState(false);
+  const [expandedRemarks, setExpandedRemarks] = React.useState<Record<number, boolean>>({});
+
+  const toggleRemarkExpansion = (index: number) => {
+    setExpandedRemarks(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
 
   const form = useForm<LogoutWorklogPayload>({
     resolver: zodResolver(FormSchema),
@@ -129,44 +135,50 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
   });
 
   React.useEffect(() => {
-    if (!open) setStep("form");
+    if (!open) {
+      setStep("form");
+      setExpandedRemarks({});
+    }
   }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Full-screen shell + fixed chrome + scrollable content */}
       <DialogContent
         className="
-    p-0 gap-0 !w-screen !h-screen rounded-none
-    !left-0 !top-0 !translate-x-0 !translate-y-0 !max-w-none
-    overflow-hidden
-  "
+          p-0 gap-0 !w-screen !h-screen rounded-none
+          !left-0 !top-0 !translate-x-0 !translate-y-0 !max-w-none
+          overflow-hidden
+        "
       >
         <div className="flex h-full w-full min-h-0 flex-col">
-          {/* sticky header */}
+
           <DialogHeader
-            className="!flex !flex-row !justify-between
+            className="!flex !flex-row !justify-between flex-shrink-0
               sticky top-0 z-20 border-b
               bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60
               px-6 py-4
               pt-[calc(env(safe-area-inset-top)+1rem)]
             "
           >
-            <div className="flex flex-col"> <DialogTitle>Before you logout, log today’s work</DialogTitle>
+            <div className="flex flex-col">
+              <DialogTitle>Before you logout, log today’s work</DialogTitle>
               <DialogDescription>
                 Capture your deliverables to keep the ops engine humming.
-              </DialogDescription></div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => append(newRow)}
-            >
-              <Plus className="h-4 w-4 mr-2" /> Add More Task
-            </Button>
+              </DialogDescription>
+            </div>
+            {step === "form" && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => append(newRow)}
+                className="flex-shrink-0"
+              >
+                <Plus className="h-4 w-4 mr-2" /> Add More Task
+              </Button>
+            )}
           </DialogHeader>
 
-          {/* scrollable content rail */}
-          <div className="flex-1 min-h-0  overflow-auto px-6 py-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
             {step === "form" ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -174,13 +186,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                     Add at least one task. This fuels downstream reporting and
                     velocity metrics.
                   </p>
-                  {/* <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => append(newRow)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Add Row
-                  </Button> */}
                 </div>
 
                 <div className="grid gap-4 ">
@@ -207,7 +212,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {/* Task Name */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.taskName`}
@@ -232,7 +236,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Customer */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.customer`}
@@ -257,7 +260,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Priority */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.priority`}
@@ -293,7 +295,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Assigned Date */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.assignedDate`}
@@ -315,7 +316,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Assigned By */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.assignedBy`}
@@ -337,7 +337,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Estimated Completion */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.estimatedCompletion`}
@@ -360,7 +359,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Status */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.status`}
@@ -396,7 +394,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           )}
                         />
 
-                        {/* Total Hours Spent */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.totalHours`}
@@ -417,7 +414,7 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                                   min={0.25}
                                   name={field.name}
                                   ref={field.ref}
-                                  value={safeValue} // number | ""
+                                  value={safeValue}
                                   onBlur={field.onBlur}
                                   onChange={(e) => {
                                     const v = e.target.value;
@@ -437,7 +434,6 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                           }}
                         />
 
-                        {/* Remarks (full width on md) */}
                         <Controller
                           control={control}
                           name={`tasks.${idx}.remarks`}
@@ -469,7 +465,7 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                 <p className="text-sm text-muted-foreground">
                   Quick review before we push this into the system of record:
                 </p>
-                <div className="rounded-md border overflow-auto">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -479,33 +475,56 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
                         <TableHead>Assigned Date</TableHead>
                         <TableHead>Assigned By</TableHead>
                         <TableHead>Estimated Completion</TableHead>
-                        <TableHead>Remarks</TableHead>
+                        <TableHead className="w-[250px] min-w-[250px]">Remarks</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Total Hours Spent</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {form.getValues("tasks").map((t, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="whitespace-nowrap">
-                            {t.taskName}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {t.customer}
-                          </TableCell>
-                          <TableCell>{t.priority}</TableCell>
-                          <TableCell>{t.assignedDate}</TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {t.assignedBy}
-                          </TableCell>
-                          <TableCell>{t.estimatedCompletion}</TableCell>
-                          <TableCell className="max-w-[320px]">
-                            {t.remarks}
-                          </TableCell>
-                          <TableCell>{t.status}</TableCell>
-                          <TableCell>{t.totalHours ?? ""}</TableCell>
-                        </TableRow>
-                      ))}
+                      {form.getValues("tasks").map((t, i) => {
+                        const isExpanded = expandedRemarks[i] ?? false;
+                        const hasRemarks = !!t.remarks;
+                        const displayRemarks = t.remarks || "-";
+
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="whitespace-nowrap">
+                              {t.taskName}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {t.customer}
+                            </TableCell>
+                            <TableCell>{t.priority}</TableCell>
+                            <TableCell>{t.assignedDate}</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {t.assignedBy}
+                            </TableCell>
+                            <TableCell>{t.estimatedCompletion}</TableCell>
+
+                            <TableCell className="max-w-[250px] p-2 align-top">
+                              <div
+                                className={`text-sm ${!isExpanded && hasRemarks ? 'overflow-hidden text-ellipsis whitespace-nowrap' : 'whitespace-pre-wrap'
+                                  }`}
+                              >
+                                {displayRemarks}
+                              </div>
+
+                              {hasRemarks && displayRemarks.length > 20 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRemarkExpansion(i)}
+                                  className="text-xs text-sky-600 hover:underline mt-1 block"
+                                >
+                                  {isExpanded ? "Show less" : "Show more"}
+                                </button>
+                              )}
+                            </TableCell>
+
+                            <TableCell>{t.status}</TableCell>
+                            <TableCell>{t.totalHours ?? ""}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -513,9 +532,8 @@ export function LogoutWorklogDialog({ open, onOpenChange, onConfirm }: Props) {
             )}
           </div>
 
-          {/* sticky footer */}
           <DialogFooter
-            className="
+            className="flex-shrink-0
               sticky bottom-0 z-20 border-t
               bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60
               px-6 py-4
