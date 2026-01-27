@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fmtDateTime, fmtDay } from "../../../utils/attendanceData";
 import { AttendanceRow } from "@/types/attendanceTypes";
+import { Eye } from "lucide-react";
 
 // ----- helpers: OT parsing + display status -----
 const otMinutesFromString = (raw?: string | null): number => {
@@ -88,9 +89,10 @@ type Props = {
   ) => (el: HTMLTableRowElement | null) => void;
   loadingMore: boolean;
   hasMore: boolean;
-  rowsLength: number;
+  rowsLength: number; taskLoading: boolean;
 
   // actions
+  onOpenTask: (row: AttendanceRow) => void;
   onOpenOTDialog: (row: AttendanceRow) => void;
 };
 
@@ -104,8 +106,11 @@ const GroupedAttendanceTable: React.FC<Props> = ({
   loadingMore,
   hasMore,
   rowsLength,
-  onOpenOTDialog,
+  taskLoading,
+  onOpenOTDialog, onOpenTask,
 }) => {
+  const today = new Date().toISOString().split("T")[0];
+
   return (
     <motion.div
       initial={false}
@@ -113,7 +118,7 @@ const GroupedAttendanceTable: React.FC<Props> = ({
       transition={{ duration: 0.18 }}
       className="rounded-xl border bg-white shadow-sm"
     >
-      <div className="overflow-auto pr-12">
+      <div className="overflow-auto ">
         <Table className="min-w-full text-sm">
           <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
             <TableRow>
@@ -127,9 +132,8 @@ const GroupedAttendanceTable: React.FC<Props> = ({
                 >
                   Date
                   <ChevronsUpDown
-                    className={`h-4 w-4 transition-transform ${
-                      allOpen ? "rotate-180" : ""
-                    }`}
+                    className={`h-4 w-4 transition-transform ${allOpen ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
               </TableHead>
@@ -149,177 +153,199 @@ const GroupedAttendanceTable: React.FC<Props> = ({
               <TableHead className="whitespace-nowrap">Created On</TableHead>
               <TableHead className="whitespace-nowrap">Edited By</TableHead>
               <TableHead className="whitespace-nowrap">Edited On</TableHead>
+              <TableHead className="whitespace-nowrap sticky right-0 bg-white z-10 pr-7"></TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {/* groups */}
-            {Array.from(groups.entries()).length === 0 ? (
+            {taskLoading && (
               <TableRow>
-                <TableCell
-                  colSpan={15}
-                  className="h-56 text-center align-middle"
-                >
-                  <div className="mx-auto max-w-sm">
-                    <div className="mb-2 text-5xl">🗓️</div>
-                    <div className="text-lg font-semibold text-slate-900">
-                      No results in this view
-                    </div>
-                    <div className="mt-1 text-sm text-slate-600">
-                      Try widening your date range or clearing filters.
-                    </div>
+                <TableCell colSpan={9} className="py-6 text-center">
+                  <div className="flex flex-col justify-center items-center space-y-2">
+                    <div className="loader" />
+                    <div>Loading...</div>
                   </div>
+
                 </TableCell>
               </TableRow>
-            ) : (
-              (() => {
-                let flatIndex = 0;
-                const nodes: React.ReactNode[] = [];
 
-                for (const [key, items] of Array.from(groups.entries())) {
-                  const dayLabel = format(
-                    parseISO(items[0].attendanceDate),
-                    "PPP"
-                  );
-                  const open = !!openGroups[key];
+            )}
+            {!taskLoading && <div>
+              {Array.from(groups.entries()).length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={15}
+                    className="h-56 text-center align-middle"
+                  >
+                    <div className="mx-auto max-w-sm">
+                      <div className="mb-2 text-5xl">🗓️</div>
+                      <div className="text-lg font-semibold text-slate-900">
+                        No results in this view
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        Try widening your date range or clearing filters.
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (() => {
+                  let flatIndex = 0;
+                  const nodes: React.ReactNode[] = [];
 
-                  // group header
-                  nodes.push(
-                    <TableRow key={`hdr-${key}`} className="bg-slate-50/70">
-                      <TableCell colSpan={15} className="!p-0">
-                        <div
-                          className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer"
-                          onClick={() => toggleGroup(key)}
-                          role="button"
-                        >
-                          <ChevronRight
-                            className={`h-4 w-4 transition-transform ${
-                              open ? "rotate-90" : ""
-                            }`}
-                          />
-                          <span className="font-semibold">{dayLabel}</span>
-                          <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
-                            {items.length} record{items.length > 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
+                  for (const [key, items] of Array.from(groups.entries())) {
+                    const dayLabel = format(
+                      parseISO(items[0].attendanceDate),
+                      "PPP"
+                    );
+                    const open = !!openGroups[key];
 
-                  // rows when open
-                  if (open) {
-                    for (const row of items) {
-                      const refCb = attachTriggerRef(flatIndex);
-                      flatIndex += 1;
+                    // group header
+                    nodes.push(
+                      <TableRow key={`hdr-${key}`} className="bg-slate-50/70">
+                        <TableCell colSpan={15} className="!p-0">
+                          <div
+                            className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer"
+                            onClick={() => toggleGroup(key)}
+                            role="button"
+                          >
+                            <ChevronRight
+                              className={`h-4 w-4 transition-transform ${open ? "rotate-90" : ""
+                                }`}
+                            />
+                            <span className="font-semibold">{dayLabel}</span>
+                            <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
+                              {items.length} record{items.length > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
 
-                      const { status: displayOT, hasPositiveOT } =
-                        normalizeOtStatusDisplay(row.ot, row.otStatus as any);
-                      const badgeVariant = badgeVariantForOT(displayOT);
+                    // rows when open
+                    if (open) {
+                      for (const row of items) {
+                        const refCb = attachTriggerRef(flatIndex);
+                        flatIndex += 1;
 
-                      nodes.push(
-                        <TableRow
-                          key={row.id}
-                          ref={refCb}
-                          className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
-                        >
-                          {/* sticky date cell */}
-                          <TableCell className="font-medium sticky left-0 z-10 bg-white">
-                            {fmtDay(row.attendanceDate)}
-                          </TableCell>
-                          <TableCell>{row.employeeName ?? "—"}</TableCell>
-                          <TableCell>{row.employeeDepartment ?? "—"}</TableCell>
-                          <TableCell>
-                            {row.clockIn === "" ? "—" : row.clockIn}
-                          </TableCell>
-                          <TableCell>
-                            {row.clockOut === "" ? "—" : row.clockOut}
-                          </TableCell>
-                          <TableCell>{row.worked ?? "—"}</TableCell>
-                          <TableCell>{row.ot ?? "—"}</TableCell>
+                        const { status: displayOT, hasPositiveOT } =
+                          normalizeOtStatusDisplay(row.ot, row.otStatus as any);
+                        const badgeVariant = badgeVariantForOT(displayOT);
 
-                          {/* OT Status (N/A if OT <= 0) */}
-                          <TableCell>
-                            <Badge
-                              variant={badgeVariant}
-                              className="uppercase tracking-wide"
-                            >
-                              {displayOT}
-                            </Badge>
-                          </TableCell>
+                        nodes.push(
+                          <TableRow
+                            key={row.id}
+                            ref={refCb}
+                            className="even:bg-slate-50/40 hover:bg-amber-50/60 transition-colors"
+                          >
+                            {/* sticky date cell */}
+                            <TableCell className="font-medium sticky left-0 z-10 bg-white">
+                              {fmtDay(row.attendanceDate)}
+                            </TableCell>
+                            <TableCell>{row.employeeName ?? "—"}</TableCell>
+                            <TableCell>{row.employeeDepartment ?? "—"}</TableCell>
+                            <TableCell>
+                              {row.clockIn === "" ? "—" : row.clockIn}
+                            </TableCell>
+                            <TableCell>
+                              {row.clockOut === "" ? "—" : row.clockOut}
+                            </TableCell>
+                            <TableCell>{row.worked ?? "—"}</TableCell>
+                            <TableCell>{row.ot ?? "—"}</TableCell>
 
-                          {/* OT Approval: disabled when OT not positive */}
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onOpenOTDialog(row)}
-                              disabled={!hasPositiveOT}
-                              title={
-                                hasPositiveOT
-                                  ? "Review & approve OT"
-                                  : "No OT hours to review"
-                              }
-                            >
-                              Review
-                            </Button>
-                          </TableCell>
+                            {/* OT Status (N/A if OT <= 0) */}
+                            <TableCell>
+                              <Badge
+                                variant={badgeVariant}
+                                className="uppercase tracking-wide"
+                              >
+                                {displayOT}
+                              </Badge>
+                            </TableCell>
 
-                          <TableCell>{row.late ?? "—"}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                row.status === "Present"
-                                  ? "default"
-                                  : "destructive"
-                              }
-                              className="uppercase tracking-wide"
-                            >
-                              {row.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
-                          <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
-                          <TableCell>
-                            {row.editedBy?.name?.trim()
-                              ? row.editedBy?.name
-                              : "—"}
-                          </TableCell>
-                          <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
-                        </TableRow>
-                      );
+                            {/* OT Approval: disabled when OT not positive */}
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onOpenOTDialog(row)}
+                                disabled={!hasPositiveOT}
+                                title={
+                                  hasPositiveOT
+                                    ? "Review & approve OT"
+                                    : "No OT hours to review"
+                                }
+                              >
+                                Review
+                              </Button>
+                            </TableCell>
+
+                            <TableCell>{row.late ?? "—"}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  row.status === "Present"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                                className="uppercase tracking-wide"
+                              >
+                                {row.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{row.createdBy?.name ?? "—"}</TableCell>
+                            <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
+                            <TableCell>
+                              {row.editedBy?.name?.trim()
+                                ? row.editedBy?.name
+                                : "—"}
+                            </TableCell>
+                            <TableCell>{fmtDateTime(row.editedAt)}</TableCell>
+                            <TableCell className="sticky right-0 bg-white z-10 pr-7 text-center">
+
+                              {row.attendanceDate !== today && (
+                                <Eye
+                                  className="w-5 h-5 text-gray-600 cursor-pointer inline-block ml-2"
+                                  onClick={() => onOpenTask(row)}
+                                />
+                              )}
+                            </TableCell>
+
+                          </TableRow>
+                        );
+                      }
                     }
                   }
-                }
 
-                // tail loader / caught-up
-                if (loadingMore && rowsLength > 9 && hasMore) {
-                  nodes.push(
-                    <TableRow key="loading-more">
-                      <TableCell
-                        colSpan={15}
-                        className="py-4 text-center text-slate-500"
-                      >
-                        Loading more…
-                      </TableCell>
-                    </TableRow>
-                  );
-                }
-                if (!hasMore && rowsLength >= 10) {
-                  nodes.push(
-                    <TableRow key="caught-up">
-                      <TableCell
-                        colSpan={15}
-                        className="py-4 text-center text-slate-400"
-                      >
-                        You’re all caught up.
-                      </TableCell>
-                    </TableRow>
-                  );
-                }
+                  // tail loader / caught-up
+                  if (loadingMore && rowsLength > 9 && hasMore) {
+                    nodes.push(
+                      <TableRow key="loading-more">
+                        <TableCell
+                          colSpan={15}
+                          className="py-4 text-center text-slate-500"
+                        >
+                          Loading more…
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  if (!hasMore && rowsLength >= 10) {
+                    nodes.push(
+                      <TableRow key="caught-up">
+                        <TableCell
+                          colSpan={15}
+                          className="py-4 text-center text-slate-400"
+                        >
+                          You’re all caught up.
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
 
-                return nodes;
-              })()
-            )}
+                  return nodes;
+                })()
+              )}</div>}
           </TableBody>
         </Table>
       </div>

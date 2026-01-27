@@ -2,12 +2,21 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { format, parseISO } from "date-fns";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { CalendarIcon, ChevronDownIcon, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import Select from "react-select";
 import makeAnimated from "react-select/animated";
@@ -26,7 +35,8 @@ type Props = {
   setReason: (s: string) => void;
   submitting: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-
+  dateValue: any;
+  setDateValue: (d: any | null) => void;
   // present-time fields
   clockInTime: string;
   setClockInTime: (s: string) => void;
@@ -65,9 +75,11 @@ const BulkMoreSheet: React.FC<Props> = ({
   setClockOutMeridiem,
   clockInISO,
   clockOutISO,
+  dateValue,
+  setDateValue,
 }) => {
   const animatedComponents = makeAnimated();
-
+  console.log(dateValue, "dateValue");
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -164,6 +176,13 @@ const BulkMoreSheet: React.FC<Props> = ({
               </div>
             )}
 
+            <Label htmlFor="Date">Select Date</Label>
+            <Input
+              id="Date"
+              type="date"
+              value={dateValue ? dateValue.split("T")[0] : ""}
+              onChange={(e) => setDateValue(e.target.value)}
+            />
             <Label>Reason</Label>
             <textarea
               className="w-full border-[2px]"

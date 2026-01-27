@@ -1,8 +1,11 @@
 // src/layout/SidebarComp.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
   Clock,
@@ -11,7 +14,8 @@ import {
   LogOut,
   NotebookPen,
   Logs,
-  Info
+  Info,
+  BookUser
 } from "lucide-react";
 import { NotificationPrompt } from "./notification/NotificationPrompt";
 import {
@@ -96,15 +100,24 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Notes", url: "/AddNotes", icon: NotebookPen },
   { title: "WorkLog", url: "/Worklog", icon: Logs },
   { title: "AMC INFO", url: "/AmcInfo", icon: Info },
+  { title: "Asset  Details", url: "/EmployeeAssetsForm", icon: Info },
+  { title: "Leave Management", url: "/LeaveManagement", icon: BookUser },
 ];
 
 /* --------------------------- Component ----------------------------- */
+interface BirthdayItem {
+  _id: string;
+  profile_imageFile: string;
+  first_name: string;
+  last_name: string;
+}
 
 export default function SidebarComp({
   children,
 }: {
   children?: React.ReactNode;
 }) {
+
   const { logout, setUser, user, setAttendanceRefresh, attendanceRefresh } =
     useAuth();
   const location = useLocation();
@@ -112,12 +125,36 @@ export default function SidebarComp({
   // ⬇️ read collapse state from shadcn provider
   const { state } = useSidebar();
   const isCollapsed = state;
-
   const [isLoading] = useState(false);
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [openWorklog, setOpenWorklog] = useState(false);
+  const [showBirthdayPopup, setShowBirthdayPopup] = useState(false);
+  const [birthdayData, setBirthdayData] = useState<BirthdayItem[]>([]);
+  const [loginLoading, setHandleLogin] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const [visibleIndex, setVisibleIndex] = useState(0);
+  const [isHover, setIsHover] = useState(false);
+
+  // ---------------------------------------
+  // ⭐ AUTO CHANGE EVERY 5 SECONDS
+  // ---------------------------------------
+  useEffect(() => {
+    if (isHover) return; // stop rotation on hover
+
+    const interval = setInterval(() => {
+      setVisibleIndex((prev) =>
+        birthdayData.length === 0 ? 0 : (prev + 1) % birthdayData.length
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [birthdayData, isHover]);
+
+
+
   useEffect(() => {
     if (!user?.userId) return;
 
@@ -174,6 +211,7 @@ export default function SidebarComp({
 
   // Restore from localStorage on mount
   useEffect(() => {
+    getBirthDays(false);
     const storedClockedIn = localStorage.getItem("isClockedIn");
     const storedClockInTime = localStorage.getItem("clockInTime");
     if (storedClockedIn === "true" && storedClockInTime) {
@@ -185,6 +223,88 @@ export default function SidebarComp({
     }
   }, []);
 
+
+  const getElapsedMinutes = (elapsedTime: string) => {
+    if (!elapsedTime) return 0;
+    const mins = parseInt(elapsedTime); // "9 mins" -> 9
+    return isNaN(mins) ? 0 : mins;
+  };
+
+  const openBirthDay = async (data: any, value: any) => {
+    setBirthdayData(data);
+    let working = localStorage.getItem("totalWorked") || '';
+    const minutes = getElapsedMinutes(working);
+    if (minutes > 1) {
+      console.log("Popup blocked: already working more than 1 minute");
+      return;
+    }
+    if (!value) {
+      console.log("auto Call");
+      return;
+    }
+    setShowBirthdayPopup(true);
+
+  };
+  const ConfettiAnimation = () => {
+    const confettiPieces = new Array(40).fill(0);
+    const colors = ["#ff6b6b", "#ffbe0b", "#8ac926", "#1982c4", "#6a4c93"];
+
+    return (
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-50">
+        {confettiPieces.map((_, i) => {
+          const size = Math.random() * 10 + 6; // random size
+          const left = Math.random() * 100; // random horizontal start %
+          const rotateDir = Math.random() > 0.5 ? 360 : -360;
+
+          return (
+            <motion.div
+              key={i}
+              initial={{
+                y: -20,
+                x: `${left}vw`,
+                rotate: 0,
+                opacity: 1,
+              }}
+              animate={{
+                y: ["-20px", "110vh"],
+                rotate: rotateDir,
+                opacity: [1, 1, 0],
+              }}
+              transition={{
+                duration: 2.8 + Math.random() * 1.5,
+                repeat: Infinity,
+                delay: Math.random(),
+                ease: "easeOut",
+              }}
+              style={{
+                width: size,
+                height: size * 0.6,
+                backgroundColor: colors[i % colors.length],
+                borderRadius: 2,
+                position: "absolute",
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  const getBirthDays = async (value: any) => {
+    try {
+      const response = await api.get("/api/employee/getTodaysBirthdays");
+      if (response) {
+        if (response?.data?.length) {
+
+          openBirthDay(response.data, value)
+        }
+      }
+
+    } catch (error: any) {
+      if (error?.status === 400) alert("data of the birthdays");
+      console.error("Clock-in error:", error?.response?.data || error);
+    }
+  };
   // Confirm status with backend per user/day
   useEffect(() => {
     const checkClockInStatus = async () => {
@@ -246,6 +366,7 @@ export default function SidebarComp({
   }, [isClockedIn]);
 
   const handleClockIn = async () => {
+    setHandleLogin(true)
     try {
       const payload = {
         employeeId: user?.employee_id,
@@ -277,10 +398,47 @@ export default function SidebarComp({
         title: "Clocked In",
         url: "/Attendance", // optional deep link
       });
+      getBirthDays(true);
     } catch (error: any) {
       if (error?.status === 409) alert("You have already clocked in today.");
       console.error("Clock-in error:", error?.response?.data || error);
     }
+    setHandleLogin(false)
+  };
+
+  function generateAvatar(name: string, size = 64) {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    // Background color
+    ctx.fillStyle = "#10B981"; // emerald
+    ctx.fillRect(0, 0, size, size);
+
+    // Make it circular
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+
+    // Text (initials)
+    const initials = name
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0].toUpperCase())
+      .join("")
+      .slice(0, 2); // take max 2 letters
+
+    ctx.fillStyle = "white";
+    ctx.font = `${size * 0.45}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(initials, size / 2, size / 2);
+
+    return canvas.toDataURL("image/png");
   };
 
   const handleClockOut = async (isLoggedOut = false) => {
@@ -365,7 +523,7 @@ export default function SidebarComp({
             {/* Hide brand text when collapsed */}
             {isCollapsed == "expanded" && (
               <div className="min-w-0">
-                <div className="truncate font-semibold">Ezofis</div>
+                <div className="truncate font-semibold">EZOFIS</div>
                 <div className="truncate text-xs text-muted-foreground">
                   Employee Management
                 </div>
@@ -388,9 +546,9 @@ export default function SidebarComp({
                       asChild
                       isActive={location.pathname === item.url}
                       className={`rounded-xl transition-all duration-200 ${location.pathname === item.url ||
-                          (location.pathname === "/" && index === 0)
-                          ? "!bg-sky-500 !text-white shadow-lg"
-                          : "hover:!bg-slate-100 !text-black hover:!text-black"
+                        (location.pathname === "/" && index === 0)
+                        ? "!bg-sky-500 !text-white shadow-lg"
+                        : "hover:!bg-slate-100 !text-black hover:!text-black"
                         } `}
                     >
                       <NavLink
@@ -459,11 +617,16 @@ export default function SidebarComp({
                   </AlertDialog>
                 ) : (
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                    <AlertDialogTrigger asChild style={{
+                      userSelect: loginLoading ? "none" : "auto",
+                      pointerEvents: loginLoading ? "none" : "auto",
+                      opacity: loginLoading ? 0.5 : 1,
+                    }}
+                    >
                       <div className="cursor-pointer rounded-lg bg-emerald-50 p-3">
                         <div className="mb-1 flex items-center gap-2 text-sm font-medium text-emerald-700">
                           <Clock className="h-4 w-4" />
-                          <span>Quick Clock In</span>
+                          <span >Quick Clock In</span>
                         </div>
                         <p className="text-xs text-emerald-800">
                           Track your time instantly
@@ -475,7 +638,7 @@ export default function SidebarComp({
                         <AlertDialogTitle>Confirm clock in?</AlertDialogTitle>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel >Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={handleClockIn}
                           className="!bg-sky-600 !text-white hover:!bg-sky-700"
@@ -485,6 +648,83 @@ export default function SidebarComp({
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                )}
+
+                {birthdayData?.length > 0 && (
+                  <div
+                    ref={scrollRef}
+                    onMouseEnter={() => setIsHover(true)}
+                    onMouseLeave={() => setIsHover(false)}
+                    className={`
+    grid mt-2 max-h-[calc(100vh-600px)] overflow-auto [scrollbar-width:none] 
+    [-ms-overflow-style:none]
+  `}
+                    style={{
+                      background: "#dbd3d3",
+                      padding: "5px",
+                      borderRadius: "1rem",
+                    }}
+                  >
+                    <div className="text-md mt-2 mb-2 ml-1 font-bold">
+                      🎉 Today’s Birthdays 🎉
+                    </div>
+
+                    {/* 🔥 If NOT hovering → show only ONE item */}
+                    {birthdayData.length > 0 && birthdayData[visibleIndex] && !isHover && (
+                      <motion.div
+                        key={birthdayData[visibleIndex]._id}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="bg-white shadow-lg rounded-xl p-2 flex items-center gap-3 border mt-1"
+                      >
+                        <img
+                          src={birthdayData[visibleIndex].profile_imageFile || generateAvatar(
+                            `${birthdayData[visibleIndex].first_name} ${birthdayData[visibleIndex].last_name}`,
+                            64
+                          )}
+                          className="w-8 h-8 rounded-full object-cover border-2 border-emerald-500"
+                        />
+
+                        <h3 className="text-sm font-bold truncate w-full text-left">
+                          {birthdayData[visibleIndex].first_name}
+                          {" "}
+                          {birthdayData[visibleIndex].last_name}
+                        </h3>
+                        <br />
+                      </motion.div>
+
+                    )}
+
+
+                    {/* 🔥 On Hover → Show full list and allow scrolling */}
+                    {isHover && (
+                      <div className="">
+                        {birthdayData.map((emp: any) => (
+                          <motion.div
+                            key={emp._id}
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="bg-white shadow-lg rounded-xl p-2 flex items-center gap-3 border mt-1"
+                          >
+                            <img
+                              src={emp.profile_imageFile || generateAvatar(
+                                `${emp.first_name} ${emp.last_name}`,
+                                64
+                              )}
+                              className="w-8 h-8 rounded-full object-cover border-2 border-emerald-500"
+                            />
+
+                            <h3 className="text-sm font-bold truncate w-full text-left">
+                              {emp.first_name} {emp.last_name}
+                            </h3>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                    <br />
+                  </div>
                 )}
               </SidebarGroupContent>
             </SidebarGroup>
@@ -537,6 +777,7 @@ export default function SidebarComp({
                 aria-label="Logout"
               >
                 <LogOut className="h-4 w-4" />
+
               </Button>
             </div>
           )}
@@ -550,6 +791,86 @@ export default function SidebarComp({
         onEnable={onEnableNotifications}
         onDismiss={onDismissNotifications}
       />
+
+      {showBirthdayPopup && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowBirthdayPopup(false)}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+
+        >
+          {/* FLOWER ANIMATION */}
+
+
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-4xl max-h-[90vh] relative"
+          >
+            <Card className="border-0 shadow-2xl p-6">
+              <ConfettiAnimation />
+              <CardHeader className="flex flex-row items-center justify-between pb-4" style={{ borderBottom: '1px solid #c6c6c6' }}>
+                <CardTitle className="text-2xl font-bold"> 🎉 Today’s Birthdays 🎉</CardTitle>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowBirthdayPopup(false)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </CardHeader>
+              <br />
+
+              <CardContent>
+                <div className={`
+    grid gap-6
+    ${birthdayData?.length === 1
+                    ? "grid-cols-1 justify-items-center"
+                    : birthdayData?.length === 2
+                      ? "grid-cols-1 sm:grid-cols-2 justify-items-center"
+                      : "grid-cols-1 md:grid-cols-3"
+                  }
+  `} >
+                  {birthdayData?.map((emp: any) => (
+                    <motion.div
+                      key={emp._id}
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="bg-white shadow-lg rounded-xl p-5 flex flex-col items-center text-center border"
+                      style={{ minWidth: "210px" }}
+                    >
+                      {/* Profile Image */}
+                      <img
+                        src={emp.profile_imageFile || generateAvatar(
+                          `${emp.first_name} ${emp.last_name}`,
+                          64
+                        )}
+                        className="w-24 h-24 rounded-full object-cover border-2 border-emerald-500"
+                      />
+
+                      {/* Name */}
+                      <h3 className="mt-3 text-lg font-bold">
+                        {emp.first_name} {emp.last_name}
+                      </h3>
+
+                      {/* Role */}
+                      <p className="text-sm text-gray-500">{emp.position}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </CardContent>
+              <br />
+            </Card>
+          </motion.div>
+        </motion.div>
+      )}
+
       <LogoutWorklogDialog
         open={openWorklog}
         onOpenChange={setOpenWorklog}

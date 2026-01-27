@@ -20,19 +20,22 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { ArrowUpDown } from 'lucide-react';
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
-    meta?: any;
-    handleSort: (field: any) => void;
+    meta?: any; statusActive?: any;
+    handleSort: (field: any) => void; handleStatus: (field: any) => void;
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
-    meta,
-    handleSort
+    meta, statusActive,
+    handleSort, handleStatus,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -71,22 +74,67 @@ export function DataTable<TData, TValue>({
                                                         : flexRender(
                                                             header.column.columnDef.header,
                                                             header.getContext()
-                                                        )}<ArrowUpDown className='h-4 w-4' />
-                                                </div>
-                                            </TableHead> :
-                                            <TableHead key={header.id}>
-                                                <>
-                                                    {console.log(header.column.columnDef.header, "header.column.columnDef.header")}
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(
-                                                            header.column.columnDef.header,
-                                                            header.getContext()
                                                         )}
+                                                </div>
+                                            </TableHead> : header.column.columnDef.header == "Status" ?
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <TableHead className="cursor-pointer">
+                                                            <div className="flex items-center gap-2">
+                                                                Status
+                                                                <ArrowUpDown className="h-4 w-4" />
+                                                            </div>
+                                                        </TableHead>
+                                                    </DropdownMenuTrigger>
 
-                                                </>
+                                                    <DropdownMenuContent className="w-44">
 
-                                            </TableHead>}
+                                                        {/* RADIO GROUP STARTS */}
+                                                        <DropdownMenuPrimitive.RadioGroup
+                                                            value={statusActive}          // selected value (optional)
+                                                            onValueChange={(value) => handleStatus(value)}
+                                                        >
+
+                                                            <DropdownMenuPrimitive.RadioItem
+                                                                value="Active"
+                                                                className="cursor-pointer px-2 py-1 flex items-center"
+                                                            >
+                                                                Active
+                                                            </DropdownMenuPrimitive.RadioItem>
+
+                                                            <DropdownMenuPrimitive.RadioItem
+                                                                value="Extension"
+                                                                className="cursor-pointer px-2 py-1 flex items-center"
+                                                            >
+                                                                Extension
+                                                            </DropdownMenuPrimitive.RadioItem>
+
+                                                            <DropdownMenuPrimitive.RadioItem
+                                                                value="Expired"
+                                                                className="cursor-pointer px-2 py-1 flex items-center"
+                                                            >
+                                                                Expired
+                                                            </DropdownMenuPrimitive.RadioItem>
+
+                                                        </DropdownMenuPrimitive.RadioGroup>
+                                                        {/* RADIO GROUP ENDS */}
+
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                :
+                                                <TableHead key={header.id}>
+                                                    <>
+                                                        {console.log(header.column.columnDef.header, "header.column.columnDef.header")}
+                                                        {header.isPlaceholder
+                                                            ? null
+                                                            : flexRender(
+                                                                header.column.columnDef.header,
+                                                                header.getContext()
+                                                            )}
+
+                                                    </>
+
+                                                </TableHead>}
                                         {/* <TableHead key={header.id}>
                                             {header.isPlaceholder
                                                 ? null

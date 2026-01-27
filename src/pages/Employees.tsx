@@ -5,14 +5,29 @@ import React, {
   useRef,
   useState,
 } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { CalendarIcon, ChevronDownIcon, FileText } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios, { CancelTokenSource } from "axios";
-
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Employee } from "@/entitites/employee";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader } from "@/components/ui/card";
+import { format } from "date-fns";
+import {
+  fmtDateTime,
+  fmtDay,
+  serializeParams,
+  toOffsetISOString,
+} from "../../utils/attendanceData";
 import {
   TooltipProvider,
   Tooltip,
@@ -47,7 +62,8 @@ export default function Employees() {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
-
+  const [openMore, setOpenMore] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
   const [employees, setEmployees] = useState<ApiEmployee[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -57,6 +73,153 @@ export default function Employees() {
   const [editingEmployee, setEditingEmployee] = useState<ApiEmployee | null>(
     null
   );
+  const [openDatePopover, setOpenDatePopover] = useState(false);
+
+  const [fromDate, setFromDate] = useState<string>(""); // yyyy-mm-dd
+  const [toDate, setToDate] = useState<string>(""); // yyyy-mm-dd
+  const [isMoreLoading, setIsMoreLoading] = useState(false);
+  console.log("userData", user);
+  const formatDate = (iso: any) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+  const Spinner = () => (
+    <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24">
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      />
+    </svg>
+  );
+
+  const downloadDob = () => {
+    const doc = new jsPDF();
+
+    autoTable(doc, {
+      head: [["Name", "Date Of Birth"]],
+      body: employees.map((emp) => [
+        `${emp.first_name} ${emp.last_name}`,
+        formatDate(emp?.birth_date),
+      ]),
+    });
+
+    doc.save("employee-dob-list.pdf");
+  };
+  type AttendanceRow = {
+    attendanceDate: string;
+    employeeId: string;
+    employeeName: string;
+    clockIn: string;
+    clockOut: string;
+    ot: string;
+  };
+  const formatDates = (date: string) => {
+    const d = new Date(date);
+    return `${String(d.getDate()).padStart(2, "0")}-${String(
+      d.getMonth() + 1
+    ).padStart(2, "0")}-${d.getFullYear()}`;
+  };
+
+  const groupByEmployee = (data: AttendanceRow[]) => {
+    return data.reduce<Record<string, AttendanceRow[]>>((acc, row) => {
+      if (!acc[row.employeeId]) {
+        acc[row.employeeId] = [];
+      }
+      acc[row.employeeId].push(row);
+      return acc;
+    }, {});
+  };
+  const downloadAttendancePDF = (rows: AttendanceRow[]) => {
+    const doc = new jsPDF();
+    const grouped = groupByEmployee(rows);
+
+    let firstPage = true;
+
+    Object.entries(grouped).forEach(([employeeId, records]) => {
+      if (!firstPage) doc.addPage();
+      firstPage = false;
+
+      const employeeName = records[0]?.employeeName || employeeId;
+
+      // 🔹 Employee Name (centered)
+      doc.setFontSize(14);
+      doc.text(employeeName, doc.internal.pageSize.getWidth() / 2, 20, {
+        align: "center",
+      });
+
+      // 🔹 Table
+      autoTable(doc, {
+        startY: 30,
+        head: [
+          [
+            "Date",
+            "Employee Name",
+            "Check In",
+            "Check Out",
+            "Additional Hours",
+          ],
+        ],
+        body: records.map((r) => [
+          formatDate(r.attendanceDate),
+          r.employeeName,
+          r.clockIn || "-",
+          r.clockOut || "-",
+          r.ot || "0 hrs",
+        ]),
+        styles: {
+          fontSize: 10,
+        },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+        },
+      });
+    });
+
+    doc.save("Attendance_By_Employee.pdf");
+  };
+  const fetchAttendance = async () => {
+    setIsMoreLoading(true);
+    let page = 1;
+    let allRows: any[] = [];
+    let hasMore = true;
+
+    while (hasMore) {
+      const qs = serializeParams({
+        from: new Date(fromDate),
+        to: new Date(toDate),
+        page,
+        pageSize: 100, // max backend allows
+      });
+
+      console.log("qs", qs);
+
+      const res = await api.get(`/api/attendance/getAllAttendance${qs}`);
+
+      const data = res.data?.data || [];
+      hasMore = res.data?.hasMore === true;
+
+      allRows.push(...data);
+      page++;
+    }
+    await downloadAttendancePDF(allRows);
+    setIsMoreLoading(false);
+  };
+
   const [showForm, setShowForm] = useState<boolean>(
     isAddEmployeeParam(location.search)
   );
@@ -279,6 +442,81 @@ export default function Employees() {
             Manage your workforce efficiently
           </p>
         </div>
+        {user?.employee_id == "EZO/IND/0018" ||
+          (user?.employee_id == "EMP001" && (
+            <Popover open={openMore} onOpenChange={setOpenMore}>
+              <PopoverTrigger asChild>
+                <Button className="!bg-sky-400 text-white shadow-lg">
+                  <span>More</span>
+
+                  {isMoreLoading && <Spinner />}
+                  <ChevronDownIcon className="ml-2 h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-72 p-3 space-y-2">
+                {/* DOB PDF */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setOpenMore(false);
+                    downloadDob();
+                  }}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Download DOB PDF
+                </Button>
+
+                {/* Toggle Date Filter */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => setShowDateFilter((v) => !v)}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  Attendance PDF
+                </Button>
+
+                {/* Date Filter Section */}
+                {showDateFilter && (
+                  <div className="pt-2 border-t space-y-3">
+                    <div>
+                      <Label>From</Label>
+                      <Input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        style={{ marginTop: "1rem" }}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>To</Label>
+                      <Input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                        style={{ marginTop: "1rem" }}
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      disabled={!fromDate || !toDate}
+                      onClick={() => {
+                        fetchAttendance();
+                        setShowDateFilter(false);
+                        setOpenMore(false);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          ))}
 
         <Button
           onClick={openAddForm}

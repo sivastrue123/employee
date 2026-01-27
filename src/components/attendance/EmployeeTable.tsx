@@ -5,6 +5,23 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { motion } from "framer-motion";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { format, parseISO } from "date-fns";
@@ -70,6 +87,7 @@ const EmployeeTable: React.FC<Props> = ({
 }) => {
   const { attendanceRefresh, user, setAttendanceRefresh } = useAuth();
   const toast = useToast();
+  const [dateValue, setDateValue] = useState<Date | null>(null);
 
   // filters (no page here; paging is internal/infinite)
   const [filters, setFilters] = useState<Filters>({
@@ -88,6 +106,8 @@ const EmployeeTable: React.FC<Props> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [loadedPage, setLoadedPage] = useState(0);
+  const [openTasks, setOpenTasks] = useState(false);
+  const [allLoading, setAllLoading] = useState(false);
 
   // search UI draft
   const [searchDraft, setSearchDraft] = useState<string>("");
@@ -170,7 +190,55 @@ const EmployeeTable: React.FC<Props> = ({
 
     return 0;
   };
+  const StatusCards = (tasks: any) => {
+    const counts = {
+      ongoing:
+        tasks?.filter((t: any) => t.status?.toLowerCase() === "on-going")
+          .length || 0,
+      completed:
+        tasks?.filter((t: any) => t.status?.toLowerCase() === "completed")
+          .length || 0,
+      hold:
+        tasks?.filter((t: any) => t.status?.toLowerCase() === "hold").length ||
+        0,
+      assigned:
+        tasks?.filter((t: any) => t.status?.toLowerCase() === "assigned")
+          .length || 0, // total tasks
+    };
 
+    const cards = [
+      { label: "On Going", value: counts.ongoing },
+      { label: "Completed", value: counts.completed },
+      { label: "Hold", value: counts.hold },
+      { label: "Assigned", value: counts.assigned },
+    ];
+
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {cards.map((c, i) => (
+          <div
+            key={i}
+            className="bg-white rounded-xl p-4 shadow hover:shadow-md transition flex flex-col items-center"
+            style={{
+              background:
+                c.label == "On Going"
+                  ? "#ffa5007d"
+                  : c.label == "Completed"
+                  ? "#10f05d7d"
+                  : c.label == "Hold"
+                  ? "#00ffe57d"
+                  : "#a610f07d",
+              boxShadow:
+                "0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)",
+            }}
+          >
+            <p className="text-sm font-bold">{c.label}</p>
+            <p className="text-2xl font-bold mt-1">{c.value}</p>
+          </div>
+        ))}
+      </div>
+    );
+  };
   const minutesToHrsMins = (mins: number): string => {
     const h = Math.floor(mins / 60);
     const m = mins % 60;
@@ -279,11 +347,16 @@ const EmployeeTable: React.FC<Props> = ({
           pageSize: PAGE_SIZE,
           search: filters?.search,
         });
-
+        if (isFirstPage) {
+          setAllLoading(true);
+        }
+        console.log("res", qs);
         const res = await api.get(`/api/attendance/getAllAttendance${qs}`, {
           signal: controller.signal,
         });
 
+        console.log("res", res);
+        setAllLoading(false);
         const data: AttendanceRow[] = (res.data?.data ?? []).map(
           (r: AttendanceRow) => ({
             ...r,
@@ -682,7 +755,14 @@ const EmployeeTable: React.FC<Props> = ({
       clockInISO = toOffsetISOString(ci);
       clockOutISO = toOffsetISOString(co);
     }
-
+    if (!dateValue) {
+      toast.warning("Kindly Select The Date", {
+        title: "select Date",
+        durationMs: 2800,
+        position: "bottom-left",
+      });
+      return;
+    }
     setAttendanceRefresh(!attendanceRefresh);
     setSubmitting(true);
     const loadingId = toast.info("Applying attendance updates…", {
@@ -695,7 +775,7 @@ const EmployeeTable: React.FC<Props> = ({
       employeeIds: selectedEmployees.map((o) => o.value),
       status: selectedStatus.value,
       reason: reason.trim() || null,
-      date: new Date().toISOString().split("T")[0],
+      date: dateValue,
     };
     if (clockInISO && clockOutISO) {
       payload.clockIn = clockInISO;
@@ -780,6 +860,45 @@ const EmployeeTable: React.FC<Props> = ({
     setOtNextStatus((row.otStatus ?? "Pending") as OTStatus);
     setOtDialogOpen(true);
   };
+  const [selectedRow, setSelectedRow] = useState([]);
+  const [selectedName, setSelectedName] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [taskLoading, setTaskLoading] = useState(false);
+  const buildQueryFromRow = (row: any) => {
+    const q: Record<string, string> = {};
+
+    if (row.employeeName) q.submittedByName = row.employeeName.trim();
+    if (row.attendanceDate) q.from = row.attendanceDate;
+
+    return new URLSearchParams(q).toString();
+  };
+  const openTask = async (row: AttendanceRow) => {
+    setOpenTasks(true);
+    setTaskLoading(true);
+    const qs = buildQueryFromRow(row);
+    const res = await api.get(`/api/worklog?${qs}`);
+    if (res) {
+      if (res?.data?.data) {
+        setSelectedName(row.employeeName || "");
+        let date = format(parseISO(row.attendanceDate), "dd-MM-yyyy");
+        setSelectedDate(date || "");
+        const orderedData = res?.data?.data[0]?.tasks?.map((task: any) => ({
+          taskName: task.taskName,
+          customer: task.customer,
+          assignedBy: task.assignedBy,
+          assignedDate: task.assignedDate,
+          status: task.status,
+          priority: task.priority,
+          totalHours: task.totalHours,
+          estimatedCompletion: task.estimatedCompletion,
+          remarks: task.remarks,
+        }));
+        console.log(selectedName, selectedRow, row, "data of the task");
+        setSelectedRow(orderedData);
+        setTaskLoading(false);
+      }
+    }
+  };
 
   const confirmOTUpdate = async () => {
     if (!otDialogRow) return;
@@ -799,7 +918,7 @@ const EmployeeTable: React.FC<Props> = ({
       : null;
   const clockInISO = ci ? toOffsetISOString(ci) : null;
   const clockOutISO = co ? toOffsetISOString(co) : null;
-
+  console.log(selectedRow, selectedRow?.length, "lengtn");
   return (
     <>
       <FiltersBar
@@ -830,6 +949,8 @@ const EmployeeTable: React.FC<Props> = ({
         hasMore={hasMore}
         rowsLength={rows.length}
         onOpenOTDialog={openOTDialog}
+        onOpenTask={openTask}
+        taskLoading={allLoading}
       />
 
       {/* Bulk More Sheet */}
@@ -856,6 +977,8 @@ const EmployeeTable: React.FC<Props> = ({
         setClockOutMeridiem={setClockOutMeridiem}
         clockInISO={clockInISO}
         clockOutISO={clockOutISO}
+        dateValue={dateValue}
+        setDateValue={setDateValue}
       />
 
       {/* OT Approval Dialog */}
@@ -867,6 +990,123 @@ const EmployeeTable: React.FC<Props> = ({
         onClose={() => setOtDialogOpen(false)}
         onConfirm={confirmOTUpdate}
       />
+
+      <Dialog open={openTasks} onOpenChange={setOpenTasks}>
+        <DialogContent className="" style={{ width: "70vw", maxWidth: "none" }}>
+          <DialogHeader>
+            <DialogTitle>
+              Task Details Of <strong>{selectedName}</strong> On{" "}
+              <strong>{selectedDate}</strong>
+            </DialogTitle>
+            <div
+              style={{
+                border: "1px solid #e3dcdc",
+                marginTop: "0.5rem",
+                marginBottom: "0.5rem",
+              }}
+            ></div>
+          </DialogHeader>
+          <div>{StatusCards(selectedRow)}</div>
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
+            className="rounded-xl border bg-white shadow-sm"
+          >
+            <div className="overflow-x-auto overflow-x-auto max-h-[70vh] max-w-[67vw]">
+              <Table className="min-w-max text-sm">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur">
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap sticky left-0 z-20 bg-slate-50/90">
+                      Task Name
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      Customer
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      Assigned By
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      Assigned On
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      Priority
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      Total Hours
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      Estimated Completion
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">Remarks</TableHead>
+                  </TableRow>
+                </TableHeader>
+                {taskLoading && (
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={9} className="py-6 text-center">
+                        <div className="flex justify-center items-center gap-3">
+                          <div className="loader" />
+                          <span>Loading...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                )}
+                {!selectedRow && !taskLoading && (
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={9} className="py-6 text-center">
+                        <div className="flex justify-center items-center gap-3">
+                          <span>No Data Found</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                )}
+                {selectedRow?.length != 0 && !taskLoading && (
+                  <TableBody>
+                    {selectedRow?.map((t: any, i: number) => (
+                      <TableRow key={i}>
+                        {/* Sticky first column */}
+                        <TableCell className="sticky left-0 z-20 bg-white">
+                          {t.taskName}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {t.customer}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {t.assignedBy}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {format(parseISO(t.assignedDate), "dd-MM-yyyy")}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {t.status}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {t.priority}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {t.totalHours}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {format(
+                            parseISO(t.estimatedCompletion),
+                            "dd-MM-yyyy"
+                          )}
+                        </TableCell>
+                        <TableCell className="">{t.remarks || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                )}
+              </Table>
+            </div>
+          </motion.div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

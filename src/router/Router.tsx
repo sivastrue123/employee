@@ -9,6 +9,8 @@ import AddNotes from "@/pages/addnotes/AddNotes";
 import RoleBasedIndex from "./RoleBasedIndex";
 import Worklogs from "@/pages/worklog/Worklogs";
 import AmcInfoPage from "@/pages/amcInfo/AmcInfoPage";
+import EmployeeAssetsForm from "@/components/EmployeeAssetsForm";
+import LeaveManagement from "@/pages/leavemanagement/LeaveManagement"
 import { DeviceGate } from "../components/DeviceGate";
 import { NotSupported } from "../components/NotSupported";
 import { JSX } from "react";
@@ -36,6 +38,8 @@ const router = createBrowserRouter([
       { path: "/AddNotes", element: withGate(<AddNotes />) },
       { path: "/Worklog", element: withGate(<Worklogs />) },
       { path: "/AmcInfo", element: withGate(<AmcInfoPage />) },
+      { path: "/EmployeeAssetsForm", element: withGate(<EmployeeAssetsForm />) },
+      { path: "/LeaveManagement", element: withGate(<LeaveManagement />) },
       { path: "/not-supported", element: <NotSupported /> },
       { path: "*", element: withGate(<RoleBasedIndex />) },
     ],

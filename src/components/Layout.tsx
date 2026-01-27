@@ -21,7 +21,7 @@ const Layout: React.FC = () => {
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-4">
             <SidebarTrigger aria-label="Toggle navigation" />
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">Ezofis</span>
+              <span className="font-semibold text-foreground">EZOFIS</span>
               <span>•</span>
               <span>Employee Management</span>
             </div>

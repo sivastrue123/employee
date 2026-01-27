@@ -6,12 +6,20 @@ export interface Employee {
   email: string;
   phone?: string;
   position: string;
-  department: "Engineering" | "Marketing" | "Sales" | "HR" | "Finance" | "Operations" | "Design";
+  department:
+    | "Engineering"
+    | "Marketing"
+    | "Sales"
+    | "HR"
+    | "Finance"
+    | "Operations"
+    | "Design";
   hire_date?: string;
   hourly_rate: number;
   status?: "active" | "inactive" | "terminated";
   manager_id?: string;
   profile_image?: string;
+  birth_date?: string;
 }
 
 export const Employee = {
