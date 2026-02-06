@@ -118,6 +118,7 @@ export default function SidebarComp({
   children?: React.ReactNode;
 }) {
 
+
   const { logout, setUser, user, setAttendanceRefresh, attendanceRefresh } =
     useAuth();
   const location = useLocation();
@@ -638,7 +639,7 @@ export default function SidebarComp({
                         <AlertDialogTitle>Confirm clock in?</AlertDialogTitle>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel >Cancel</AlertDialogCancel>
+                        <AlertDialogCancel  >Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={handleClockIn}
                           className="!bg-sky-600 !text-white hover:!bg-sky-700"
