@@ -4,6 +4,8 @@ import { designTokens } from '../designTokens';
 import { useUI } from '../context/UIContext';
 import LogoMark from './LogoMark';
 
+import { useAppData } from '../context/DataContext';
+
 const navItems = [
   { label: 'Dashboard', path: '/tasks/' },
   { label: 'Work Items', path: '/tasks/work-items' },
@@ -14,6 +16,17 @@ const navItems = [
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { openAgent } = useUI();
+  const { users, currentUserId } = useAppData();
+
+  const currentUser = users.find(u => u.id === currentUserId);
+  const displayName = currentUser?.name || 'Guest User';
+  const initials = displayName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
+
   return (
     <div className="min-h-screen text-slate-900" style={{ backgroundColor: '#f6f8fb', fontFamily: "'Inter', sans-serif" }}>
       <header className="bg-white border-b border-slate-200 shadow-sm">
@@ -50,9 +63,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 Ask Agent
               </button>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Gomathi Arunraj</span>
+                <span className="text-xs text-slate-500">{displayName}</span>
                 <div className="h-8 w-8 rounded-full bg-slate-300 flex items-center justify-center text-sm font-semibold">
-                  GA
+                  {initials}
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect, ReactNode } from 'react';
 import {
   Attachment,
   AuditEntry,
@@ -16,6 +16,8 @@ import {
   WorkItemStatus,
   WorkItemType,
 } from '../types';
+import { useAuth } from '../../../../context/AuthContext';
+import { api } from '../../../../lib/axios';
 
 const statusToStage: Record<WorkItemStatus, string> = {
   New: 'Triage',
@@ -86,48 +88,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-const initialTeams: Team[] = [
-  {
-    id: 'eng',
-    name: 'Engineering',
-    code: 'ENG',
-    lead: 'S. Rao',
-    members: ['u1', 'u2', 'u4'],
-    department: 'Platform',
-    keyskills: 'Backend, Infra',
-    isActive: true,
-  },
-  {
-    id: 'support',
-    name: 'Support',
-    code: 'SUP',
-    lead: 'L. Alvarez',
-    members: ['u3', 'u5'],
-    department: 'Customer Experience',
-    keyskills: 'Troubleshooting, Voice',
-    isActive: true,
-  },
-  {
-    id: 'product',
-    name: 'Product',
-    code: 'PRD',
-    lead: 'K. James',
-    members: ['u6'],
-    department: 'Product Strategy',
-    keyskills: 'Strategy, Research',
-    isActive: true,
-  },
-  {
-    id: 'qa',
-    name: 'Quality',
-    code: 'QA',
-    lead: 'R. Beck',
-    members: ['u7'],
-    department: 'Quality',
-    keyskills: 'Test Automation',
-    isActive: true,
-  },
-];
+const initialTeams: Team[] = [];
 
 const departmentMaster = ['Platform', 'Customer Experience', 'Product Strategy', 'Quality', 'Support'];
 
@@ -160,36 +121,9 @@ const buildStageDurations = (baseHours: number) => ({
   Resolution: Math.max(baseHours, 4),
 });
 
-const initialUsers: User[] = [
-  { id: 'u1', name: 'Gomathi Arunraj', role: 'Admin', teamId: 'eng' },
-  { id: 'u2', name: 'Sarah Johnson', role: 'Manager', teamId: 'eng' },
-  { id: 'u3', name: 'Mike Chen', role: 'Agent', teamId: 'support' },
-  { id: 'u4', name: 'Leah Patel', role: 'Agent', teamId: 'eng' },
-  { id: 'u5', name: 'Tom Kim', role: 'Agent', teamId: 'support' },
-  { id: 'u6', name: 'Priya Nair', role: 'Manager', teamId: 'product' },
-  { id: 'u7', name: 'Deepa Reddy', role: 'Agent', teamId: 'qa' },
-];
+const initialUsers: User[] = [];
 
-const initialSlaPolicies: SlaPolicy[] = [
-  {
-    id: 'default',
-    name: 'Default SLA',
-    appliesTo: ['InternalDev', 'CustomerSupport', 'Feature', 'ChangeRequest', 'Release', 'AITools', 'MeetingAction', 'DiscussionAction'],
-    stageDurations: {
-      Triage: 4,
-      Response: 8,
-      Execution: 72,
-      QA: 24,
-      UAT: 24,
-      Delivery: 12,
-      Resolution: 36,
-    },
-    businessHours: true,
-    breachThresholdPct: 0.2,
-    reminderWindowHours: 24,
-    holidays: ['2026-01-25', '2026-02-14'],
-  },
-];
+const initialSlaPolicies: SlaPolicy[] = [];
 
 const attachments: Attachment[] = [
   { id: 'att-1', label: 'CI/CD pipeline notes', type: 'file', url: '#', uploadedBy: 'u2' },
@@ -222,174 +156,7 @@ const auditLog: AuditEntry[] = [
   { id: 'audit-2', action: 'Status updated', actorId: 'u2', detail: 'Moved to InProgress', timestamp: '2026-01-18T08:00:00Z' },
 ];
 
-const initialWorkItems: WorkItem[] = [
-  {
-    id: 'DEV-010',
-    workItemType: 'InternalDev',
-    title: 'Implement automated testing pipeline',
-    description: 'Set up CI/CD with automated unit and integration tests for all services.',
-    customer: 'Internal',
-    project: 'Platform Core',
-    module: 'DevOps',
-    priority: 'P2',
-    status: 'Closed',
-    slaPolicyId: 'default',
-    teamId: 'eng',
-    department: 'Platform',
-    ownerId: 'u2',
-    approverId: 'u1',
-    plannedStart: '2026-01-10T08:00:00Z',
-    dueDate: '2026-02-10T18:00:00Z',
-    actualStart: '2026-01-12T09:00:00Z',
-    actualEnd: '2026-02-05T16:00:00Z',
-    effortEstimate: 40,
-    effortSpent: 35,
-    tags: ['ci', 'automation'],
-    components: ['backend', 'infra'],
-    environment: 'Prod',
-    dependencies: ['FEA-002'],
-    attachments,
-    actionItems: [],
-    checklist: [
-      { id: 'DEV-010-chk-1', title: 'Design pipeline architecture', completed: true, assigneeId: 'u2' },
-      { id: 'DEV-010-chk-2', title: 'Instrument integration tests', completed: false, assigneeId: 'u4' },
-      { id: 'DEV-010-chk-3', title: 'Validate flaky suites', completed: false, assigneeId: 'u4' },
-    ],
-    comments: [
-      { id: 'c1', authorId: 'u4', content: 'Verified pipeline fails on flaky tests.', createdAt: '2026-01-20T11:00:00Z' },
-    ],
-    slaEvents,
-    slaState: 'WithinSLA',
-    auditLog,
-    createdBy: 'u1',
-    createdAt: '2026-01-15T10:00:00Z',
-    modifiedBy: 'u2',
-    modifiedAt: '2026-01-21T12:00:00Z',
-  },
-  {
-    id: 'SUP-001',
-    workItemType: 'CustomerSupport',
-    title: 'Login authentication failing for SSO users',
-    description: 'Investigate and resolve multi-factor token refresh causing 401 responses.',
-    customer: 'Acme Corporation',
-    project: 'Support',
-    module: 'SSO',
-    priority: 'P0',
-    status: 'InProgress',
-    slaPolicyId: 'default',
-    teamId: 'support',
-    department: 'Customer Experience',
-    ownerId: 'u3',
-    approverId: 'u5',
-    plannedStart: '2026-01-19T06:00:00Z',
-    dueDate: '2026-01-25T18:00:00Z',
-    actualStart: '2026-01-19T06:30:00Z',
-    actualEnd: undefined,
-    effortEstimate: 16,
-    effortSpent: 8,
-    tags: ['sso', 'security'],
-    components: ['auth-api'],
-    environment: 'Prod',
-    dependencies: [],
-    attachments: [],
-    actionItems: [],
-    checklist: [
-      { id: 'SUP-001-chk-1', title: 'Capture IdP logs', completed: true, assigneeId: 'u3' },
-      { id: 'SUP-001-chk-2', title: 'Validate retry flow', completed: false, assigneeId: 'u5' },
-    ],
-    comments: [{ id: 'c2', authorId: 'u3', content: 'Reached out to IdP for logs.', createdAt: '2026-01-21T13:20:00Z' }],
-    slaEvents: [],
-    slaState: 'AtRisk',
-    auditLog: [
-      { id: 'audit-3', action: 'Assigned', actorId: 'u3', detail: 'Assigned to Mike Chen', timestamp: '2026-01-19T06:00:00Z' },
-    ],
-    createdBy: 'u5',
-    createdAt: '2026-01-18T16:30:00Z',
-    modifiedBy: 'u3',
-    modifiedAt: '2026-01-21T13:20:00Z',
-  },
-  {
-    id: 'FEA-002',
-    workItemType: 'Feature',
-    title: 'Implement dashboard analytics export',
-    description: 'Enable CSV/PDF export for delivery analytics and SLA compliance charts.',
-    customer: 'Global Services Ltd',
-    project: 'Analytics',
-    module: 'Exports',
-    priority: 'P2',
-    status: 'QA',
-    slaPolicyId: 'default',
-    teamId: 'eng',
-    department: 'Product Strategy',
-    ownerId: 'u1',
-    approverId: 'u6',
-    plannedStart: '2026-01-15T08:00:00Z',
-    dueDate: '2026-02-01T18:00:00Z',
-    actualStart: '2026-01-16T09:15:00Z',
-    actualEnd: undefined,
-    effortEstimate: 24,
-    effortSpent: 18,
-    tags: ['analytics', 'export'],
-    components: ['frontend'],
-    environment: 'Staging',
-    dependencies: [],
-    attachments: [],
-    actionItems: [],
-    checklist: [
-      { id: 'FEA-002-chk-1', title: 'Draft export UI', completed: true, assigneeId: 'u1' },
-      { id: 'FEA-002-chk-2', title: 'Wire backend API', completed: false, assigneeId: 'u6' },
-      { id: 'FEA-002-chk-3', title: 'Document usage scenarios', completed: false, assigneeId: 'u7' },
-    ],
-    comments: [],
-    slaEvents: [],
-    slaState: 'WithinSLA',
-    auditLog: [{ id: 'audit-4', action: 'Status updated', actorId: 'u7', detail: 'Moved to QA', timestamp: '2026-01-20T08:00:00Z' }],
-    createdBy: 'u6',
-    createdAt: '2026-01-14T10:00:00Z',
-    modifiedBy: 'u7',
-    modifiedAt: '2026-01-20T08:00:00Z',
-  },
-  {
-    id: 'REL-005',
-    workItemType: 'Release',
-    title: 'Version 2.5.0 Production Deployment',
-    description: 'Coordinate release of version 2.5.0 with DB migrations and release notes.',
-    customer: 'Enterprise',
-    project: 'Release Mgmt',
-    module: 'Ops',
-    priority: 'P1',
-    status: 'New',
-    slaPolicyId: 'default',
-    teamId: 'eng',
-    department: 'Platform',
-    ownerId: 'u2',
-    approverId: 'u6',
-    plannedStart: '2026-01-25T08:00:00Z',
-    dueDate: '2026-02-12T20:00:00Z',
-    actualStart: undefined,
-    actualEnd: undefined,
-    effortEstimate: 32,
-    effortSpent: 0,
-    tags: ['release', 'ops'],
-    components: ['infra', 'backend'],
-    environment: 'Prod',
-    dependencies: ['FEA-002'],
-    attachments: [],
-    actionItems: [],
-    checklist: [
-      { id: 'REL-005-chk-1', title: 'Confirm migration plan', completed: false, assigneeId: 'u2' },
-      { id: 'REL-005-chk-2', title: 'Publish release notes', completed: false, assigneeId: 'u6' },
-    ],
-    comments: [],
-    slaEvents: [],
-    slaState: 'WithinSLA',
-    auditLog: [{ id: 'audit-5', action: 'Created', actorId: 'u2', detail: 'Release draft created', timestamp: '2026-01-12T14:00:00Z' }],
-    createdBy: 'u2',
-    createdAt: '2026-01-12T14:00:00Z',
-    modifiedBy: 'u2',
-    modifiedAt: '2026-01-12T14:00:00Z',
-  },
-];
+const initialWorkItems: WorkItem[] = [];
 
 type AgentSourceType = 'work_item' | 'note' | 'worklog' | 'user';
 
@@ -404,35 +171,7 @@ interface Worklog {
   activityType?: string;
 }
 
-const initialWorklogs: Worklog[] = [
-  {
-    id: 'log-1',
-    workItemId: 'DEV-010',
-    userId: 'u2',
-    action: 'start',
-    timestamp: '2026-01-21T09:00:00Z',
-    durationMinutes: 120,
-    notes: 'Initial pipeline review',
-  },
-  {
-    id: 'log-2',
-    workItemId: 'DEV-010',
-    userId: 'u4',
-    action: 'pause',
-    timestamp: '2026-01-21T11:10:00Z',
-    durationMinutes: 90,
-    notes: 'Blocked by flaky tests',
-  },
-  {
-    id: 'log-3',
-    workItemId: 'SUP-001',
-    userId: 'u3',
-    action: 'start',
-    timestamp: '2026-01-21T13:00:00Z',
-    durationMinutes: 45,
-    notes: 'Investigating SSO token refresh',
-  },
-];
+const initialWorklogs: Worklog[] = [];
 
 interface AgentSource {
   id: string;
@@ -451,90 +190,100 @@ interface AgentResponse {
 const minutesBetween = (start: string, end: string) =>
   Math.max(1, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000));
 
-const initialNotes: Note[] = [
-  {
-    id: 'note-1',
-    type: 'CustomerMeeting',
-    title: 'Quarterly Review with Acme Corporation',
-    dateTime: '2024-01-18T14:00:00Z',
-    customer: 'Acme Corporation',
-    project: 'Support',
-    participants: ['John Smith', 'Sarah Johnson', 'Mike Chen'],
-    summary: 'Discussed Q1 roadmap, custom branding, and API enhancements.',
-    decisions: ['Prioritize SSO fix this week', 'Schedule custom branding demo', 'Provide dedicated support contact'],
-    risks: ['SSO issues affecting trust', 'Custom branding timeline may conflict with release'],
-    tags: ['quarterly-review', 'enterprise', 'roadmap'],
-    actionItems: ['Schedule follow-up call to demo custom branding', 'Send weekly status updates on SSO fix'],
-    linkedWorkItems: ['SUP-001', 'DEV-010'],
-    createdBy: 'u3',
-    recordingUrl: 'https://meetings.example.com/quarterly-review',
-  },
-  {
-    id: 'note-2',
-    type: 'InternalDiscussion',
-    title: 'Sprint Planning - Week 4',
-    dateTime: '2026-01-19T10:00:00Z',
-    participants: ['Gomathi Arunraj', 'Leah Patel', 'Priya Nair'],
-    summary: 'Align on bug fixes, deliverables, and QA ramp-up.',
-    decisions: ['Lock sprint scope', 'Assign analytics export to QA'],
-    risks: ['QA capacity may bottleneck exports'],
-    tags: ['sprint', 'planning'],
-    actionItems: ['Confirm QA availability', 'Share release notes draft'],
-    linkedWorkItems: ['FEA-002', 'REL-005'],
-    createdBy: 'u2',
-    recordingUrl: 'https://meetings.example.com/sprint-planning',
-  },
-];
+const initialNotes: Note[] = [];
 
-const initialNotificationRules: NotificationRule[] = [
-  {
-    id: 'rule-1',
-    name: 'Due date reminder (email)',
-    trigger: 'DueReminder',
-    channel: 'Email',
-    leadHours: 24,
-    appliesToPriorities: ['P0', 'P1'],
-    appliesToTypes: ['CustomerSupport', 'Feature', 'Release'],
-    template: 'Reminder: {{WorkItemId}} – {{Title}} due in {{DueDate}}',
-    active: true,
-  },
-  {
-    id: 'rule-2',
-    name: 'SLA risk ping (WhatsApp)',
-    trigger: 'SLAAtRisk',
-    channel: 'WhatsApp',
-    appliesToPriorities: ['P0', 'P1', 'P2'],
-    appliesToTypes: ['CustomerSupport', 'InternalDev'],
-    template: 'SLA At Risk: {{WorkItemId}} is {{SLAState}}. Owner: {{Owner}}',
-    active: true,
-  },
-];
+const initialNotificationRules: NotificationRule[] = [];
 
-const initialTimelinePlans: TimelinePlan[] = [
-  {
-    id: 'plan-1',
-    name: 'Week 4 Sprint',
-    startDate: '2026-01-19',
-    endDate: '2026-01-25',
-    plannedDeliveries: 8,
-    teamCapacity: { eng: 160, support: 80, qa: 60 },
-    burndownPercent: 55,
-  },
-];
+const initialTimelinePlans: TimelinePlan[] = [];
 
 export const AppDataProvider = ({ children }: { children: ReactNode }) => {
-  const [workItems, setWorkItems] = useState<WorkItem[]>(initialWorkItems);
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
-  const [worklogs, setWorklogs] = useState<Worklog[]>(initialWorklogs);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [worklogs, setWorklogs] = useState<Worklog[]>([]);
   const [teamList, setTeamList] = useState<Team[]>(initialTeams);
-  const [slaPolicyList, setSlaPolicyList] = useState<SlaPolicy[]>(initialSlaPolicies);
+  const [slaPolicyList, setSlaPolicyList] = useState<SlaPolicy[]>([]);
   const [departments, setDepartments] = useState<string[]>(departmentMaster);
   const [userList, setUserList] = useState<User[]>(initialUsers);
-  const currentUserId = 'u3';
+
+  // Integration with Main App Auth
+  const { user: authUser } = useAuth();
+
+  useEffect(() => {
+    if (authUser?.userId) {
+      setUserList((prev) => {
+        if (prev.some((u) => u.id === authUser.userId)) return prev;
+        return [
+          ...prev,
+          {
+            id: authUser.userId,
+            name: authUser.name || 'Authenticated User',
+            role: (authUser.role as any) || 'Agent',
+            teamId: 'eng', // Default assignment
+          },
+        ];
+      });
+    }
+  }, [authUser, userList.length]);
+
+  const currentUserId = authUser?.userId || 'u3';
   const [activeLogId, setActiveLogId] = useState<string | null>(null);
   const [activeWorkItemId, setActiveWorkItemId] = useState<string | null>(null);
-  const [notificationRules, setNotificationRules] = useState<NotificationRule[]>(initialNotificationRules);
-  const [timelinePlans] = useState<TimelinePlan[]>(initialTimelinePlans);
+  const [notificationRules, setNotificationRules] = useState<NotificationRule[]>([]);
+  const [timelinePlans, setTimelinePlans] = useState<TimelinePlan[]>([]);
+
+  // Fetch Data from API
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const [itemsRes, notesRes, configsRes, logsRes, usersRes] = await Promise.all([
+          api.get('/api/task-app/items'),
+          api.get('/api/task-app/notes'),
+          api.get('/api/task-app/configs'),
+          api.get('/api/task-app/worklogs'),
+          api.get('/api/employee/getAllEmployee')
+        ]);
+
+        setWorkItems(itemsRes.data || []);
+        setNotes(notesRes.data || []);
+        if (configsRes.data) {
+          const policies = configsRes.data.slaPolicies || [];
+          // Fallback if no policies exist in DB
+          if (policies.length === 0) {
+            policies.push({
+              id: 'default',
+              name: 'Default SLA',
+              appliesTo: ['InternalDev', 'CustomerSupport', 'Feature', 'ChangeRequest', 'Release', 'AITools', 'MeetingAction', 'DiscussionAction'],
+              stageDurations: { Triage: 4, Response: 8, Execution: 72, QA: 24, UAT: 24, Delivery: 12, Resolution: 36 },
+              businessHours: true,
+              breachThresholdPct: 0.2,
+              reminderWindowHours: 24,
+              holidays: [],
+            });
+          }
+          setSlaPolicyList(policies);
+          setNotificationRules(configsRes.data.rules || []);
+          setTimelinePlans(configsRes.data.plans || []);
+        }
+        setWorklogs(logsRes.data || []);
+
+        if (usersRes.data && Array.isArray(usersRes.data)) {
+          const activeUsers = usersRes.data.filter((emp: any) => emp.status && emp.status.toLowerCase() === 'active');
+          const mappedUsers: User[] = activeUsers.map((emp: any) => ({
+            id: emp.employee_id,
+            name: `${emp.first_name} ${emp.last_name}`,
+            role: emp.role === 'admin' ? 'Admin' : 'Agent',
+            teamId: 'eng',
+            avatar: emp.profile_image
+          }));
+          setUserList(mappedUsers);
+        }
+      } catch (error) {
+        console.error("Failed to fetch Task App data:", error);
+      }
+    };
+    fetchAllData();
+  }, []);
+
   const today = new Date();
   const defaultFrom = new Date(today);
   defaultFrom.setMonth(defaultFrom.getMonth() - 3);
@@ -622,47 +371,64 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [filters, workItems]);
 
-  const addWorkItem = (item: WorkItem) => {
-    setWorkItems((prev) => [...prev, item]);
+  const addWorkItem = async (item: WorkItem) => {
+    try {
+      const { id, ...payload } = item;
+      const { data: newItem } = await api.post('/api/task-app/items', payload);
+      setWorkItems((prev) => [newItem, ...prev]);
+    } catch (e) { console.error(e); }
   };
 
-  const updateWorkItem = (id: string, patch: Partial<WorkItem>) => {
-    setWorkItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch, modifiedAt: new Date().toISOString() } : item)),
-    );
+  const updateWorkItem = async (id: string, patch: Partial<WorkItem>) => {
+    try {
+      setWorkItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...patch, modifiedAt: new Date().toISOString() } : item)),
+      );
+      await api.put(`/api/task-app/items/${id}`, patch);
+    } catch (e) { console.error(e); }
   };
 
-  const addNote = (note: Note) => {
-    setNotes((prev) => [note, ...prev]);
+  const addNote = async (note: Note) => {
+    try {
+      const { id, ...payload } = note;
+      const { data: newNote } = await api.post('/api/task-app/notes', payload);
+      setNotes((prev) => [newNote, ...prev]);
+    } catch (e) { console.error(e); }
   };
 
-  const updateNote = (id: string, patch: Partial<Note>) => {
-    setNotes((prev) =>
-      prev.map((note) => (note.id === id ? { ...note, ...patch } : note)),
-    );
+  const updateNote = async (id: string, patch: Partial<Note>) => {
+    try {
+      setNotes((prev) =>
+        prev.map((note) => (note.id === id ? { ...note, ...patch } : note)),
+      );
+      await api.put(`/api/task-app/notes/${id}`, patch);
+    } catch (e) { console.error(e); }
   };
 
-  const addTeam = (entry: { name: string; department: string; keyskills: string; isActive: boolean }) => {
+  const addTeam = (entry: { name: string; department: string; keyskills: string; isActive: boolean; leadId?: string; members?: string[] }) => {
     const department = entry.department.trim();
     const code = department
       ? department.replace(/\s+/g, '').slice(0, 4).toUpperCase()
       : 'GEN';
     const teamName = entry.name.trim() || `Team ${code}`;
-    const leadName = entry.name.trim() || 'Team lead';
     ensureDepartment(department);
+
     setTeamList((prev) => {
       const normalizedName = teamName.trim().toLowerCase();
       if (normalizedName && prev.some((team) => team.name.trim().toLowerCase() === normalizedName)) {
         return prev;
       }
       const teamId = `team-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const memberId = createTeamMember(leadName, teamId);
+
+      // Use provided leadId or members, fall back to empty if not provided (avoiding dummy user creation)
+      const leadName = userList.find(u => u.id === entry.leadId)?.name || 'Unassigned';
+
       const newTeam: Team = {
         id: teamId,
         name: teamName,
         code,
         lead: leadName,
-        members: [memberId],
+        members: entry.members || (entry.leadId ? [entry.leadId] : []),
         department: department || undefined,
         keyskills: entry.keyskills,
         isActive: entry.isActive,
@@ -704,11 +470,11 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       prev.map((policy) =>
         policy.id === id
           ? {
-              ...policy,
-              name: entry.name || policy.name,
-              appliesTo: appliesList.length ? appliesList : policy.appliesTo,
-              stageDurations: buildStageDurations(baseHours),
-            }
+            ...policy,
+            name: entry.name || policy.name,
+            appliesTo: appliesList.length ? appliesList : policy.appliesTo,
+            stageDurations: buildStageDurations(baseHours),
+          }
           : policy,
       ),
     );
@@ -855,10 +621,10 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       prev.map((log) =>
         log.id === id
           ? {
-              ...log,
-              ...patch,
-              timestamp: patch.date ? new Date(patch.date).toISOString() : log.timestamp,
-            }
+            ...log,
+            ...patch,
+            timestamp: patch.date ? new Date(patch.date).toISOString() : log.timestamp,
+          }
           : log,
       ),
     );

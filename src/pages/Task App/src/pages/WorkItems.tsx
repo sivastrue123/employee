@@ -82,6 +82,7 @@ const WorkItems: React.FC = () => {
     hours: '1',
     date: new Date().toISOString().split('T')[0],
     description: '',
+    userId: currentUserId,
   });
   const [showWorklogForm, setShowWorklogForm] = useState(false);
   const worklogFormRef = React.useRef<HTMLDivElement>(null);
@@ -216,6 +217,7 @@ const WorkItems: React.FC = () => {
       hours: '1',
       date: new Date().toISOString().split('T')[0],
       description: '',
+      userId: currentUserId,
     });
     setShowWorklogForm(false);
   };
@@ -279,7 +281,7 @@ const WorkItems: React.FC = () => {
     const minutes = Math.round(hours * 60);
     addWorklogEntry({
       workItemId: selectedWorkItem.id,
-      userId: currentUserId,
+      userId: (worklogForm as any).userId || currentUserId,
       durationMinutes: minutes,
       notes: worklogForm.description,
       activityType: worklogForm.activityType,
@@ -306,12 +308,12 @@ const WorkItems: React.FC = () => {
     setSelectedWorkItem((prev) =>
       prev
         ? {
-            ...prev,
-            ...detailForm,
-            dueDate: detailForm.dueDate || undefined,
-            checklist: detailChecklist,
-            actionItems: detailActionItems,
-          }
+          ...prev,
+          ...detailForm,
+          dueDate: detailForm.dueDate || undefined,
+          checklist: detailChecklist,
+          actionItems: detailActionItems,
+        }
         : prev,
     );
     setSelectedWorkItem(null);
@@ -411,31 +413,31 @@ const WorkItems: React.FC = () => {
             placeholder="Description"
           />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <select
-                value={detailForm.ownerId}
-                onChange={(event) => handleDetailChange('ownerId', event.target.value)}
-                className="border rounded-2xl px-3 py-2 text-sm"
-              >
-                <option value="">Owner</option>
-                {detailTeamMembers.length > 0 && (
-                  <optgroup label="Team members">
-                    {detailTeamMembers.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="All users">
-                  {uniqueUsers
-                    .filter((user) => !detailTeamMembers.some((member) => member.id === user.id))
-                    .map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name} ({user.role})
-                      </option>
-                    ))}
+            <select
+              value={detailForm.ownerId}
+              onChange={(event) => handleDetailChange('ownerId', event.target.value)}
+              className="border rounded-2xl px-3 py-2 text-sm"
+            >
+              <option value="">Owner</option>
+              {detailTeamMembers.length > 0 && (
+                <optgroup label="Team members">
+                  {detailTeamMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
                 </optgroup>
-              </select>
+              )}
+              <optgroup label="All users">
+                {uniqueUsers
+                  .filter((user) => !detailTeamMembers.some((member) => member.id === user.id))
+                  .map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.role})
+                    </option>
+                  ))}
+              </optgroup>
+            </select>
             <input
               type="date"
               value={detailForm.dueDate}
@@ -532,42 +534,42 @@ const WorkItems: React.FC = () => {
             <div id="worklog-form-anchor" ref={worklogFormRef} />
             {showWorklogForm && (
               <form className="space-y-3" onSubmit={handleWorklogSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-slate-500">Activity type</span>
-                <select
-                  value={worklogForm.activityType}
-                  onChange={(event) => handleWorklogField('activityType', event.target.value)}
-                  className="border rounded-2xl px-3 py-2 text-sm bg-white"
-                >
-                  {worklogActivities.map((activity) => (
-                    <option key={activity} value={activity}>
-                      {activity}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-slate-500">Hours spent</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  value={worklogForm.hours}
-                  onChange={(event) => handleWorklogField('hours', event.target.value)}
-                  className="border rounded-2xl px-3 py-2 text-sm bg-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-slate-500">Date</span>
-                <input
-                  type="date"
-                  value={worklogForm.date}
-                  onChange={(event) => handleWorklogField('date', event.target.value)}
-                  className="border rounded-2xl px-3 py-2 text-sm bg-white"
-                />
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">Activity type</span>
+                    <select
+                      value={worklogForm.activityType}
+                      onChange={(event) => handleWorklogField('activityType', event.target.value)}
+                      className="border rounded-2xl px-3 py-2 text-sm bg-white"
+                    >
+                      {worklogActivities.map((activity) => (
+                        <option key={activity} value={activity}>
+                          {activity}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">Hours spent</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.25"
+                      value={worklogForm.hours}
+                      onChange={(event) => handleWorklogField('hours', event.target.value)}
+                      className="border rounded-2xl px-3 py-2 text-sm bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">Date</span>
+                    <input
+                      type="date"
+                      value={worklogForm.date}
+                      onChange={(event) => handleWorklogField('date', event.target.value)}
+                      className="border rounded-2xl px-3 py-2 text-sm bg-white"
+                    />
+                  </div>
+                </div>
                 <label className="text-xs text-slate-500 space-y-1">
                   Description
                   <textarea
@@ -641,56 +643,54 @@ const WorkItems: React.FC = () => {
           </div>
           {showActionForm && (
             <form className="space-y-3" onSubmit={handleActionItemSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                type="text"
-                value={actionItemForm.description}
-                onChange={(event) => handleActionItemField('description', event.target.value)}
-                className="border rounded-2xl px-3 py-2 text-sm"
-                placeholder="Action item description"
-              />
-              <label className="text-xs text-slate-500 space-y-1">
-                Action item member
-                <select
-                  value={actionItemForm.assigneeId}
-                  onChange={(event) => handleActionItemField('assigneeId', event.target.value)}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={actionItemForm.description}
+                  onChange={(event) => handleActionItemField('description', event.target.value)}
                   className="border rounded-2xl px-3 py-2 text-sm"
+                  placeholder="Action item description"
+                />
+                <label className="text-xs text-slate-500 space-y-1">
+                  Action item member
+                  <select
+                    value={actionItemForm.assigneeId}
+                    onChange={(event) => handleActionItemField('assigneeId', event.target.value)}
+                    className="border rounded-2xl px-3 py-2 text-sm"
+                  >
+                    <option value="">Select team member</option>
+                    <optgroup label="All Users">
+                      {uniqueUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </label>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-full text-sm font-semibold shadow transition flex items-center gap-2 whitespace-nowrap"
+                  style={{
+                    backgroundColor: designTokens.colors.accent,
+                    borderColor: designTokens.colors.accent,
+                    color: 'white',
+                  }}
                 >
-                  <option value="">Select team member</option>
-                {detailTeamMembers.length ? (
-                  detailTeamMembers.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))
-                ) : (
-                  <option disabled>No team members</option>
-                )}
-                </select>
-              </label>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-full text-sm font-semibold shadow transition flex items-center gap-2 whitespace-nowrap"
-                style={{
-                  backgroundColor: designTokens.colors.accent,
-                  borderColor: designTokens.colors.accent,
-                  color: 'white',
-                }}
-              >
-                <PlusIcon />
-                Add new action item
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelActionForm}
-                className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+                  <PlusIcon />
+                  Add new action item
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelActionForm}
+                  className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           )}
         </div>
         <div className="space-y-3">
@@ -735,20 +735,15 @@ const WorkItems: React.FC = () => {
                       className="border rounded-full px-2 py-1 text-[11px] text-slate-600"
                     >
                       <option value="">Unassigned</option>
-                      {detailTeamMembers.length ? (
-                        detailTeamMembers.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.name} ({member.role})
-                          </option>
-                        ))
-                      ) : (
-                        <option disabled>No team members</option>
-                      )}
+                      {uniqueUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
                     </select>
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        entry.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                      }`}
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${entry.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}
                     >
                       {entry.completed ? 'Completed' : 'Pending'}
                     </span>
@@ -773,9 +768,9 @@ const WorkItems: React.FC = () => {
                   className="border rounded-2xl px-3 py-2 text-sm"
                 >
                   <option value="">Assign to</option>
-                  {detailTeamMembers.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
+                  {uniqueUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
                     </option>
                   ))}
                 </select>
@@ -929,71 +924,70 @@ const WorkItems: React.FC = () => {
           <>
             <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white shadow-sm">
               <table className="min-w-full text-sm">
-              <thead className="bg-soft-slate text-slate-500 uppercase text-xs tracking-wide">
-                <tr>
-                  <th className="px-4 py-3 text-left">ID</th>
-                  <th className="px-4 py-3 text-left">Type</th>
-                  <th className="px-4 py-3 text-left">Title</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Priority</th>
-                  <th className="px-4 py-3 text-left">SLA</th>
-                  <th className="px-4 py-3 text-left">Due</th>
-                  <th className="px-4 py-3 text-left">Logged</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleTableItems.map((item) => {
-                  const summary = computeSlaSummary(item);
-                  return (
-                    <React.Fragment key={item.id}>
-                      <tr className="border-b last:border-0">
-                        <td className="px-4 py-3 font-semibold text-slate-800">{item.id}</td>
-                        <td className="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">{item.workItemType}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.title}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.status}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.priority}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              summary.slaState === 'Breached'
+                <thead className="bg-soft-slate text-slate-500 uppercase text-xs tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3 text-left">ID</th>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-left">Title</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Priority</th>
+                    <th className="px-4 py-3 text-left">SLA</th>
+                    <th className="px-4 py-3 text-left">Due</th>
+                    <th className="px-4 py-3 text-left">Logged</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleTableItems.map((item) => {
+                    const summary = computeSlaSummary(item);
+                    return (
+                      <React.Fragment key={item.id}>
+                        <tr className="border-b last:border-0">
+                          <td className="px-4 py-3 font-semibold text-slate-800">{item.id}</td>
+                          <td className="px-4 py-3 text-xs uppercase tracking-wide text-slate-500">{item.workItemType}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.title}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.status}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.priority}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-semibold ${summary.slaState === 'Breached'
                                 ? 'bg-rose-100 text-rose-700'
                                 : summary.slaState === 'AtRisk'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                            }`}
-                          >
-                            {summary.slaState}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'TBD'}</td>
-                        <td className="px-4 py-3 text-slate-600 text-center">{formatMinutes(totalLoggedMinutesFor(item.id))}</td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedWorkItem(item)}
-                            className="flex items-center justify-center px-3 py-1 rounded-full border text-xs font-semibold text-slate-600 border-slate-200 bg-white"
-                            aria-label="Open edit panel"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M4 17.25V20h2.75l8.34-8.34-2.75-2.75L4 17.25zm15.02-10.02a.996.996 0 0 0 0-1.41l-2.84-2.84a.996.996 0 0 0-1.41 0l-1.83 1.83 4.24 4.24 1.84-1.82z" />
-                            </svg>
-                            <span className="sr-only">Edit work item</span>
-                          </button>
-                        </td>
-                      </tr>
-                      {viewMode === 'table' && selectedWorkItem?.id === item.id && (
-                        <tr>
-                          <td colSpan={TABLE_COLUMNS} className="p-0 bg-slate-50">
-                            {renderDetailSection()}
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                                }`}
+                            >
+                              {summary.slaState}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'TBD'}</td>
+                          <td className="px-4 py-3 text-slate-600 text-center">{formatMinutes(totalLoggedMinutesFor(item.id))}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedWorkItem(item)}
+                              className="flex items-center justify-center px-3 py-1 rounded-full border text-xs font-semibold text-slate-600 border-slate-200 bg-white"
+                              aria-label="Open edit panel"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M4 17.25V20h2.75l8.34-8.34-2.75-2.75L4 17.25zm15.02-10.02a.996.996 0 0 0 0-1.41l-2.84-2.84a.996.996 0 0 0-1.41 0l-1.83 1.83 4.24 4.24 1.84-1.82z" />
+                              </svg>
+                              <span className="sr-only">Edit work item</span>
+                            </button>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {viewMode === 'table' && selectedWorkItem?.id === item.id && (
+                          <tr>
+                            <td colSpan={TABLE_COLUMNS} className="p-0 bg-slate-50">
+                              {renderDetailSection()}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
             {visibleTableItems.length < filteredTableItems.length && (
               <div className="flex justify-center pt-3">
@@ -1010,52 +1004,51 @@ const WorkItems: React.FC = () => {
         ) : (
           <div className="overflow-x-auto" ref={kanbanBoardRef}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-w-full">
-        {WORK_ITEM_STATUSES.map((status) => (
-              <div
-                key={status}
-                ref={(el) => {
-                  columnRefs.current[status] = el;
-                }}
-                className="rounded-3xl border border-slate-100 bg-slate-50 p-4 space-y-3 min-h-[220px]"
-              >
-                <h4 className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">{status}</h4>
-                {filteredWorkItems
-                  .filter((item) => item.status === status)
-                  .map((item) => {
-                    const dueDateLabel = item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'TBD';
-                    const isSelected = selectedWorkItem?.id === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`rounded-2xl bg-white border p-3 shadow-sm transition hover:shadow-md ${
-                          isSelected ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-slate-200'
-                        }`}
-                        onClick={() => {
-                          setSelectedWorkItem(item);
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                            <p className="text-xs text-slate-500">Due {dueDateLabel}</p>
+              {WORK_ITEM_STATUSES.map((status) => (
+                <div
+                  key={status}
+                  ref={(el) => {
+                    columnRefs.current[status] = el;
+                  }}
+                  className="rounded-3xl border border-slate-100 bg-slate-50 p-4 space-y-3 min-h-[220px]"
+                >
+                  <h4 className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">{status}</h4>
+                  {filteredWorkItems
+                    .filter((item) => item.status === status)
+                    .map((item) => {
+                      const dueDateLabel = item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'TBD';
+                      const isSelected = selectedWorkItem?.id === item.id;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`rounded-2xl bg-white border p-3 shadow-sm transition hover:shadow-md ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-slate-200'
+                            }`}
+                          onClick={() => {
+                            setSelectedWorkItem(item);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                              <p className="text-xs text-slate-500">Due {dueDateLabel}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 text-xs text-slate-500 flex items-center justify-between">
+                            <span className="font-semibold text-slate-700">{item.priority}</span>
+                            <span>{item.status}</span>
                           </div>
                         </div>
-                        <div className="mt-3 text-xs text-slate-500 flex items-center justify-between">
-                          <span className="font-semibold text-slate-700">{item.priority}</span>
-                          <span>{item.status}</span>
-                        </div>
+                      );
+                    })}
+                  {viewMode === 'kanban' && selectedWorkItem?.status === status && (
+                    <div className="mt-4" ref={kanbanDetailRef}>
+                      <div className="rounded-3xl border border-slate-100 bg-white shadow-sm">
+                        {renderDetailSection()}
                       </div>
-                    );
-                  })}
-                {viewMode === 'kanban' && selectedWorkItem?.status === status && (
-                  <div className="mt-4" ref={kanbanDetailRef}>
-                    <div className="rounded-3xl border border-slate-100 bg-white shadow-sm">
-                      {renderDetailSection()}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}

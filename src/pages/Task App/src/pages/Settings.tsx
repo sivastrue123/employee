@@ -7,6 +7,7 @@ const TEAMS_PER_PAGE = 2;
 
 type TeamFormState = {
   name: string;
+  leadId?: string;
   department: string;
   keyskills: string;
   status: 'Active' | 'Inactive';
@@ -42,6 +43,7 @@ const Settings: React.FC = () => {
     addSlaPolicy,
     updateSlaPolicy,
     departments,
+    users,
   } = useAppData();
   const [teamFilter, setTeamFilter] = useState('');
   const [teamEntry, setTeamEntry] = useState<TeamFormState>({
@@ -180,11 +182,12 @@ const Settings: React.FC = () => {
       department: teamEntry.department.trim(),
       keyskills: teamEntry.keyskills.trim(),
       isActive: teamEntry.status === 'Active',
+      leadId: teamEntry.leadId,
     };
     if (editingTeamId) {
       updateTeam(editingTeamId, {
         ...payload,
-        lead: payload.name,
+        lead: users.find(u => u.id === teamEntry.leadId)?.name || payload.name,
       });
     } else {
       addTeam(payload);
@@ -199,6 +202,7 @@ const Settings: React.FC = () => {
         department: entry.department.trim(),
         keyskills: entry.keyskills.trim(),
         isActive: entry.status === 'Active',
+        leadId: entry.leadId,
       }))
       .filter((entry) => entry.name);
     if (!entries.length) return;
@@ -278,13 +282,21 @@ const Settings: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <input
                   className="border rounded-2xl px-3 py-2 text-sm"
-                  placeholder="Team member name"
+                  placeholder="Team Name"
                   value={teamEntry.name}
                   onChange={(event) => handleTeamField('name', event.target.value)}
                 />
+                <select
+                  className="border rounded-2xl px-3 py-2 text-sm"
+                  value={teamEntry.leadId || ''}
+                  onChange={(event) => handleTeamField('leadId', event.target.value)}
+                >
+                  <option value="">Select Lead</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
                 <input
                   className="border rounded-2xl px-3 py-2 text-sm"
-                  placeholder="Team member department"
+                  placeholder="Department"
                   value={teamEntry.department}
                   onChange={(event) => handleTeamField('department', event.target.value)}
                 />
@@ -310,13 +322,21 @@ const Settings: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <input
                         className="border rounded-2xl px-3 py-2 text-sm"
-                        placeholder="Team member name"
+                        placeholder="Team Name"
                         value={entry.name}
                         onChange={(event) => handleNewTeamField(index, 'name', event.target.value)}
                       />
+                      <select
+                        className="border rounded-2xl px-3 py-2 text-sm"
+                        value={entry.leadId || ''}
+                        onChange={(event) => handleNewTeamField(index, 'leadId', event.target.value)}
+                      >
+                        <option value="">Select Lead</option>
+                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
                       <input
                         className="border rounded-2xl px-3 py-2 text-sm"
-                        placeholder="Team member department"
+                        placeholder="Department"
                         value={entry.department}
                         onChange={(event) => handleNewTeamField(index, 'department', event.target.value)}
                       />
@@ -589,9 +609,8 @@ const Settings: React.FC = () => {
               </div>
               <button
                 onClick={() => toggleNotificationRule(rule.id, !rule.active)}
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  rule.active ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
-                }`}
+                className={`px-3 py-1 text-xs font-semibold rounded-full ${rule.active ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}
               >
                 {rule.active ? 'Active' : 'Paused'}
               </button>
