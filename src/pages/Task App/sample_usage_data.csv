@@ -1,0 +1,8 @@
+customer,date,Total users active,Total users created,Number of folders created,Number of files uploaded,Number of files viewed,Number of files email-shared,Number of files downloaded,Number of workflows created,Number of tickets submitted,Number of forms created,Number of entries created,Form type
+Customer A,01-Jan-2023,150,20,5,10,25,2,3,1,0,3,7,master form
+Customer B,01-Jan-2023,200,30,8,15,30,5,7,2,1,5,10,workflow-connected form
+Customer A,02-Jan-2023,160,22,6,12,28,3,4,1,0,4,8,master form
+Customer C,02-Jan-2023,100,10,3,5,15,1,2,0,0,2,5,master form
+Customer B,03-Jan-2023,210,32,9,18,35,6,8,3,1,6,12,workflow-connected form
+Customer A,03-Jan-2023,170,25,7,14,30,4,5,2,1,5,9,master form
+Customer C,04-Jan-2023,110,12,4,7,18,2,3,1,0,3,6,master form

@@ -14,10 +14,15 @@ import LeaveManagement from "@/pages/leavemanagement/LeaveManagement"
 import { DeviceGate } from "../components/DeviceGate";
 import { NotSupported } from "../components/NotSupported";
 import { JSX } from "react";
+import TaskApp from "../pages/Task App/src/App";
 
 const withGate = (element: JSX.Element) => <DeviceGate>{element}</DeviceGate>;
 
 const router = createBrowserRouter([
+  {
+    path: "/tasks/*",
+    element: withGate(<TaskApp />),
+  },
   {
     path: "/",
     element: withGate(<Layout />),
