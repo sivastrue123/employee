@@ -2,10 +2,10 @@ import { addDays, format, isWeekend, parseISO } from 'date-fns';
 import React, { useMemo, useState } from 'react';
 import { api } from '@/lib/axios';
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from '@/toast/ToastProvider';
 import {
     AttendanceRecord,
     AttendanceStatus,
-    Employee,
     Holiday,
     LeaveApprovalLog,
     LeaveBalance,
@@ -14,29 +14,7 @@ import {
     LeaveType,
     NotificationItem,
 } from './types';
-// import { useAuth } from '@/context/AuthContext';
-
-
-
-
-const initialHolidays: Holiday[] = [
-    {
-        id: 'holiday-1',
-        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-        title: 'Republic Day',
-        type: 'Government',
-        isActive: true,
-        region: 'All',
-    },
-    {
-        id: 'holiday-2',
-        date: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
-        title: 'Team Offsite',
-        type: 'Government',
-        isActive: true,
-        region: 'All',
-    },
-];
+import { success } from 'zod';
 
 const currentYear = new Date().getFullYear();
 const formatDate = (value: Date | string) => (typeof value === 'string' ? value : format(value, 'yyyy-MM-dd'));
@@ -55,13 +33,21 @@ const dayCount = (from: string, to: string, holidays: string[]) => {
     return total;
 };
 
+const isDateRangeOverlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
+    const A1 = parseISO(aStart);
+    const A2 = parseISO(aEnd);
+    const B1 = parseISO(bStart);
+    const B2 = parseISO(bEnd);
+    return A1 <= B2 && B1 <= A2;
+};
+
 const LeaveManagement: React.FC = () => {
     // API State
+    const showToast = useToast()
     const [balances, setBalances] = useState<LeaveBalance[]>([]);
     const [requests, setRequests] = useState<LeaveRequest[]>([]);
     const [holidays, setHolidays] = useState<Holiday[]>([]);
     const [allEmployees, setAllEmployees] = useState<any[]>([]);
-    console.log(allEmployees)
     const { user } = useAuth();
     const [userId, setUserId] = useState<string>('');
 
@@ -82,6 +68,15 @@ const LeaveManagement: React.FC = () => {
     const [leavePolicy, setLeavePolicy] = useState({ EL: 12, CL: 6, SL: 6 });
     const [policyForm, setPolicyForm] = useState(leavePolicy);
 
+    // Guards to prevent accidental double-submit / double-approval
+    const [submittingLeave, setSubmittingLeave] = useState(false);
+    const [processingActions, setProcessingActions] = useState<Record<string, boolean>>({}); // requestId -> true
+
+    const startAction = (requestId: string) =>
+        setProcessingActions(prev => ({ ...prev, [requestId]: true }));
+    const endAction = (requestId: string) =>
+        setProcessingActions(prev => ({ ...prev, [requestId]: false }));
+
     // Initialize userId from auth context
     React.useEffect(() => {
         if (user?.employee_id) {
@@ -91,6 +86,7 @@ const LeaveManagement: React.FC = () => {
 
     const activeUser = allEmployees.find((emp) => emp.employee_id === userId) || {
         id: userId,
+        employee_id: userId,
         name: user?.name || 'User',
         role: user?.role === 'admin' ? 'HR' : 'Employee'
     } as any;
@@ -99,20 +95,17 @@ const LeaveManagement: React.FC = () => {
 
     // Initial Data Fetch
     React.useEffect(() => {
-        // Ensure balances exist for everyone
         api.post('/api/leave/ensure-balances').catch(err => console.error("Failed to ensure balances", err));
 
         api.get('/api/leave/holidays')
             .then(res => setHolidays(res.data))
             .catch(err => console.error("Failed to fetch holidays", err));
 
-        // Fetch all employees if admin
         if (user?.role === 'admin') {
             api.get('/api/employee/getAllEmployee')
                 .then(res => setAllEmployees(res.data))
                 .catch(err => console.error("Failed to fetch employees", err));
 
-            // Fetch all balances for analytics
             api.get('/api/leave/all-balances')
                 .then(res => {
                     setBalances(prev => {
@@ -122,10 +115,7 @@ const LeaveManagement: React.FC = () => {
                     });
                 })
                 .catch(err => console.error("Failed to fetch all balances", err));
-
-            console.log(allEmployees)
         } else if (user?.employee_id) {
-            // For non-admin, at least put themselves in the list so lookups work
             setAllEmployees([{
                 id: user.employee_id,
                 employee_id: user.employee_id,
@@ -140,22 +130,17 @@ const LeaveManagement: React.FC = () => {
     React.useEffect(() => {
         if (!userId) return;
 
-        // Fetch Balances
         api.get(`/api/leave/balances?employeeId=${encodeURIComponent(userId)}`)
             .then(res => setBalances(prev => {
-                // Merge/Overwrite user balance
-                const filtered = prev.filter(p => p.employeeId !== userId); // logic slightly tricky if we want to keep others.
-                // Actually safer to just upsert.
+                const filtered = prev.filter(p => p.employeeId !== userId);
                 return [...filtered, res.data];
             }))
             .catch(err => console.error("Failed to fetch balances", err));
 
-        // Fetch Requests (Employee)
-        api.get(`/api/leave?employeeId=${userId}`)
+        api.get(`/api/leave?employeeId=${encodeURIComponent(userId)}`)
             .then(res => setRequests(res.data.map((r: any) => ({ ...r, id: r._id }))))
             .catch(err => console.error("Failed to fetch requests", err));
 
-        // HR View: Fetch all pending requests if user is HR/Admin
         if (user?.role === 'admin') {
             api.get('/api/leave?status=Submitted')
                 .then(res => {
@@ -163,20 +148,17 @@ const LeaveManagement: React.FC = () => {
                     setRequests(prev => {
                         const existingIds = new Set(prev.map(r => r.id));
                         const newReqs = data.filter((r: any) => !existingIds.has(r._id));
-                        const mapped = [...prev, ...newReqs.map((r: any) => ({ ...r, id: r._id }))];
-                        return mapped;
+                        return [...prev, ...newReqs.map((r: any) => ({ ...r, id: r._id }))];
                     });
                 })
                 .catch(err => console.error("Failed to fetch HR inbox", err));
         }
-
     }, [userId, user]);
 
     const logAction = (entry: LeaveApprovalLog) => setLogs((prev) => [entry, ...prev]);
     const addNotification = (note: Omit<NotificationItem, 'id' | 'scheduledAt'>) =>
         setNotifications((prev) => [...prev, { ...note, id: `note-${Date.now()}`, scheduledAt: new Date().toISOString() }]);
 
-    // Helper to refresh data after action
     const refreshData = () => {
         api.get(`/api/leave/balances?employeeId=${encodeURIComponent(userId)}`)
             .then(res => setBalances(prev => prev.map(b => b.employeeId === userId ? res.data : b)));
@@ -195,38 +177,44 @@ const LeaveManagement: React.FC = () => {
                 : balance.SL_available;
     };
 
-    const createRequest = (newRequest: LeaveRequest) => {
-        setRequests((prev) => [newRequest, ...prev]);
-        logAction({
-            id: `log-${newRequest.id}`,
-            requestId: newRequest.id,
-            action: 'Submitted',
-            actionBy: newRequest.employeeId,
-            actionAt: newRequest.appliedAt,
-            previousStatus: 'Draft',
-            newStatus: 'Submitted',
-            remarks: newRequest.reason || 'Self-service',
-        });
-        addNotification({
-            type: 'LeaveStatusUpdate',
-            targetUserId: newRequest.employeeId,
-            messageTitle: 'Leave submitted',
-            messageBody: `${newRequest.leaveType} from ${newRequest.startDate} → ${newRequest.endDate}`,
-            status: 'Pending',
-            channel: 'Popup',
-        });
-    };
-
     const handleLeaveSubmit = async () => {
         if (!activeUser) return;
-        const days = dayCount(fromDate, toDate, holidayKeys);
-        if (days <= 0) return;
-        if (holidays.some((holiday) => holiday.date >= fromDate && holiday.date <= toDate && holiday.isActive)) return;
+        if (submittingLeave) return;
 
-        // Conflict check on frontend side needs request data, trusting API for now or using local requests list
-        if (days > availableBalance(userId, leaveType)) return;
+        const start = parseISO(fromDate);
+        const end = parseISO(toDate);
+        if (end < start) {
+            showToast.error('Please select a valid date range (To Date should be >= From Date).', 'error');
+            return;
+        }
+
+        const days = dayCount(fromDate, toDate, holidayKeys);
+        if (days <= 0) {
+            showToast.warning('No payable leave days in the selected range (weekends/holidays excluded).', 'warning');
+            return;
+        }
+
+        // Collision check: block if overlaps any existing leave that is not Cancelled/Rejected
+        const userLeaves = requests.filter(r => r.employeeId === userId);
+        const blockingStatuses: LeaveStatus[] = ['Submitted', 'HR_Approved', 'AutoProcessed'];
+        const hasCollision = userLeaves.some(r => {
+            if (!blockingStatuses.includes(r.status)) return false;
+            return isDateRangeOverlap(fromDate, toDate, r.startDate, r.endDate);
+        });
+
+        if (hasCollision) {
+            showToast.error('Leave request overlaps with an existing leave. Please adjust the date range.', 'error');
+            return;
+        }
+
+        if (days > availableBalance(userId, leaveType)) {
+            showToast?.error('Insufficient leave balance for the selected leave type.', 'error');
+            return;
+        }
 
         try {
+            setSubmittingLeave(true);
+
             const res = await api.post('/api/leave', {
                 employeeId: userId,
                 leaveType,
@@ -240,7 +228,7 @@ const LeaveManagement: React.FC = () => {
                 const newRequest = res.data;
                 setRequests((prev) => [{ ...newRequest, id: newRequest._id }, ...prev]);
                 setReason('');
-                refreshData(); // Updates balance and list
+                refreshData();
 
                 addNotification({
                     type: 'LeaveStatusUpdate',
@@ -250,57 +238,103 @@ const LeaveManagement: React.FC = () => {
                     status: 'Pending',
                     channel: 'Popup',
                 });
+
+                showToast?.success('Leave request submitted successfully.');
             } else {
-                alert("Failed to submit leave");
+                showToast?.error('Failed to submit leave.', 'error');
             }
         } catch (e) {
             console.error(e);
-            alert("Error submitting leave");
+            showToast?.error('Error submitting leave.', 'error');
+        } finally {
+            setSubmittingLeave(false);
         }
     };
 
     const handleHrDecision = async (requestId: string, approve: boolean) => {
+        if (processingActions[requestId]) return;
+
+        const req = requests.find(r => r.id === requestId);
+        if (!req) return;
+
+        // Only action "Submitted" requests; avoids re-approving already actioned rows
+        if (req.status !== 'Submitted') {
+            showToast?.warning('This request is already actioned.', 'warning');
+            return;
+        }
+
         const hrUser = allEmployees.find((emp) => emp.role === 'HR' || emp.role === 'admin');
+        const hrApproverId = hrUser?.employee_id ?? hrUser?._id ?? hrUser?.id;
+
         try {
+            startAction(requestId);
+
             const status = approve ? 'HR_Approved' : 'HR_Rejected';
+
+            // Optimistic lock in UI so double-click doesn't hit API twice
+            setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status } : r));
+
             const res = await api.patch(`/api/leave/${requestId}/status`, {
                 status,
-                hrApproverId: hrUser?.id
+                hrApproverId
             });
 
             if (res.status === 200) {
                 const updated = res.data;
                 setRequests((prev) =>
-                    prev.map((req) => req.id === requestId ? { ...req, status: updated.status, hrApproverId: updated.hrApproverId } : req)
+                    prev.map((r) =>
+                        r.id === requestId
+                            ? { ...r, status: updated.status, hrApproverId: updated.hrApproverId }
+                            : r
+                    )
                 );
                 refreshData();
 
                 addNotification({
                     type: 'LeaveStatusUpdate',
-                    targetUserId: updated.employeeId, // Use ID from response
+                    targetUserId: updated.employeeId,
                     messageTitle: `Leave ${approve ? 'approved' : 'rejected'}`,
                     messageBody: `HR ${approve ? 'approved' : 'rejected'} leave request`,
                     status: 'Pending',
                     channel: 'Popup',
                 });
+
+                showToast?.success(`Leave ${approve ? 'approved' : 'rejected'} successfully.`);
+            } else {
+                // rollback if needed
+                setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'Submitted' } : r));
+                showToast?.error('Action failed. Please try again.');
             }
         } catch (e) {
             console.error(e);
+            // rollback if needed
+            setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'Submitted' } : r));
+            showToast?.error('Error updating leave status.');
+        } finally {
+            endAction(requestId);
         }
     };
 
     const handleCancel = async (requestId: string) => {
+        if (processingActions[requestId]) return;
+
         const request = requests.find((req) => req.id === requestId);
         if (!request) return;
 
+        // Avoid cancelling already cancelled
+        if (request.status === 'Cancelled') return;
+
         try {
+            startAction(requestId);
+
+            // optimistic UI
+            setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'Cancelled' } : r));
+
             const res = await api.patch(`/api/leave/${requestId}/status`, {
                 status: 'Cancelled'
             });
 
             if (res.status === 200) {
-                const updated = res.data;
-                setRequests((prev) => prev.map((req) => (req.id === requestId ? { ...req, status: 'Cancelled' } : req)));
                 refreshData();
 
                 addNotification({
@@ -311,9 +345,20 @@ const LeaveManagement: React.FC = () => {
                     status: 'Pending',
                     channel: 'Popup',
                 });
+
+                showToast.success('Leave cancelled.');
+            } else {
+                // rollback
+                setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: request.status } : r));
+                showToast?.error('Cancel failed. Please try again.', 'error');
             }
         } catch (e) {
             console.error(e);
+            // rollback
+            setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: request.status } : r));
+            showToast?.error('Error cancelling leave.', 'error');
+        } finally {
+            endAction(requestId);
         }
     };
 
@@ -340,6 +385,7 @@ const LeaveManagement: React.FC = () => {
         });
         setShowHolidayEditor(false);
         setHolidayForm((prev) => ({ ...prev, title: '', date: formatDate(addDays(new Date(), 1)) }));
+        showToast?.info('Holiday added.');
     };
 
     const priorities: LeaveType[] = ['CL', 'EL', 'SL'];
@@ -466,18 +512,21 @@ const LeaveManagement: React.FC = () => {
             newStatus: 'HR_Approved',
             remarks: `Policy updated to EL:${policyForm.EL}, CL:${policyForm.CL}, SL:${policyForm.SL}`,
         });
-        allEmployees.forEach((employee) =>
+
+        allEmployees.forEach((employee) => {
+            const targetUserId = employee.employee_id ?? employee._id ?? employee.id;
             addNotification({
                 type: 'LeaveStatusUpdate',
-                targetUserId: employee._id,
+                targetUserId,
                 messageTitle: 'Policy updated',
                 messageBody: `Leave allocations changed to EL:${policyForm.EL}, CL:${policyForm.CL}, SL:${policyForm.SL}`,
                 status: 'Pending',
                 channel: 'Popup',
-            }),
-        );
+            });
+        });
+
         setShowPolicyEditor(false);
-        setShowPolicyEditor(false);
+        showToast?.success('Leave policy updated.');
     };
 
     const stats = useMemo(() => {
@@ -502,6 +551,7 @@ const LeaveManagement: React.FC = () => {
                 yearly: Record<LeaveType, number>;
             }
         > = {};
+
         allEmployees.forEach((emp) => {
             if (emp.employee_id) {
                 record[emp.employee_id] = {
@@ -527,31 +577,47 @@ const LeaveManagement: React.FC = () => {
             const year = start.getFullYear();
             const target = record[req.employeeId];
             if (!target) return;
-            // Removed adding to yearly as now yearly means AVAILABLE
+
             if (year === currentYear && month === currentMonth) {
                 target.monthly[req.leaveType] += req.totalDays;
             }
         });
+
         return Object.values(record);
     }, [requests, allEmployees, balances]);
 
     const [showNotifications, setShowNotifications] = useState(false);
 
+    // Tab Styles
+    const tabBase = "!px-4 !py-2 !rounded-full !text-sm !font-semibold !transition-all";
+    const tabActive = "!bg-[#0f172a] !text-white !shadow";
+    const tabInactive = "!bg-transparent !text-[#475569] !hover:bg-white/70";
+
+    // Button Styles
+    const btnBase = "!inline-flex !items-center !justify-center !rounded-full !text-xs !font-semibold !px-3 !py-2 !transition-all !disabled:opacity-60 !disabled:cursor-not-allowed";
+
+    const btnOutline = "!border !border-[#cbd5e1] !text-[#334155] !hover:bg-[#f8fafc]";
+    const btnApprove = "!bg-[#059669] !text-white !hover:bg-[#047857]";
+    const btnReject = "!bg-[#e11d48] !text-white !hover:bg-[#be123c]";
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
-            <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+            <div className="max-w-6xl mx-8 px-4 py-8 space-y-6">
 
+                {/* Top Bar */}
                 <div className="flex justify-between items-center bg-white rounded-2xl px-6 py-4 shadow">
-                    <div className="flex gap-2">
+                    {/* Modern Tabs */}
+                    <div className="bg-slate-100 p-1 rounded-full flex gap-1">
                         <button
-                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${page === 'Employee' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            className={`${tabBase} ${page === 'Employee' ? tabActive : tabInactive}`}
                             onClick={() => setPage('Employee')}
                         >
                             My Leaves
                         </button>
+
                         {user?.role === 'admin' && (
                             <button
-                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${page === 'HR' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                className={`${tabBase} ${page === 'HR' ? tabActive : tabInactive}`}
                                 onClick={() => setPage('HR')}
                             >
                                 HR Dashboard
@@ -559,6 +625,7 @@ const LeaveManagement: React.FC = () => {
                         )}
                     </div>
 
+                    {/* Notifications */}
                     <div className="relative">
                         <button
                             className="relative p-2 rounded-full hover:bg-slate-100 transition-colors"
@@ -571,6 +638,7 @@ const LeaveManagement: React.FC = () => {
                                 </span>
                             ) : null}
                         </button>
+
                         {showNotifications && userNotifications.length ? (
                             <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden">
                                 <div className="bg-slate-50 px-4 py-2 border-b text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -598,12 +666,13 @@ const LeaveManagement: React.FC = () => {
                                 <p className="text-sm text-slate-500">Manage your leaves and holidays</p>
                             </div>
                             <button
-                                className="px-4 py-2 rounded-full border border-slate-300 text-sm font-semibold"
+                                className={`${btnBase} ${btnOutline}`}
                                 onClick={() => setShowHolidayPanel((prev) => !prev)}
                             >
                                 {showHolidayPanel ? 'Hide holidays' : 'Show holidays'}
                             </button>
                         </div>
+
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                             <div className="space-y-4">
                                 <section className="grid gap-4 sm:grid-cols-3">
@@ -623,6 +692,7 @@ const LeaveManagement: React.FC = () => {
                                         <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Apply leave</p>
                                         <h2 className="text-lg font-semibold">Submit a request</h2>
                                     </div>
+
                                     <div className="grid gap-3 sm:grid-cols-3">
                                         <select
                                             value={leaveType}
@@ -633,12 +703,14 @@ const LeaveManagement: React.FC = () => {
                                             <option value="CL">Casual</option>
                                             <option value="SL">Sick</option>
                                         </select>
+
                                         <input
                                             type="date"
                                             value={fromDate}
                                             onChange={(event) => setFromDate(event.target.value)}
                                             className="border rounded-2xl px-3 py-2"
                                         />
+
                                         <input
                                             type="date"
                                             value={toDate}
@@ -646,20 +718,24 @@ const LeaveManagement: React.FC = () => {
                                             className="border rounded-2xl px-3 py-2"
                                         />
                                     </div>
+
                                     <textarea
                                         className="w-full border rounded-2xl px-3 py-2 min-h-[80px]"
                                         placeholder="Reason"
                                         value={reason}
                                         onChange={(event) => setReason(event.target.value)}
                                     />
+
                                     <button
-                                        className="bg-slate-900 text-white px-5 py-2 rounded-2xl text-sm font-semibold"
+                                        className="bg-slate-900 text-white px-5 py-2 rounded-2xl text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                                         onClick={handleLeaveSubmit}
+                                        disabled={submittingLeave}
                                     >
-                                        Submit leave
+                                        {submittingLeave ? 'Submitting...' : 'Submit leave'}
                                     </button>
                                 </section>
                             </div>
+
                             <aside className="space-y-3">
                                 {showHolidayPanel ? (
                                     <section className="bg-white rounded-2xl border border-slate-200 shadow p-5 space-y-3 sticky top-6">
@@ -724,10 +800,15 @@ const LeaveManagement: React.FC = () => {
                                 )}
                             </aside>
                         </div>
+
                         <section className="bg-white rounded-2xl border border-slate-200 shadow p-5 space-y-3">
                             <div className="flex items-center justify-between">
                                 <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Leave history</p>
-                                <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value as LeaveStatus | '')} className="border rounded-full px-3 py-1 text-xs">
+                                <select
+                                    value={filterStatus}
+                                    onChange={(event) => setFilterStatus(event.target.value as LeaveStatus | '')}
+                                    className="border rounded-full px-3 py-1 text-xs"
+                                >
                                     <option value="">All statuses</option>
                                     {(['Submitted', 'HR_Approved', 'HR_Rejected', 'Cancelled', 'AutoProcessed'] as LeaveStatus[]).map((status) => (
                                         <option key={status} value={status}>
@@ -736,6 +817,7 @@ const LeaveManagement: React.FC = () => {
                                     ))}
                                 </select>
                             </div>
+
                             <div className="space-y-3">
                                 {filtered.length ? (
                                     filtered.map((request) => (
@@ -765,36 +847,58 @@ const LeaveManagement: React.FC = () => {
                                 <p className="text-xs uppercase tracking-[0.4em] text-slate-500">HR inbox</p>
                                 <p className="text-sm text-slate-500">{hrPending.length} pending</p>
                             </div>
+
                             <div className="space-y-3">
                                 {hrPending.length ? (
-                                    hrPending.map((request) => (
-                                        <article
-                                            key={request.id}
-                                            className="border border-slate-100 rounded-2xl p-4 space-y-3 bg-gradient-to-tr from-white via-slate-50 to-white shadow-sm"
-                                        >
-                                            <div className="flex justify-between">
-                                                <p className="font-semibold">
-                                                    {console.log(request)}
-                                                    {allEmployees.find((emp) => emp.employee_id == request.employeeId)?.first_name} {allEmployees.find((emp) => emp.employee_id == request.employeeId)?.last_name} • {request.leaveType}
+                                    hrPending.map((request) => {
+                                        const busy = !!processingActions[request.id];
+                                        const emp = allEmployees.find((e) => e.employee_id == request.employeeId);
+                                        const empName = emp ? `${emp.first_name ?? ''} ${emp.last_name ?? ''}`.trim() : request.employeeId;
+
+                                        return (
+                                            <article
+                                                key={request.id}
+                                                className="border border-slate-100 rounded-2xl p-4 space-y-3 bg-gradient-to-tr from-white via-slate-50 to-white shadow-sm"
+                                            >
+                                                <div className="flex justify-between gap-4">
+                                                    <p className="font-semibold">
+                                                        {empName} • {request.leaveType}
+                                                    </p>
+                                                    <span className="text-xs uppercase text-slate-500">{request.totalDays}d</span>
+                                                </div>
+
+                                                <p className="text-xs text-slate-500">
+                                                    {request.startDate} → {request.endDate}
                                                 </p>
-                                                <span className="text-xs uppercase text-slate-500">{request.totalDays}d</span>
-                                            </div>
-                                            <p className="text-xs text-slate-500">
-                                                {request.startDate} → {request.endDate}
-                                            </p>
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-semibold" onClick={() => handleHrDecision(request.id, true)}>
-                                                    Approve
-                                                </button>
-                                                <button className="px-3 py-1 rounded-full bg-rose-500 text-white text-xs font-semibold" onClick={() => handleHrDecision(request.id, false)}>
-                                                    Reject
-                                                </button>
-                                                <button className="px-3 py-1 rounded-full border border-slate-300 text-xs font-semibold" onClick={() => handleCancel(request.id)}>
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        </article>
-                                    ))
+
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        className={`${btnBase} ${btnApprove}`}
+                                                        onClick={() => handleHrDecision(request.id, true)}
+                                                        disabled={busy}
+                                                    >
+                                                        {busy ? 'Processing...' : 'Approve'}
+                                                    </button>
+
+                                                    <button
+                                                        className={`${btnBase} ${btnReject}`}
+                                                        onClick={() => handleHrDecision(request.id, false)}
+                                                        disabled={busy}
+                                                    >
+                                                        {busy ? 'Processing...' : 'Reject'}
+                                                    </button>
+
+                                                    <button
+                                                        className={`${btnBase} ${btnOutline}`}
+                                                        onClick={() => handleCancel(request.id)}
+                                                        disabled={busy}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </article>
+                                        );
+                                    })
                                 ) : (
                                     <p className="text-sm text-slate-500">No pending leaves.</p>
                                 )}
@@ -803,15 +907,16 @@ const LeaveManagement: React.FC = () => {
 
                         <section className="grid gap-4 lg:grid-cols-2">
                             <article className="bg-white rounded-2xl border border-slate-200 shadow p-5 space-y-4">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between gap-3">
                                     <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Holiday calendar</p>
                                     <button
-                                        className="text-xs uppercase tracking-[0.3em] font-semibold text-slate-500"
+                                        className={`${btnBase} ${btnOutline}`}
                                         onClick={() => setShowHolidayEditor((prev) => !prev)}
                                     >
-                                        {showHolidayEditor ? 'Close editor' : 'New holiday'}
+                                        {showHolidayEditor ? 'Close' : 'New holiday'}
                                     </button>
                                 </div>
+
                                 <div className="space-y-3 text-sm">
                                     {holidays.map((holiday) => (
                                         <div key={holiday.id} className="flex justify-between items-center rounded-2xl border border-dashed border-slate-100 px-4 py-3">
@@ -834,6 +939,7 @@ const LeaveManagement: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
+
                                 {showHolidayEditor && (
                                     <div className="space-y-2 text-sm">
                                         <input
@@ -850,7 +956,7 @@ const LeaveManagement: React.FC = () => {
                                             onChange={(event) => setHolidayForm((prev) => ({ ...prev, date: event.target.value }))}
                                         />
                                         <button
-                                            className="bg-slate-900 text-white rounded-2xl px-4 py-2 uppercase tracking-[0.3em] text-xs"
+                                            className="bg-slate-900 text-white rounded-2xl px-4 py-2 text-xs font-semibold"
                                             onClick={handleHolidayCreate}
                                         >
                                             Save holiday
@@ -858,16 +964,18 @@ const LeaveManagement: React.FC = () => {
                                     </div>
                                 )}
                             </article>
+
                             <article className="bg-white rounded-2xl border border-slate-200 shadow p-5 space-y-4">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between gap-3">
                                     <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Leave policy</p>
                                     <button
-                                        className="text-xs uppercase tracking-[0.3em] font-semibold text-slate-500"
+                                        className={`${btnBase} ${btnOutline}`}
                                         onClick={() => setShowPolicyEditor((prev) => !prev)}
                                     >
-                                        {showPolicyEditor ? 'Close editor' : 'Edit policy'}
+                                        {showPolicyEditor ? 'Close' : 'Edit policy'}
                                     </button>
                                 </div>
+
                                 <div className="space-y-3 text-sm">
                                     <div className="flex justify-between bg-emerald-50 rounded-2xl px-4 py-3">
                                         <p className="font-semibold">Earned</p>
@@ -882,6 +990,7 @@ const LeaveManagement: React.FC = () => {
                                         <span className="text-xs text-rose-700">SL {leavePolicy.SL} days</span>
                                     </div>
                                 </div>
+
                                 {showPolicyEditor && (
                                     <div className="space-y-3 text-sm">
                                         <div className="grid gap-3 sm:grid-cols-3">
@@ -904,8 +1013,9 @@ const LeaveManagement: React.FC = () => {
                                                 onChange={(event) => setPolicyForm((prev) => ({ ...prev, SL: Number(event.target.value) }))}
                                             />
                                         </div>
+
                                         <button
-                                            className="bg-slate-900 text-white rounded-2xl px-4 py-2 uppercase tracking-[0.3em] text-xs"
+                                            className="bg-slate-900 text-white rounded-2xl px-4 py-2 text-xs font-semibold"
                                             onClick={applyPolicyChanges}
                                         >
                                             Save policy
@@ -921,6 +1031,7 @@ const LeaveManagement: React.FC = () => {
                                     <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Analytics</p>
                                     <p className="text-xs text-slate-400">Month vs year per employee</p>
                                 </div>
+
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead className="text-left text-[10px] uppercase tracking-[0.4em] text-slate-400">
@@ -936,8 +1047,8 @@ const LeaveManagement: React.FC = () => {
                                         </thead>
                                         <tbody className="text-slate-600">
                                             {analyticsByEmployeeCorrected.map((row) => (
-                                                <tr key={row.employee.id} className="border-t border-slate-100">
-                                                    <td className="py-3 font-semibold">{row.employee.first_name + " " + row.employee.last_name}</td>
+                                                <tr key={row.employee.id ?? row.employee.employee_id} className="border-t border-slate-100">
+                                                    <td className="py-3 font-semibold">{(row.employee.first_name ?? '') + " " + (row.employee.last_name ?? '')}</td>
                                                     <td className="py-3 text-center">{row.monthly.EL}</td>
                                                     <td className="py-3 text-center">{row.monthly.CL}</td>
                                                     <td className="py-3 text-center">{row.monthly.SL}</td>
@@ -950,6 +1061,7 @@ const LeaveManagement: React.FC = () => {
                                     </table>
                                 </div>
                             </article>
+
                             <article className="bg-white rounded-2xl border border-slate-200 shadow p-5 space-y-3">
                                 <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Audit log</p>
                                 <div className="space-y-2 text-sm">
@@ -974,4 +1086,3 @@ const LeaveManagement: React.FC = () => {
 };
 
 export default LeaveManagement;
-
