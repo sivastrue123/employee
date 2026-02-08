@@ -286,7 +286,7 @@ const WorkItems: React.FC = () => {
       notes: worklogForm.description,
       activityType: worklogForm.activityType,
       date: worklogForm.date,
-    });
+    } as any);
     resetWorklogForm();
   };
 
@@ -381,13 +381,13 @@ const WorkItems: React.FC = () => {
               type="text"
               value={detailForm.title}
               onChange={(event) => handleDetailChange('title', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
               placeholder="Title"
             />
             <select
               value={detailForm.status}
               onChange={(event) => handleDetailChange('status', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             >
               {WORK_ITEM_STATUSES.map((status) => (
                 <option key={status} value={status}>
@@ -398,7 +398,7 @@ const WorkItems: React.FC = () => {
             <select
               value={detailForm.priority}
               onChange={(event) => handleDetailChange('priority', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             >
               <option value="P0">P0</option>
               <option value="P1">P1</option>
@@ -409,14 +409,14 @@ const WorkItems: React.FC = () => {
           <textarea
             value={detailForm.description}
             onChange={(event) => handleDetailChange('description', event.target.value)}
-            className="border rounded-2xl px-3 py-2 text-sm w-full min-h-[120px]"
+            className="!border !rounded-2xl !px-3 !py-2 !text-sm !w-full !min-h-[120px]"
             placeholder="Description"
           />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <select
               value={detailForm.ownerId}
               onChange={(event) => handleDetailChange('ownerId', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             >
               <option value="">Owner</option>
               {detailTeamMembers.length > 0 && (
@@ -442,12 +442,12 @@ const WorkItems: React.FC = () => {
               type="date"
               value={detailForm.dueDate}
               onChange={(event) => handleDetailChange('dueDate', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             />
             <select
               value={detailForm.department}
               onChange={(event) => handleDetailChange('department', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             >
               <option value="">Department</option>
               {departments.map((dept) => (
@@ -459,7 +459,7 @@ const WorkItems: React.FC = () => {
             <select
               value={detailForm.slaPolicyId}
               onChange={(event) => handleDetailChange('slaPolicyId', event.target.value)}
-              className="border rounded-2xl px-3 py-2 text-sm"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             >
               <option value="">SLA policy</option>
               {slaPolicies.map((policy) => (
@@ -473,7 +473,7 @@ const WorkItems: React.FC = () => {
             <select
               value={selectedWorkItem.teamId}
               disabled
-              className="border rounded-2xl px-3 py-2 text-sm bg-slate-50"
+              className="!border !rounded-2xl !px-3 !py-2 !text-sm !bg-slate-50"
             >
               {teams
                 .filter((team) => team.id === selectedWorkItem.teamId)
@@ -487,7 +487,7 @@ const WorkItems: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="px-4 py-2 rounded-full text-sm font-semibold shadow transition"
+              className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition"
               style={{
                 backgroundColor: designTokens.colors.accent,
                 borderColor: designTokens.colors.accent,
@@ -499,7 +499,7 @@ const WorkItems: React.FC = () => {
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+              className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !border !border-slate-200 !text-slate-600"
             >
               Cancel
             </button>
@@ -524,7 +524,7 @@ const WorkItems: React.FC = () => {
                     setShowWorklogForm(true);
                     setTimeout(() => worklogFormRef.current?.scrollIntoView({ behavior: 'smooth' }), 20);
                   }}
-                  className="px-3 py-1 text-xs font-semibold bg-slate-900 text-white rounded-full flex items-center gap-2 whitespace-nowrap"
+                  className="!px-3 !py-1 !text-xs !font-semibold !bg-slate-900 !text-white !rounded-full !flex !items-center !gap-2 !whitespace-nowrap"
                 >
                   <PlusIcon />
                   Add work log
@@ -540,7 +540,7 @@ const WorkItems: React.FC = () => {
                     <select
                       value={worklogForm.activityType}
                       onChange={(event) => handleWorklogField('activityType', event.target.value)}
-                      className="border rounded-2xl px-3 py-2 text-sm bg-white"
+                      className="!border !rounded-2xl !px-3 !py-2 !text-sm !bg-white"
                     >
                       {worklogActivities.map((activity) => (
                         <option key={activity} value={activity}>
@@ -557,7 +557,7 @@ const WorkItems: React.FC = () => {
                       step="0.25"
                       value={worklogForm.hours}
                       onChange={(event) => handleWorklogField('hours', event.target.value)}
-                      className="border rounded-2xl px-3 py-2 text-sm bg-white"
+                      className="!border !rounded-2xl !px-3 !py-2 !text-sm !bg-white"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
@@ -566,7 +566,7 @@ const WorkItems: React.FC = () => {
                       type="date"
                       value={worklogForm.date}
                       onChange={(event) => handleWorklogField('date', event.target.value)}
-                      className="border rounded-2xl px-3 py-2 text-sm bg-white"
+                      className="!border !rounded-2xl !px-3 !py-2 !text-sm !bg-white"
                     />
                   </div>
                 </div>
@@ -575,21 +575,21 @@ const WorkItems: React.FC = () => {
                   <textarea
                     value={worklogForm.description}
                     onChange={(event) => handleWorklogField('description', event.target.value)}
-                    className="border rounded-2xl px-3 py-2 text-sm w-full min-h-[80px]"
+                    className="!border !rounded-2xl !px-3 !py-2 !text-sm !w-full !min-h-[80px]"
                     placeholder="Describe the work done..."
                   />
                 </label>
                 <div className="flex justify-end gap-3">
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-full text-sm font-semibold shadow transition bg-slate-900 text-white"
+                    className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition !bg-slate-900 !text-white"
                   >
                     Add log
                   </button>
                   <button
                     type="button"
                     onClick={resetWorklogForm}
-                    className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+                    className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !border !border-slate-200 !text-slate-600"
                   >
                     Cancel
                   </button>
@@ -623,7 +623,7 @@ const WorkItems: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowActionForm(true)}
-              className="px-3 py-1 rounded-full text-xs font-semibold shadow bg-slate-900 text-white flex items-center gap-2 whitespace-nowrap"
+              className="!px-3 !py-1 !rounded-full !text-xs !font-semibold !shadow !bg-slate-900 !text-white !flex !items-center !gap-2 !whitespace-nowrap"
             >
               <PlusIcon />
               Add action item
@@ -648,7 +648,7 @@ const WorkItems: React.FC = () => {
                   type="text"
                   value={actionItemForm.description}
                   onChange={(event) => handleActionItemField('description', event.target.value)}
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   placeholder="Action item description"
                 />
                 <label className="text-xs text-slate-500 space-y-1">
@@ -656,7 +656,7 @@ const WorkItems: React.FC = () => {
                   <select
                     value={actionItemForm.assigneeId}
                     onChange={(event) => handleActionItemField('assigneeId', event.target.value)}
-                    className="border rounded-2xl px-3 py-2 text-sm"
+                    className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   >
                     <option value="">Select team member</option>
                     <optgroup label="All Users">
@@ -672,7 +672,7 @@ const WorkItems: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-full text-sm font-semibold shadow transition flex items-center gap-2 whitespace-nowrap"
+                  className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition !flex !items-center !gap-2 !whitespace-nowrap"
                   style={{
                     backgroundColor: designTokens.colors.accent,
                     borderColor: designTokens.colors.accent,
@@ -685,7 +685,7 @@ const WorkItems: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCancelActionForm}
-                  className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+                  className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !border !border-slate-200 !text-slate-600"
                 >
                   Cancel
                 </button>
@@ -704,7 +704,7 @@ const WorkItems: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowChecklistForm(true)}
-              className="px-3 py-1 rounded-full text-xs font-semibold shadow bg-slate-900 text-white flex items-center gap-2 whitespace-nowrap"
+              className="!px-3 !py-1 !rounded-full !text-xs !font-semibold !shadow !bg-slate-900 !text-white !flex !items-center !gap-2 !whitespace-nowrap"
             >
               <PlusIcon />
               Add checklist item
@@ -724,7 +724,7 @@ const WorkItems: React.FC = () => {
                       type="checkbox"
                       checked={entry.completed}
                       onChange={() => handleChecklistToggle(entry.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-700 accent-teal-500"
+                      className="!h-4 !w-4 !rounded !border-slate-300 !text-slate-700 !accent-teal-500"
                     />
                     <span className="font-semibold text-slate-700">{entry.title}</span>
                   </div>
@@ -732,7 +732,7 @@ const WorkItems: React.FC = () => {
                     <select
                       value={entry.assigneeId ?? ''}
                       onChange={(event) => handleChecklistAssign(entry.id, event.target.value)}
-                      className="border rounded-full px-2 py-1 text-[11px] text-slate-600"
+                      className="!border !rounded-full !px-2 !py-1 !text-[11px] !text-slate-600"
                     >
                       <option value="">Unassigned</option>
                       {uniqueUsers.map((user) => (
@@ -759,13 +759,13 @@ const WorkItems: React.FC = () => {
                   type="text"
                   value={checklistForm.title}
                   onChange={(event) => handleChecklistFormField('title', event.target.value)}
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   placeholder="New checklist item"
                 />
                 <select
                   value={checklistForm.assigneeId}
                   onChange={(event) => handleChecklistFormField('assigneeId', event.target.value)}
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                 >
                   <option value="">Assign to</option>
                   {uniqueUsers.map((user) => (
@@ -778,7 +778,7 @@ const WorkItems: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-full text-sm font-semibold shadow transition flex items-center gap-2 whitespace-nowrap"
+                  className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition !flex !items-center !gap-2 !whitespace-nowrap"
                   style={{
                     backgroundColor: designTokens.colors.accent,
                     borderColor: designTokens.colors.accent,
@@ -791,7 +791,7 @@ const WorkItems: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCancelChecklistForm}
-                  className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+                  className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !border !border-slate-200 !text-slate-600"
                 >
                   Cancel
                 </button>
@@ -819,7 +819,7 @@ const WorkItems: React.FC = () => {
         </div>
         <div className="flex justify-end">
           <button
-            className="px-4 py-2 rounded-full text-sm font-semibold shadow transition"
+            className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition"
             onClick={() => setShowForm((prev) => !prev)}
             style={{
               backgroundColor: designTokens.colors.accent,
@@ -898,7 +898,7 @@ const WorkItems: React.FC = () => {
             <button
               type="button"
               aria-label="Table view"
-              className="px-4 py-2 rounded-full text-sm font-semibold shadow border"
+              className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !border"
               onClick={() => setViewMode('table')}
               style={viewButtonStyle('table')}
             >
@@ -909,7 +909,7 @@ const WorkItems: React.FC = () => {
             <button
               type="button"
               aria-label="Kanban view"
-              className="px-4 py-2 rounded-full text-sm font-semibold shadow border"
+              className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !border"
               onClick={() => setViewMode('kanban')}
               style={viewButtonStyle('kanban')}
             >

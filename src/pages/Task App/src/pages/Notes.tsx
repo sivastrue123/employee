@@ -66,7 +66,7 @@ const Notes: React.FC = () => {
         </div>
         <div className="flex justify-end">
           <button
-            className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold shadow"
+            className="!px-4 !py-2 !rounded-full !bg-slate-900 !text-white !text-sm !font-semibold !shadow"
             onClick={() => setShowNoteForm((prev) => !prev)}
           >
             + New Note
@@ -74,7 +74,7 @@ const Notes: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <select
-            className="border rounded-2xl px-3 py-2 text-sm"
+            className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             value={filters.type}
             onChange={(event) => setFilters((prev) => ({ ...prev, type: event.target.value }))}
           >
@@ -87,27 +87,27 @@ const Notes: React.FC = () => {
           </select>
           <input
             type="text"
-            className="border rounded-2xl px-3 py-2 text-sm"
+            className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             placeholder="Search keywords"
             value={filters.keyword}
             onChange={(event) => setFilters((prev) => ({ ...prev, keyword: event.target.value }))}
           />
           <input
             type="date"
-            className="border rounded-2xl px-3 py-2 text-sm"
+            className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             value={dateRange.from}
             onChange={(event) => setDateRange((prev) => ({ ...prev, from: event.target.value }))}
           />
           <input
             type="date"
-            className="border rounded-2xl px-3 py-2 text-sm"
+            className="!border !rounded-2xl !px-3 !py-2 !text-sm"
             value={dateRange.to}
             onChange={(event) => setDateRange((prev) => ({ ...prev, to: event.target.value }))}
           />
           <button
             type="button"
             onClick={() => setFilters({ type: '', keyword: '' })}
-            className="text-sm font-semibold text-indigo-600"
+            className="!text-sm !font-semibold !text-indigo-600"
           >
             Reset filters
           </button>
@@ -131,7 +131,7 @@ const Notes: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedNote(null)}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600"
+            className="!inline-flex !items-center !gap-2 !text-sm !font-semibold !text-slate-600"
           >
             <span aria-hidden>←</span>
             Back to notes
@@ -191,12 +191,12 @@ const Notes: React.FC = () => {
             </div>
           </section>
           <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-slate-900">Action Items</h3>
               <button
                 type="button"
                 onClick={() => setShowTaskForm(true)}
-                className="px-3 py-1 rounded-full text-xs font-semibold shadow bg-slate-900 text-white flex items-center gap-2"
+                className="!px-3 !py-1 !rounded-full !text-xs !font-semibold !shadow !bg-slate-900 !text-white !flex !items-center !gap-2"
               >
                 <span className="h-3 w-3" aria-hidden>+</span>
                 Create task
@@ -224,14 +224,14 @@ const Notes: React.FC = () => {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="px-3 py-1 text-xs font-semibold rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
+                          className="!px-3 !py-1 !text-xs !font-semibold !rounded-full !border !border-slate-200 !text-slate-600 hover:!bg-slate-100 !transition"
                           onClick={openWorkItem}
                         >
                           View
                         </button>
                         <button
                           type="button"
-                          className="px-3 py-1 text-xs font-semibold rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition"
+                          className="!px-3 !py-1 !text-xs !font-semibold !rounded-full !border !border-indigo-200 !bg-indigo-50 !text-indigo-600 hover:!bg-indigo-100 !transition"
                           onClick={openWorkItem}
                         >
                           Edit
@@ -252,7 +252,7 @@ const Notes: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowTaskForm(false)}
-                  className="px-3 py-1 rounded-full text-xs font-semibold text-slate-600 border border-slate-200"
+                  className="!px-3 !py-1 !rounded-full !text-xs !font-semibold !text-slate-600 !border !border-slate-200"
                 >
                   Close
                 </button>
@@ -312,7 +312,7 @@ const Notes: React.FC = () => {
                           <span className="text-xs text-slate-400">{new Date(note.dateTime).toLocaleDateString()}</span>
                           <button
                             type="button"
-                            className="text-xs font-semibold text-indigo-600 underline"
+                            className="!text-xs !font-semibold !text-indigo-600 !underline"
                             onClick={(event) => {
                               event.stopPropagation();
                               setEditingNoteId(note.id);
@@ -369,10 +369,10 @@ const Notes: React.FC = () => {
               </div>
             )}
           </section>
-      {hasMoreNotes && (
+          {hasMoreNotes && (
             <div className="flex justify-center">
               <button
-                className="px-4 py-2 rounded-full border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
+                className="!px-4 !py-2 !rounded-full !border !border-slate-300 !text-sm !font-semibold !text-slate-700 hover:!bg-slate-100 !transition"
                 onClick={() => setNotePage((prev) => prev + 1)}
               >
                 Load more notes

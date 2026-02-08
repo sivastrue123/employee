@@ -83,7 +83,7 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
       tags: [],
       components: [],
       environment: form.environment,
-    department: form.department || undefined,
+      department: form.department || undefined,
       dependencies: [],
       attachments: [],
       checklist: [],
@@ -132,13 +132,13 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
           <p className="text-lg font-semibold text-slate-900">Quick work item</p>
           <p className="text-xs text-slate-500">Create a new entry for the unified backlog.</p>
         </div>
-        <button type="submit" className="px-4 py-2 bg-slate-900 text-white text-sm font-semibold rounded-full">
+        <button type="submit" className="!px-4 !py-2 !bg-slate-900 !text-white !text-sm !font-semibold !rounded-full">
           Save
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <select
-          className="border rounded-xl px-3 py-2 text-sm"
+          className="!border !rounded-xl !px-3 !py-2 !text-sm"
           value={form.workItemType}
           onChange={(e) => handleChange('workItemType', e.target.value as WorkItemType)}
         >
@@ -152,7 +152,7 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
           <option value="DiscussionAction">Discussion Action</option>
         </select>
         <select
-          className="border rounded-xl px-3 py-2 text-sm"
+          className="!border !rounded-xl !px-3 !py-2 !text-sm"
           value={form.priority}
           onChange={(e) => handleChange('priority', e.target.value as WorkItemPriority)}
         >
@@ -162,7 +162,7 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
           <option value="P3">P3</option>
         </select>
         <select
-          className="border rounded-xl px-3 py-2 text-sm"
+          className="!border !rounded-xl !px-3 !py-2 !text-sm"
           value={form.status}
           onChange={(e) => handleChange('status', e.target.value as WorkItemStatus)}
         >
@@ -177,21 +177,21 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
       <input
         ref={titleRef}
         type="text"
-        className="border rounded-2xl px-3 py-2 text-sm w-full"
+        className="!border !rounded-2xl !px-3 !py-2 !text-sm !w-full"
         placeholder="Title"
         value={form.title}
         onChange={(e) => handleChange('title', e.target.value)}
         required
       />
       <textarea
-        className="border rounded-2xl px-3 py-2 text-sm w-full resize-none min-h-[80px]"
+        className="!border !rounded-2xl !px-3 !py-2 !text-sm !w-full !resize-none !min-h-[80px]"
         placeholder="Description"
         value={form.description}
         onChange={(e) => handleChange('description', e.target.value)}
       />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
         <select
-          className="border rounded-xl px-3 py-2"
+          className="!border !rounded-xl !px-3 !py-2"
           value={form.teamId}
           onChange={(e) => handleChange('teamId', e.target.value)}
         >
@@ -202,7 +202,7 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
           ))}
         </select>
         <select
-          className="border rounded-xl px-3 py-2"
+          className="!border !rounded-xl !px-3 !py-2"
           value={form.ownerId}
           onChange={(e) => handleChange('ownerId', e.target.value)}
         >
@@ -214,7 +214,7 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
           ))}
         </select>
         <select
-          className="border rounded-xl px-3 py-2"
+          className="!border !rounded-xl !px-3 !py-2"
           value={form.slaPolicyId}
           onChange={(e) => handleChange('slaPolicyId', e.target.value)}
         >
@@ -225,7 +225,7 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
           ))}
         </select>
         <select
-          className="border rounded-xl px-3 py-2"
+          className="!border !rounded-xl !px-3 !py-2"
           value={form.department}
           onChange={(e) => handleChange('department', e.target.value)}
         >
@@ -240,14 +240,14 @@ const WorkItemForm: React.FC<WorkItemFormProps> = ({ teams, users, slaPolicies, 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
         <input
           type="date"
-          className="border rounded-2xl px-3 py-2"
+          className="!border !rounded-2xl !px-3 !py-2"
           value={form.dueDate}
           onChange={(e) => handleChange('dueDate', e.target.value)}
         />
         <input
           type="number"
           min={0}
-          className="border rounded-2xl px-3 py-2"
+          className="!border !rounded-2xl !px-3 !py-2"
           value={form.effortEstimate}
           onChange={(e) => handleChange('effortEstimate', Number(e.target.value))}
         />

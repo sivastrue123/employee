@@ -42,7 +42,6 @@ const Settings: React.FC = () => {
     updateTeam,
     addSlaPolicy,
     updateSlaPolicy,
-    departments,
     users,
   } = useAppData();
   const [teamFilter, setTeamFilter] = useState('');
@@ -253,7 +252,7 @@ const Settings: React.FC = () => {
           <h2 className="text-lg font-semibold text-slate-900">Teams</h2>
           <button
             type="button"
-            className="px-4 py-2 rounded-full text-xs font-semibold shadow transition"
+            className="!px-4 !py-2 !rounded-full !text-xs !font-semibold !shadow !transition"
             style={{
               backgroundColor: designTokens.colors.accent,
               borderColor: designTokens.colors.accent,
@@ -266,7 +265,7 @@ const Settings: React.FC = () => {
         </div>
         <div className="flex flex-wrap gap-3 items-center text-sm">
           <input
-            className="border rounded-full px-3 py-2 text-sm w-full max-w-md"
+            className="!border !rounded-full !px-3 !py-2 !text-sm !w-full !max-w-md"
             placeholder="Filter teams (name/code/lead)"
             value={teamFilter}
             onChange={(event) => setTeamFilter(event.target.value)}
@@ -281,13 +280,13 @@ const Settings: React.FC = () => {
             {editingTeamId ? (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <input
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   placeholder="Team Name"
                   value={teamEntry.name}
                   onChange={(event) => handleTeamField('name', event.target.value)}
                 />
                 <select
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   value={teamEntry.leadId || ''}
                   onChange={(event) => handleTeamField('leadId', event.target.value)}
                 >
@@ -295,19 +294,19 @@ const Settings: React.FC = () => {
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
                 <input
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   placeholder="Department"
                   value={teamEntry.department}
                   onChange={(event) => handleTeamField('department', event.target.value)}
                 />
                 <input
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   placeholder="Key skills"
                   value={teamEntry.keyskills}
                   onChange={(event) => handleTeamField('keyskills', event.target.value)}
                 />
                 <select
-                  className="border rounded-2xl px-3 py-2 text-sm"
+                  className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                   value={teamEntry.status}
                   onChange={(event) => handleTeamField('status', event.target.value)}
                 >
@@ -321,13 +320,13 @@ const Settings: React.FC = () => {
                   <div key={`team-entry-${index}`} className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <input
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         placeholder="Team Name"
                         value={entry.name}
                         onChange={(event) => handleNewTeamField(index, 'name', event.target.value)}
                       />
                       <select
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         value={entry.leadId || ''}
                         onChange={(event) => handleNewTeamField(index, 'leadId', event.target.value)}
                       >
@@ -335,19 +334,19 @@ const Settings: React.FC = () => {
                         {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                       </select>
                       <input
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         placeholder="Department"
                         value={entry.department}
                         onChange={(event) => handleNewTeamField(index, 'department', event.target.value)}
                       />
                       <input
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         placeholder="Key skills"
                         value={entry.keyskills}
                         onChange={(event) => handleNewTeamField(index, 'keyskills', event.target.value)}
                       />
                       <select
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         value={entry.status}
                         onChange={(event) => handleNewTeamField(index, 'status', event.target.value)}
                       >
@@ -359,7 +358,7 @@ const Settings: React.FC = () => {
                       <div className="flex justify-end">
                         <button
                           type="button"
-                          className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                          className="!text-xs !font-semibold !text-slate-500 hover:!text-slate-900"
                           onClick={() => handleRemoveTeamEntryRow(index)}
                         >
                           Remove row
@@ -371,7 +370,7 @@ const Settings: React.FC = () => {
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-indigo-600"
+                    className="!text-xs !font-semibold !text-indigo-600"
                     onClick={handleAddTeamEntryRow}
                   >
                     Add another team member
@@ -382,7 +381,7 @@ const Settings: React.FC = () => {
             <div className="flex gap-3">
               <button
                 type="button"
-                className="px-4 py-2 rounded-full text-sm font-semibold shadow transition"
+                className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition"
                 style={{
                   backgroundColor: designTokens.colors.accent,
                   borderColor: designTokens.colors.accent,
@@ -394,7 +393,7 @@ const Settings: React.FC = () => {
               </button>
               <button
                 type="button"
-                className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+                className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !border !border-slate-200 !text-slate-600"
                 onClick={handleCancelTeam}
               >
                 Cancel
@@ -414,7 +413,7 @@ const Settings: React.FC = () => {
                     </div>
                     <button
                       type="button"
-                      className="text-xs font-semibold text-indigo-600"
+                      className="!text-xs !font-semibold !text-indigo-600"
                       onClick={() => handleEditTeam(team)}
                     >
                       Edit
@@ -432,7 +431,7 @@ const Settings: React.FC = () => {
             {hasMoreTeams && (
               <div className="flex justify-center">
                 <button
-                  className="px-4 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  className="!px-4 !py-2 !rounded-full !border !border-slate-200 !text-sm !font-semibold !text-slate-700 hover:!bg-slate-100"
                   onClick={() => setTeamPage((prev) => prev + 1)}
                 >
                   Load more teams
@@ -452,7 +451,7 @@ const Settings: React.FC = () => {
           <h2 className="text-lg font-semibold text-slate-900">SLA policies</h2>
           <button
             type="button"
-            className="px-4 py-2 rounded-full text-xs font-semibold shadow transition"
+            className="!px-4 !py-2 !rounded-full !text-xs !font-semibold !shadow !transition"
             style={{
               backgroundColor: designTokens.colors.accent,
               borderColor: designTokens.colors.accent,
@@ -472,13 +471,13 @@ const Settings: React.FC = () => {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <input
-                    className="border rounded-2xl px-3 py-2 text-sm"
+                    className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                     placeholder="Policy name"
                     value={policyEntry.name}
                     onChange={(event) => handlePolicyField('name', event.target.value)}
                   />
                   <input
-                    className="border rounded-2xl px-3 py-2 text-sm"
+                    className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                     placeholder="Applies to (comma separated)"
                     value={policyEntry.appliesTo}
                     onChange={(event) => handlePolicyField('appliesTo', event.target.value)}
@@ -492,7 +491,7 @@ const Settings: React.FC = () => {
                     min="0.25"
                     step="0.25"
                     pattern="^\d+(\.\d+)?$"
-                    className="border rounded-2xl px-3 py-2 w-full"
+                    className="!border !rounded-2xl !px-3 !py-2 !w-full"
                     value={slaTime}
                     onChange={(event) => setSlaTime(event.target.value)}
                     placeholder="hrs"
@@ -505,13 +504,13 @@ const Settings: React.FC = () => {
                   <div key={`policy-entry-${index}`} className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <input
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         placeholder="Policy name"
                         value={entry.name}
                         onChange={(event) => handleNewPolicyField(index, 'name', event.target.value)}
                       />
                       <input
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         placeholder="Applies to (comma separated)"
                         value={entry.appliesTo}
                         onChange={(event) => handleNewPolicyField(index, 'appliesTo', event.target.value)}
@@ -522,7 +521,7 @@ const Settings: React.FC = () => {
                         min="0.25"
                         step="0.25"
                         pattern="^\d+(\.\d+)?$"
-                        className="border rounded-2xl px-3 py-2 text-sm"
+                        className="!border !rounded-2xl !px-3 !py-2 !text-sm"
                         placeholder="SLA time (hrs)"
                         value={entry.slaTime}
                         onChange={(event) => handleNewPolicyField(index, 'slaTime', event.target.value)}
@@ -532,7 +531,7 @@ const Settings: React.FC = () => {
                       <div className="flex justify-end">
                         <button
                           type="button"
-                          className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                          className="!text-xs !font-semibold !text-slate-500 hover:!text-slate-900"
                           onClick={() => handleRemovePolicyEntryRow(index)}
                         >
                           Remove row
@@ -544,7 +543,7 @@ const Settings: React.FC = () => {
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-indigo-600"
+                    className="!text-xs !font-semibold !text-indigo-600"
                     onClick={handleAddPolicyEntryRow}
                   >
                     Add another policy
@@ -555,7 +554,7 @@ const Settings: React.FC = () => {
             <div className="flex gap-3">
               <button
                 type="button"
-                className="px-4 py-2 rounded-full text-sm font-semibold shadow transition"
+                className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !shadow !transition"
                 style={{
                   backgroundColor: designTokens.colors.accent,
                   borderColor: designTokens.colors.accent,
@@ -567,7 +566,7 @@ const Settings: React.FC = () => {
               </button>
               <button
                 type="button"
-                className="px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 text-slate-600"
+                className="!px-4 !py-2 !rounded-full !text-sm !font-semibold !border !border-slate-200 !text-slate-600"
                 onClick={handleCancelPolicy}
               >
                 Cancel
@@ -582,7 +581,7 @@ const Settings: React.FC = () => {
                 <p className="text-base font-semibold text-slate-900">{policy.name}</p>
                 <button
                   type="button"
-                  className="text-xs font-semibold text-indigo-600"
+                  className="!text-xs !font-semibold !text-indigo-600"
                   onClick={() => handleEditPolicy(policy)}
                 >
                   Edit
@@ -609,7 +608,7 @@ const Settings: React.FC = () => {
               </div>
               <button
                 onClick={() => toggleNotificationRule(rule.id, !rule.active)}
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${rule.active ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
+                className={`!px-3 !py-1 !text-xs !font-semibold !rounded-full ${rule.active ? '!bg-emerald-500 !text-white' : '!bg-slate-200 !text-slate-600'
                   }`}
               >
                 {rule.active ? 'Active' : 'Paused'}
